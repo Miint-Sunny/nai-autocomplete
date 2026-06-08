@@ -1,0 +1,101 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v1.5.1. Defaults to manifest.json version."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and upload release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read manifest version
+        id: manifest
+        shell: bash
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release metadata
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          MANIFEST_VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          elif [[ -n "$INPUT_TAG" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="v$MANIFEST_VERSION"
+          fi
+
+          expected="v$MANIFEST_VERSION"
+          if [[ "$tag" != "$expected" ]]; then
+            echo "::warning::Release tag $tag does not match manifest version $MANIFEST_VERSION."
+          fi
+
+          archive_name="nai-autocomplete-${tag}.zip"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "archive_name=${archive_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Package extension
+        shell: bash
+        env:
+          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
+        run: |
+          set -euo pipefail
+
+          package_dir="dist/nai-autocomplete"
+          rm -rf dist
+          mkdir -p "$package_dir"
+
+          cp manifest.json "$package_dir/"
+          cp background.js "$package_dir/"
+          cp content.js "$package_dir/"
+          cp image-assistant.js "$package_dir/"
+          cp official-chunk-bridge.js "$package_dir/"
+          cp styles.css "$package_dir/"
+          cp LICENSE "$package_dir/"
+          cp README.md "$package_dir/"
+          cp -r icons "$package_dir/"
+
+          if [[ -d data ]]; then
+            cp -r data "$package_dir/"
+          fi
+
+          (cd dist && zip -r "$ARCHIVE_NAME" nai-autocomplete)
+
+      - name: Upload release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
+        run: |
+          set -euo pipefail
+
+          asset_path="dist/$ARCHIVE_NAME"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$asset_path" --clobber
+          else
+            gh release create "$TAG" "$asset_path" \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --notes "Chrome/Edge extension package for $TAG."
+          fi
