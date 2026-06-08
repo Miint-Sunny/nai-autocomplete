@@ -18,6 +18,16 @@
         "https://novelai.net/*"
       ],
       "js": [
+        "official-chunk-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://novelai.net/*"
+      ],
+      "js": [
         "content.js"
       ],
       "css": [
@@ -47,7 +57,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "data/danbooru_tags.json"
+        "data/danbooru_tags.json",
+        "official-chunk-bridge.js"
       ],
       "matches": [
         "https://novelai.net/*"

@@ -22,6 +22,7 @@
     MIN_QUERY_LENGTH: 1,
     DEBOUNCE_DELAY: 150,
   };
+  const CONTENT_SCRIPT_VERSION = '1.5.1-official-chunk-bridge.1';
 
   // 全局设置
   let settings = {
@@ -36,6 +37,7 @@
   let currentQuery = '';
   let lastRenderedQuery = '';
   let autocompleteContainer = null;
+  let lastAutocompleteContext = null;
   let promptBlockPanel = null;
   let promptBlockToolbar = null;
   let promptBlocks = [];
@@ -43,12 +45,36 @@
   let promptBlockDragId = null;
   let promptBlockDropIndicator = null;
   let promptLibraryDialog = null;
-  let promptLibraryDialogState = { blockId: '' };
+  let promptLibraryDialogState = { blockId: '', mode: 'block', selection: null };
   let promptBlockStates = new WeakMap();
   let promptBlockHistoryStates = new WeakMap();
   let isPromptBlockDragMode = false;
   let promptLibrary = [];
+  let autocompleteRepositionFrame = 0;
+  let promptBlockRenderFrame = 0;
+  let pendingPromptBlockRenderEditor = null;
+  let pendingPromptBlockToolbarUpdate = false;
+  let autocompletePointerDownAt = 0;
+  let autocompleteItemHandledAt = 0;
   const PROMPT_BLOCK_COLORS = ['#f08a5d', '#7aa7ff', '#76b89a', '#c68cff', '#f4b860', '#e97a9a'];
+  const PROMPT_SEGMENT_SEPARATORS = new Set([',', '，', '\n', '|']);
+
+  function isPromptSegmentSeparator(char) {
+    return PROMPT_SEGMENT_SEPARATORS.has(char);
+  }
+
+  function findLastPromptSegmentBreak(text) {
+    const source = String(text || '');
+    let index = -1;
+    PROMPT_SEGMENT_SEPARATORS.forEach(separator => {
+      index = Math.max(index, source.lastIndexOf(separator));
+    });
+    return index;
+  }
+
+  function isPromptBoundaryChar(char) {
+    return !char || isPromptSegmentSeparator(char);
+  }
 
   function createId(prefix) {
     return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -58,8 +84,39 @@
     return String(tag || '').replace(/\s+/g, ' ').trim();
   }
 
+  function getMacroExpansion(node) {
+    if (!(node instanceof HTMLElement)) return '';
+    if (!node.classList.contains('macro-node')) return '';
+    return node.dataset.macroExpansion || node.getAttribute('data-macro-expansion') || '';
+  }
+
+  function getEditorNodeText(node) {
+    if (!node) return '';
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+
+    if (!(node instanceof HTMLElement)) {
+      return '';
+    }
+
+    const macroExpansion = getMacroExpansion(node);
+    if (macroExpansion) {
+      return macroExpansion;
+    }
+
+    if (node.tagName === 'BR') {
+      return '\n';
+    }
+
+    const isBlock = /^(P|DIV|LI)$/.test(node.tagName) && !node.classList.contains('macro-node');
+    const text = Array.from(node.childNodes).map(getEditorNodeText).join('');
+    return isBlock ? `${text}\n` : text;
+  }
+
   function getEditorText(editor) {
-    return (editor?.textContent || '').replace(/\u200b/g, '').trim();
+    return getEditorNodeText(editor).replace(/\u200b/g, '').trim();
   }
 
   function parsePromptTokens(text) {
@@ -70,14 +127,14 @@
 
     while (index < source.length) {
       const char = source[index];
-      if (char === ',' || char === '\n') {
+      if (isPromptSegmentSeparator(char)) {
         const tag = current.trim();
         let delimiter = char;
         index += 1;
 
         while (index < source.length) {
           const next = source[index];
-          if (next === ',' || next === '\n' || /\s/.test(next)) {
+          if (isPromptSegmentSeparator(next) || /\s/.test(next)) {
             delimiter += next;
             index += 1;
             continue;
@@ -210,6 +267,10 @@
       tags,
       delimiters: delimiters.slice(0, tags.length),
       promptText: serializePromptBlocks([{ tags, delimiters }]),
+      officialChunkId: entry?.officialChunkId ? String(entry.officialChunkId) : '',
+      officialContainerId: entry?.officialContainerId ? String(entry.officialContainerId) : '',
+      officialRemoteId: entry?.officialRemoteId ? String(entry.officialRemoteId) : '',
+      officialSyncedAt: Number(entry?.officialSyncedAt) || 0,
       createdAt: Number(entry.createdAt) || Date.now(),
       updatedAt: Number(entry.updatedAt) || Date.now(),
     };
@@ -228,6 +289,165 @@
     const preview = entry.tags.slice(0, 3).join(', ');
     const remain = Math.max(0, entry.tags.length - 3);
     return remain > 0 ? `${preview} ... +${remain}` : preview;
+  }
+
+  function getPromptLibraryMacroLabel(entry) {
+    return entry.shortAlias || entry.alias || 'chunk';
+  }
+
+  function syncPromptLibraryEntryToOfficialChunk(entry, timeout = 5000) {
+    if (!entry) return Promise.resolve({ ok: false, skipped: true });
+    ensureOfficialChunkBridgeScript();
+
+    return new Promise((resolve) => {
+      const requestId = createId('official-chunk-sync');
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('nai-official-chunk-sync-response', handleResponse);
+        resolve(result);
+      };
+      const handleResponse = (event) => {
+        if (event?.detail?.requestId !== requestId) return;
+        finish(event.detail.error
+          ? { ok: false, error: event.detail.error }
+          : event.detail.result);
+      };
+
+      window.addEventListener('nai-official-chunk-sync-response', handleResponse);
+      window.dispatchEvent(new CustomEvent('nai-official-chunk-sync-request', {
+        detail: {
+          requestId,
+          entry: {
+            id: entry.officialChunkId || entry.id,
+            officialChunkId: entry.officialChunkId,
+            officialContainerId: entry.officialContainerId,
+            officialRemoteId: entry.officialRemoteId,
+            alias: entry.alias,
+            name: entry.name,
+            shortAlias: entry.shortAlias,
+            label: getPromptLibraryMacroLabel(entry),
+            promptText: entry.promptText || serializePromptBlocks([{ tags: entry.tags, delimiters: entry.delimiters }]),
+          },
+        },
+      }));
+      setTimeout(() => finish({ ok: false, error: '官方 Prompt Chunk 同步超时' }), timeout);
+    });
+  }
+
+  function patchPromptLibraryOfficialSyncResult(entryId, result) {
+    if (!entryId || !result?.ok) return;
+    const index = promptLibrary.findIndex(entry => entry.id === entryId);
+    if (index < 0) return;
+    const nextEntry = normalizePromptLibraryEntry({
+      ...promptLibrary[index],
+      officialChunkId: result.id,
+      officialContainerId: result.containerId,
+      officialRemoteId: result.remoteId,
+      officialSyncedAt: Date.now(),
+    });
+    if (!nextEntry) return;
+    promptLibrary[index] = nextEntry;
+    storageSetLocalStrict({ [PROMPT_LIBRARY_KEY]: promptLibrary }).catch(() => {});
+  }
+
+  function createRangeForCurrentTextSegment(context, start, includeTail, options = {}) {
+    const {
+      editor,
+      caretNode,
+      caretNodeOffset,
+      nodeSegmentStartOffset,
+      nodeSegmentTailText,
+      scope,
+      scopeSegmentStartOffset,
+      scopeSegmentText,
+      scopeCaretOffset,
+      scopeSegmentTailText,
+      segmentText,
+      segmentTailText,
+      segmentStartOffset,
+      caretOffset,
+    } = context;
+
+    const nodeSegmentTextLength = caretNode?.nodeType === Node.TEXT_NODE
+      ? Math.max(0, caretNodeOffset - nodeSegmentStartOffset)
+      : 0;
+    const segmentNodeStart = Math.max(0, segmentText.length - nodeSegmentTextLength);
+    const hasExplicitEnd = Number.isFinite(options.end);
+    const shouldUseScopeRange =
+      scope &&
+      (options.preferScope ||
+        start < segmentNodeStart ||
+        (includeTail && scopeSegmentTailText.length > nodeSegmentTailText.length));
+
+    if (shouldUseScopeRange) {
+      return createRangeFromTextOffsets(
+        scope,
+        scopeSegmentStartOffset + start,
+        hasExplicitEnd
+          ? scopeSegmentStartOffset + options.end
+          : (includeTail ? scopeCaretOffset + scopeSegmentTailText.length : scopeCaretOffset)
+      );
+    }
+
+    if (caretNode?.nodeType === Node.TEXT_NODE) {
+      const nodeTextLength = caretNode.textContent?.length || 0;
+      const nodeStart = Math.max(0, Math.min(nodeTextLength, nodeSegmentStartOffset + start));
+      const nodeEnd = hasExplicitEnd
+        ? Math.max(nodeStart, Math.min(nodeTextLength, nodeSegmentStartOffset + options.end))
+        : (includeTail
+            ? Math.max(nodeStart, Math.min(nodeTextLength, caretNodeOffset + nodeSegmentTailText.length))
+            : caretNodeOffset);
+      const range = document.createRange();
+      range.setStart(caretNode, nodeStart);
+      range.setEnd(caretNode, nodeEnd);
+      return range;
+    }
+
+    if (scope && scope !== editor) {
+      return createRangeFromTextOffsets(
+        scope,
+        scopeSegmentStartOffset + start,
+        includeTail ? scopeCaretOffset + scopeSegmentTailText.length : scopeCaretOffset
+      );
+    }
+
+    return createRangeFromTextOffsets(
+      editor,
+      segmentStartOffset + start,
+      hasExplicitEnd
+        ? segmentStartOffset + options.end
+        : (includeTail ? caretOffset + segmentTailText.length : caretOffset)
+    );
+  }
+
+  function createWeightPrefixRange(context, length) {
+    if (!context || !Number.isFinite(length) || length <= 0) return null;
+
+    const {
+      editor,
+      scope,
+      scopeSegmentStartOffset,
+      scopeSegmentText,
+      segmentStartOffset,
+      segmentText,
+    } = context;
+    const expectedPrefix = segmentText.slice(0, length);
+
+    if (scope && scopeSegmentText?.startsWith(expectedPrefix)) {
+      return createRangeFromTextOffsets(
+        scope,
+        scopeSegmentStartOffset,
+        scopeSegmentStartOffset + length
+      );
+    }
+
+    return createRangeFromTextOffsets(
+      editor,
+      segmentStartOffset,
+      segmentStartOffset + length
+    );
   }
 
   function getLibraryDefaultName(block) {
@@ -656,6 +876,24 @@
     }
   }
 
+  function ensureOfficialChunkBridgeScript() {
+    if (document.documentElement.dataset.naiOfficialChunkBridgeInjected === 'true') return;
+    document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'true';
+
+    try {
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('official-chunk-bridge.js');
+      script.async = false;
+      script.onload = () => script.remove();
+      script.onerror = () => {
+        document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'error';
+      };
+      (document.head || document.documentElement).appendChild(script);
+    } catch (error) {
+      document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'error';
+    }
+  }
+
   // CSV 解析，正确处理引号中的逗号
   function parseCSVLine(line) {
     const result = [];
@@ -721,6 +959,7 @@
   // 搜索标签
   function searchTags(query) {
     if (!query || query.length < CONFIG.MIN_QUERY_LENGTH) return [];
+    if (String(query || '').startsWith('@')) return [];
     const q = query.toLowerCase().replace(/_/g, ' ');
     const results = [];
 
@@ -788,6 +1027,21 @@
     `;
     document.body.appendChild(c);
     autocompleteContainer = c;
+
+    const holdAutocompleteInteraction = event => {
+      autocompletePointerDownAt = Date.now();
+    };
+    const handleAutocompleteContainerPick = event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const item = target?.closest('.nai-autocomplete-item');
+      if (!item || !c.contains(item)) return;
+      handleAutocompleteItemEvent(item, event);
+    };
+    c.addEventListener('pointerdown', holdAutocompleteInteraction, true);
+    c.addEventListener('mousedown', holdAutocompleteInteraction, true);
+    c.addEventListener('pointerdown', handleAutocompleteContainerPick, true);
+    c.addEventListener('mousedown', handleAutocompleteContainerPick, true);
+    c.addEventListener('click', handleAutocompleteContainerPick, true);
 
     // 下划线互转开关
     const slashSwitch = c.querySelector('#nai-slash-switch');
@@ -872,6 +1126,17 @@
       : node.closest?.('.ProseMirror');
   }
 
+  function getPromptSegmentScope(editor, node) {
+    let element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    if (!(element instanceof HTMLElement)) return editor;
+
+    while (element.parentElement && element.parentElement !== editor) {
+      element = element.parentElement;
+    }
+
+    return editor.contains(element) ? element : editor;
+  }
+
   function createRangeFromTextOffsets(root, startOffset, endOffset) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const range = document.createRange();
@@ -881,25 +1146,39 @@
     let startNodeOffset = 0;
     let endNode = null;
     let endNodeOffset = 0;
+    let lastNode = null;
+    let lastNodeLength = 0;
+    const normalizedStart = Math.max(0, startOffset);
+    const normalizedEnd = Math.max(normalizedStart, endOffset);
 
     while ((node = walker.nextNode())) {
       const textLength = node.textContent?.length || 0;
       const nextOffset = currentOffset + textLength;
+      lastNode = node;
+      lastNodeLength = textLength;
 
-      if (!startNode && startOffset <= nextOffset) {
+      if (!startNode && normalizedStart <= nextOffset) {
         startNode = node;
-        startNodeOffset = Math.max(0, startOffset - currentOffset);
+        startNodeOffset = Math.max(0, Math.min(textLength, normalizedStart - currentOffset));
       }
 
-      if (!endNode && endOffset <= nextOffset) {
+      if (!endNode && normalizedEnd <= nextOffset) {
         endNode = node;
-        endNodeOffset = Math.max(0, endOffset - currentOffset);
+        endNodeOffset = Math.max(0, Math.min(textLength, normalizedEnd - currentOffset));
         break;
       }
 
       currentOffset = nextOffset;
     }
 
+    if (!startNode && lastNode) {
+      startNode = lastNode;
+      startNodeOffset = lastNodeLength;
+    }
+    if (!endNode && lastNode) {
+      endNode = lastNode;
+      endNodeOffset = lastNodeLength;
+    }
     if (!startNode || !endNode) return null;
 
     range.setStart(startNode, startNodeOffset);
@@ -914,6 +1193,9 @@
     const range = sel.getRangeAt(0);
     const editor = activeEditor || getEditorFromRange(range);
     if (!editor) return null;
+    const caretNode = range.startContainer;
+    const caretNodeOffset = range.startOffset;
+    const scope = getPromptSegmentScope(editor, caretNode);
 
     const beforeRange = range.cloneRange();
     beforeRange.selectNodeContents(editor);
@@ -925,22 +1207,59 @@
 
     const beforeText = beforeRange.toString();
     const afterText = afterRange.toString();
-    const segmentBreak = Math.max(beforeText.lastIndexOf(','), beforeText.lastIndexOf('\n'));
+    const segmentBreak = findLastPromptSegmentBreak(beforeText);
     const rawSegment = beforeText.slice(segmentBreak + 1);
     const leadingSpaceLength = rawSegment.match(/^\s*/)?.[0].length || 0;
     const segmentText = rawSegment.slice(leadingSpaceLength);
     const caretOffset = beforeText.length;
     const segmentStartOffset = caretOffset - segmentText.length;
-    const segmentTailMatch = afterText.match(/^[^,\n]*/);
+    const segmentTailMatch = afterText.match(/^[^,，\n|]*/);
     const segmentTailText = segmentTailMatch ? segmentTailMatch[0] : '';
     const afterSegmentText = afterText.slice(segmentTailText.length);
     const nextMeaningfulChar = afterSegmentText.replace(/^\s+/, '').charAt(0);
     const segmentRange = createRangeFromTextOffsets(editor, segmentStartOffset, caretOffset);
 
+    const scopeBeforeRange = range.cloneRange();
+    scopeBeforeRange.selectNodeContents(scope);
+    scopeBeforeRange.setEnd(range.startContainer, range.startOffset);
+
+    const scopeAfterRange = range.cloneRange();
+    scopeAfterRange.selectNodeContents(scope);
+    scopeAfterRange.setStart(range.startContainer, range.startOffset);
+
+    const scopeBeforeText = scopeBeforeRange.toString();
+    const scopeAfterText = scopeAfterRange.toString();
+    const scopeSegmentBreak = findLastPromptSegmentBreak(scopeBeforeText);
+    const scopeRawSegment = scopeBeforeText.slice(scopeSegmentBreak + 1);
+    const scopeLeadingSpaceLength = scopeRawSegment.match(/^\s*/)?.[0].length || 0;
+    const scopeSegmentText = scopeRawSegment.slice(scopeLeadingSpaceLength);
+    const scopeCaretOffset = scopeBeforeText.length;
+    const scopeSegmentStartOffset = scopeCaretOffset - scopeSegmentText.length;
+    const scopeSegmentTailMatch = scopeAfterText.match(/^[^,，\n|]*/);
+    const scopeSegmentTailText = scopeSegmentTailMatch ? scopeSegmentTailMatch[0] : '';
+
+    const nodeText = caretNode.nodeType === Node.TEXT_NODE ? caretNode.textContent || '' : '';
+    const nodeBeforeCaret = caretNode.nodeType === Node.TEXT_NODE ? nodeText.slice(0, caretNodeOffset) : '';
+    const nodeAfterCaret = caretNode.nodeType === Node.TEXT_NODE ? nodeText.slice(caretNodeOffset) : '';
+    const nodeSegmentBreak = findLastPromptSegmentBreak(nodeBeforeCaret);
+    const nodeRawSegment = nodeBeforeCaret.slice(nodeSegmentBreak + 1);
+    const nodeLeadingSpaceLength = nodeRawSegment.match(/^\s*/)?.[0].length || 0;
+    const nodeSegmentStartOffset = nodeSegmentBreak + 1 + nodeLeadingSpaceLength;
+    const nodeSegmentTailMatch = nodeAfterCaret.match(/^[^,，\n|]*/);
+    const nodeSegmentTailText = nodeSegmentTailMatch ? nodeSegmentTailMatch[0] : '';
+
     if (!segmentRange) return null;
 
     return {
       editor,
+      caretNode,
+      caretNodeOffset,
+      nodeSegmentStartOffset,
+      nodeSegmentTailText,
+      scope,
+      scopeSegmentStartOffset,
+      scopeCaretOffset,
+      scopeSegmentTailText,
       segmentText,
       segmentTailText,
       segmentStartOffset,
@@ -969,10 +1288,9 @@
     const list = c.querySelector('.nai-autocomplete-list');
 
     if (query === lastRenderedQuery && currentResults.length > 0) {
+      lastAutocompleteContext = getSegmentContext();
       positionAutocomplete(editor);
-      if (!c.classList.contains('visible')) {
-        requestAnimationFrame(() => c.classList.add('visible'));
-      }
+      c.classList.add('visible');
       return;
     }
 
@@ -982,6 +1300,7 @@
     selectedIndex = 0;
 
     const context = parseCurrentContext();
+    lastAutocompleteContext = getSegmentContext();
 
     if (isLoading) {
       list.innerHTML = '<div class="nai-autocomplete-loading"><span class="nai-autocomplete-spinner"></span>加载中...</div>';
@@ -1000,8 +1319,9 @@
           </div>
         `;
         const countLabel = isLibrary ? `${tag.tags.length} tags` : formatCount(tag.postCount);
+        const libraryBadge = isLibrary ? '<span class="nai-autocomplete-badge">词库</span>' : '';
         const tagTitle = isLibrary
-          ? `<div class="nai-autocomplete-tag"><span class="nai-autocomplete-tag-text">${highlight(tag.alias, query)}</span><span class="nai-autocomplete-badge">词库</span></div>`
+          ? `<div class="nai-autocomplete-tag"><span class="nai-autocomplete-tag-text">${highlight(tag.alias, query)}</span></div>`
           : `<div class="nai-autocomplete-tag"><span class="nai-autocomplete-tag-text">${highlight(tag.tag, query)}</span></div>`;
         const subTitle = isLibrary
           ? `<div class="nai-autocomplete-translation">${escapeHtml(tag.translation || '')}</div>`
@@ -1014,12 +1334,15 @@
             ${tagTitle}
             ${subTitle}
           </div>
-          ${isArtist && !isLibrary ? `<label class="nai-artist-toggle" title="使用 artist: 前缀" data-index="${i}">
-            <input type="checkbox" class="nai-artist-check" data-index="${i}" ${showArtistChecked ? 'checked' : ''}>
-            <span>artist:</span>
-          </label>` : ''}
-          ${weightControl}
-          <div class="nai-autocomplete-count">${countLabel}</div>
+          <div class="nai-autocomplete-meta">
+            ${libraryBadge}
+            ${isArtist && !isLibrary ? `<label class="nai-artist-toggle" title="使用 artist: 前缀" data-index="${i}">
+              <input type="checkbox" class="nai-artist-check" data-index="${i}" ${showArtistChecked ? 'checked' : ''}>
+              <span>artist:</span>
+            </label>` : ''}
+            ${weightControl}
+            <div class="nai-autocomplete-count">${countLabel}</div>
+          </div>
         </div>
       `;
       }).join('');
@@ -1075,18 +1398,10 @@
       });
 
       list.querySelectorAll('.nai-autocomplete-item').forEach(item => {
-        item.addEventListener('mousedown', e => {
-          if (
-            e.target.closest('.nai-weight-btn') ||
-            e.target.closest('.nai-artist-toggle') ||
-            e.target.closest('.nai-artist-check')
-          ) {
-            return;
-          }
-          e.preventDefault();
-          e.stopPropagation();
-          applyAutocompleteResult(currentResults[+item.dataset.index]);
-        });
+        const handleAutocompleteItemPointer = e => handleAutocompleteItemEvent(item, e);
+        item.addEventListener('pointerdown', handleAutocompleteItemPointer);
+        item.addEventListener('mousedown', handleAutocompleteItemPointer);
+        item.addEventListener('click', handleAutocompleteItemPointer);
         item.onmouseenter = () => {
           selectedIndex = +item.dataset.index;
           updateSelection();
@@ -1096,14 +1411,16 @@
 
     c.querySelector('.nai-autocomplete-count-info').textContent = `${results.length} 条结果`;
     positionAutocomplete(editor);
-    requestAnimationFrame(() => c.classList.add('visible'));
+    c.classList.add('visible');
   }
 
   function hideAutocomplete() {
     autocompleteContainer?.classList.remove('visible');
+    autocompleteContainer?.querySelector('.nai-autocomplete-list')?.replaceChildren();
     currentResults = [];
     selectedIndex = 0;
     lastRenderedQuery = '';
+    lastAutocompleteContext = null;
   }
 
   function getCaretRect(editor) {
@@ -1176,10 +1493,55 @@
     autocompleteContainer.style.left = `${left}px`;
   }
 
+  function repositionVisibleAutocomplete() {
+    autocompleteRepositionFrame = 0;
+    if (!autocompleteContainer?.classList.contains('visible') || !activeEditor?.isConnected) return;
+    positionAutocomplete(activeEditor);
+  }
+
+  function scheduleAutocompleteReposition() {
+    if (autocompleteRepositionFrame) return;
+    autocompleteRepositionFrame = requestAnimationFrame(repositionVisibleAutocomplete);
+  }
+
   function updateSelection() {
+    let selectedItem = null;
     autocompleteContainer?.querySelectorAll('.nai-autocomplete-item').forEach((item, i) => {
-      item.classList.toggle('selected', i === selectedIndex);
+      const isSelected = i === selectedIndex;
+      item.classList.toggle('selected', isSelected);
+      if (isSelected) selectedItem = item;
     });
+    selectedItem?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  function stopAutocompleteEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+  }
+
+  function handleAutocompleteItemEvent(item, event) {
+    if (
+      event.target.closest('.nai-weight-btn') ||
+      event.target.closest('.nai-artist-toggle') ||
+      event.target.closest('.nai-artist-check')
+    ) {
+      return;
+    }
+
+    stopAutocompleteEvent(event);
+
+    if (event.type !== 'click') {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - autocompleteItemHandledAt < 80) return;
+    autocompleteItemHandledAt = now;
+
+    const index = Number(item.dataset.index);
+    if (!Number.isInteger(index)) return;
+    applyAutocompleteResult(currentResults[index]);
   }
 
   function getCurrentWord() {
@@ -1207,7 +1569,7 @@
     match = word.match(/^(-?\d+\.?\d*)(?::|：){2}[^:：]+(?::|：){2}(.+)$/);
     if (match) return match[2];
 
-    match = word.match(/^(-?\d+\.?\d*)(?::|：){2}.*,([^,]*)$/);
+    match = word.match(/^(-?\d+\.?\d*)(?::|：){2}.*[,，|]([^,，|]*)$/);
     if (match) return match[2].trim();
 
     match = word.match(/^(-?\d+\.?\d*)(?::|：){2}artist(?::|：)(.*)$/);
@@ -1225,6 +1587,12 @@
     return word;
   }
 
+  function isOfficialPromptChunkQuery() {
+    const context = getSegmentContext();
+    if (!context) return false;
+    return /(^|[\s,，|])@[\p{L}\p{N}_ '"\-./()]*$/u.test(context.segmentText.trim());
+  }
+
   function applyAutocompleteResult(item) {
     if (!item) return;
     if (item.resultType === 'prompt-library') {
@@ -1236,38 +1604,22 @@
 
   function selectPromptLibrary(entry) {
     if (!activeEditor || !entry) return;
-    ensurePromptBlockModel(activeEditor);
-
-    const context = getSegmentContext();
+    const context = lastAutocompleteContext || getSegmentContext();
     if (!context) return;
 
-    const plainQueryMatch = getPlainQueryMatch(context.segmentText);
-    const replaceStartOffset = context.segmentStartOffset + (plainQueryMatch ? plainQueryMatch[1].length : 0);
-    const fullText = getEditorText(activeEditor);
-    const replaceStartTokenIndex = splitPromptTags(fullText.slice(0, replaceStartOffset)).length;
-    const replaceTokenCount = 1;
-    const replaceEndTokenIndex = replaceStartTokenIndex + replaceTokenCount - 1;
-    const insertedDelimiters = [...(entry.delimiters || entry.tags.map((_, index) => index === entry.tags.length - 1 ? '' : ', '))];
-    const nextChar = context.nextMeaningfulChar;
-    if (nextChar === ',' || nextChar === '，' || nextChar === '\n') {
-      insertedDelimiters[insertedDelimiters.length - 1] = '';
-    } else if (!insertedDelimiters[insertedDelimiters.length - 1]) {
-      insertedDelimiters[insertedDelimiters.length - 1] = ', ';
-    }
-
-    pushPromptBlockHistory(activeEditor);
-    promptBlocks = replacePromptBlocksByTokenRange(replaceStartTokenIndex, replaceEndTokenIndex, [{
-      id: createId('block'),
-      tags: [...entry.tags],
-      delimiters: insertedDelimiters,
-      locked: false,
-      isGroup: true,
-      libraryId: entry.id,
-      libraryAlias: entry.alias,
-    }]);
+    const chunkQueryMatch = context.segmentText.match(/(^|[\s,，|])(@[\p{L}\p{N}_ '"\-./()]*$)/u);
+    const replaceStart = chunkQueryMatch
+      ? chunkQueryMatch.index + chunkQueryMatch[1].length
+      : Math.max(0, context.segmentText.lastIndexOf('@'));
+    const replacementRange = createRangeForCurrentTextSegment(context, replaceStart, false);
+    if (!replacementRange) return;
 
     hideAutocomplete();
-    commitPromptBlocks(activeEditor);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(replacementRange);
+    document.execCommand('insertText', false, entry.promptText || entry.tags.join(', '));
+    ensurePromptBlockModel(activeEditor);
   }
 
   function selectTag(tag) {
@@ -1275,11 +1627,14 @@
     const sel = window.getSelection();
     if (!sel?.rangeCount) return;
 
-    const context = getSegmentContext();
+    const context = lastAutocompleteContext || getSegmentContext();
     if (!context) return;
 
     const {
       editor,
+      caretNode,
+      caretNodeOffset,
+      nodeSegmentStartOffset,
       segmentText: currentSegment,
       segmentTailText,
       segmentStartOffset,
@@ -1291,12 +1646,14 @@
     let isAfterComplete = false;
     let isMultiTagFormat = false;
     let replaceTail = false;
+    const weight = Number.isFinite(tag.weight) ? tag.weight : 1.0;
+    const currentWeightMatch = currentSegment.match(/^(-?\d+\.?\d*)(?::|：){2}/);
     const preservedSuffixMatch = segmentTailText.match(/[\)\]\}]+$/);
     const preservedSuffix = preservedSuffixMatch ? preservedSuffixMatch[0] : '';
     const normalizedTail = segmentTailText.slice(0, segmentTailText.length - preservedSuffix.length);
     const fullSegment = `${currentSegment}${normalizedTail}`;
     const hasTrailingText = Boolean(normalizedTail.trim());
-    const shouldAppendComma = hasTrailingText || (nextMeaningfulChar !== ',' && nextMeaningfulChar !== '，' && nextMeaningfulChar !== '\n');
+    const shouldAppendComma = hasTrailingText || !isPromptBoundaryChar(nextMeaningfulChar);
 
     const exactCompleteMatch = fullSegment.match(/^(-?\d+\.?\d*(?::|：){2}(artist(?::|：))?[^:：]+(?::|：){1,2})$/);
     const afterCompleteMatch = fullSegment.match(/^(-?\d+\.?\d*(?::|：){2}(artist(?::|：))?[^:：]+(?::|：){2})(.+)$/);
@@ -1308,7 +1665,7 @@
       isAfterComplete = true;
       replaceTail = true;
     } else {
-      const multiTagMatch = fullSegment.match(/^(-?\d+\.?\d*(?::|：){2}.*,)/);
+      const multiTagMatch = fullSegment.match(/^(-?\d+\.?\d*(?::|：){2}.*[,，|])/);
       if (multiTagMatch) {
         start = multiTagMatch[1].length;
         isMultiTagFormat = true;
@@ -1321,11 +1678,27 @@
       }
     }
 
-    const replacementRange = createRangeFromTextOffsets(
-      editor,
-      segmentStartOffset + start,
-      replaceTail ? caretOffset + segmentTailText.length : caretOffset
-    );
+    const currentWeight = currentWeightMatch ? parseFloat(currentWeightMatch[1]) : NaN;
+    const shouldRewriteWeightedSegment =
+      currentWeightMatch &&
+      Number.isFinite(currentWeight) &&
+      Math.abs(weight - currentWeight) > 0.0001 &&
+      !isAfterComplete &&
+      !isMultiTagFormat;
+    if (shouldRewriteWeightedSegment) {
+      const replacementRange = createWeightPrefixRange(context, currentWeightMatch[1].length);
+      if (!replacementRange) return;
+
+      sel.removeAllRanges();
+      sel.addRange(replacementRange);
+      document.execCommand('insertText', false, weight.toFixed(1));
+      hideAutocomplete();
+      return;
+    }
+
+    const replacementRange = createRangeForCurrentTextSegment(context, start, replaceTail, {
+      preferScope: false,
+    });
     if (!replacementRange) return;
 
     sel.removeAllRanges();
@@ -1338,7 +1711,6 @@
       tagName = tagName.replace(/ /g, '_');
     }
 
-    const weight = Number.isFinite(tag.weight) ? tag.weight : 1.0;
     const useArtist = tag.category === '1' && tag.useArtistPrefix;
     const commaSuffix = shouldAppendComma ? ', ' : '';
     const existingPrefix = currentSegment.slice(0, start);
@@ -1374,6 +1746,11 @@
   }
 
   const handleInput = debounce(editor => {
+    if (isOfficialPromptChunkQuery()) {
+      hideAutocomplete();
+      return;
+    }
+
     const word = getCurrentWord();
     if (word.length >= CONFIG.MIN_QUERY_LENGTH) {
       const results = searchTags(word);
@@ -1382,16 +1759,31 @@
     } else hideAutocomplete();
   }, CONFIG.DEBOUNCE_DELAY);
 
+  function refreshAutocomplete(editor) {
+    if (isOfficialPromptChunkQuery()) {
+      hideAutocomplete();
+      return;
+    }
+
+    handleInput(editor);
+  }
+
   function handleKeyDown(e) {
     if (!autocompleteContainer?.classList.contains('visible')) return;
+    if (isOfficialPromptChunkQuery()) {
+      hideAutocomplete();
+      return;
+    }
+
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1); updateSelection(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); updateSelection(); }
     else if (e.key === 'Tab' || e.key === 'Enter') { if (currentResults[selectedIndex]) { e.preventDefault(); applyAutocompleteResult(currentResults[selectedIndex]); } }
     else if (e.key === 'Escape') { e.preventDefault(); hideAutocomplete(); }
   }
 
-  function ensurePromptBlockModel(editor) {
+  function ensurePromptBlockModel(editor, options = {}) {
     if (!editor) return [];
+    const shouldRender = options.render !== false;
     loadPromptBlockState(editor);
     const text = getEditorText(editor);
     const tokens = parsePromptTokens(text);
@@ -1402,7 +1794,7 @@
       promptBlocks = [];
       promptBlockSignature = '';
       savePromptBlockState(editor);
-      renderPromptBlockPanel(editor);
+      if (shouldRender) renderPromptBlockPanel(editor);
       return promptBlocks;
     }
 
@@ -1412,7 +1804,7 @@
       savePromptBlockState(editor);
     }
 
-    renderPromptBlockPanel(editor);
+    if (shouldRender) renderPromptBlockPanel(editor);
     return promptBlocks;
   }
 
@@ -1512,7 +1904,7 @@
       <div class="nai-prompt-library-card" role="dialog" aria-modal="true" aria-label="保存词库">
         <div class="nai-prompt-library-head">
           <div class="nai-prompt-library-title">保存到词库</div>
-          <div class="nai-prompt-library-note">格式固定为 分类:名称</div>
+          <div class="nai-prompt-library-note">保存为本地词库条目，并尝试同步到官方 Prompt Chunk</div>
         </div>
         <div class="nai-prompt-library-grid">
           <label class="nai-prompt-library-field">
@@ -1640,6 +2032,8 @@
     const isPreset = PRESET_PROMPT_LIBRARY_CATEGORIES.some((item) => item.id === existing.category);
 
     promptLibraryDialogState.blockId = blockId;
+    promptLibraryDialogState.mode = 'block';
+    promptLibraryDialogState.selection = null;
     if (presetField) presetField.value = block.libraryAlias ? (isPreset ? existing.category : 'custom') : 'char';
     if (customField) customField.value = block.libraryAlias && !isPreset ? existing.category : '';
     if (nameField) nameField.value = block.libraryAlias ? existing.name : getLibraryDefaultName(block);
@@ -1651,14 +2045,48 @@
     });
   }
 
+  function openPromptLibraryDialogForSelection() {
+    if (!activeEditor) return;
+    const context = getPromptSelectionContext(activeEditor);
+    if (!context) return;
+
+    const dialog = createPromptLibraryDialog();
+    const presetField = dialog.querySelector('[data-field="preset-category"]');
+    const customField = dialog.querySelector('[data-field="custom-category"]');
+    const nameField = dialog.querySelector('[data-field="entry-name"]');
+    const defaultName = normalizePromptLibraryName(context.selectedTags[0] || 'chunk') || 'chunk';
+
+    promptLibraryDialogState = {
+      blockId: '',
+      mode: 'selection',
+      selection: context,
+    };
+
+    if (presetField) presetField.value = 'char';
+    if (customField) customField.value = '';
+    if (nameField) nameField.value = defaultName;
+    updatePromptLibraryDialogPreview();
+    dialog.classList.remove('nai-hidden');
+    hidePromptBlockToolbar();
+    requestAnimationFrame(() => {
+      nameField?.focus();
+      nameField?.select?.();
+    });
+  }
+
   function closePromptLibraryDialog() {
     if (!promptLibraryDialog) return;
     promptLibraryDialog.classList.add('nai-hidden');
-    promptLibraryDialogState.blockId = '';
+    promptLibraryDialogState = { blockId: '', mode: 'block', selection: null };
   }
 
   async function savePromptLibraryFromDialog() {
-    if (!activeEditor || !promptLibraryDialogState.blockId) return;
+    if (!activeEditor) return;
+    if (promptLibraryDialogState.mode === 'selection') {
+      await savePromptLibrarySelectionFromDialog();
+      return;
+    }
+    if (!promptLibraryDialogState.blockId) return;
     ensurePromptBlockModel(activeEditor);
     const blockIndex = promptBlocks.findIndex((entry) => entry.id === promptLibraryDialogState.blockId && entry.isGroup);
     if (blockIndex === -1) {
@@ -1711,6 +2139,86 @@
     renderPromptBlockPanel(activeEditor);
     closePromptLibraryDialog();
 
+    syncPromptLibraryEntryToOfficialChunk(nextEntry)
+      .then(result => {
+        if (result?.ok) {
+          patchPromptLibraryOfficialSyncResult(nextEntry.id, result);
+          console.log('[NAI-AC] 已同步到官方 Prompt Chunk:', nextEntry.alias, result.remoteId || result.id);
+        } else if (result?.error) {
+          console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', result.error);
+        }
+      })
+      .catch(error => {
+        console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', error);
+      });
+
+    try {
+      chrome.runtime?.sendMessage?.({ type: 'nai-prompt-library-updated' });
+    } catch (error) {}
+  }
+
+  async function savePromptLibrarySelectionFromDialog() {
+    const selection = promptLibraryDialogState.selection;
+    if (!activeEditor || !selection) return;
+
+    const draft = getPromptLibraryDialogAlias();
+    if (!draft.alias || !draft.normalizedCategory || !draft.normalizedName) {
+      updatePromptLibraryDialogPreview();
+      return;
+    }
+
+    const tokens = parsePromptTokens(selection.selectedText);
+    const tags = tokens.map(token => token.tag);
+    const delimiters = tokens.map(token => token.delimiter);
+    if (!tags.length) {
+      setPromptLibraryDialogError('选区里没有可保存的提示词。');
+      return;
+    }
+
+    const nextEntry = normalizePromptLibraryEntry({
+      id: createId('library'),
+      alias: draft.alias,
+      category: draft.normalizedCategory,
+      name: draft.normalizedName,
+      tags,
+      delimiters,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    if (!nextEntry) return;
+
+    const existingIndex = promptLibrary.findIndex((entry) => entry.alias === draft.alias);
+    const nextLibrary = [...promptLibrary];
+    if (existingIndex >= 0) {
+      nextEntry.id = promptLibrary[existingIndex].id || nextEntry.id;
+      nextEntry.createdAt = promptLibrary[existingIndex].createdAt || nextEntry.createdAt;
+      nextLibrary.splice(existingIndex, 1, nextEntry);
+    } else {
+      nextLibrary.unshift(nextEntry);
+    }
+
+    try {
+      await savePromptLibrary(nextLibrary);
+    } catch (error) {
+      setPromptLibraryDialogError(getPromptLibraryStorageError(error));
+      return;
+    }
+
+    closePromptLibraryDialog();
+
+    syncPromptLibraryEntryToOfficialChunk(nextEntry)
+      .then(result => {
+        if (result?.ok) {
+          patchPromptLibraryOfficialSyncResult(nextEntry.id, result);
+          console.log('[NAI-AC] 已同步到官方 Prompt Chunk:', nextEntry.alias, result.remoteId || result.id);
+        } else if (result?.error) {
+          console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', result.error);
+        }
+      })
+      .catch(error => {
+        console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', error);
+      });
+
     try {
       chrome.runtime?.sendMessage?.({ type: 'nai-prompt-library-updated' });
     } catch (error) {}
@@ -1730,8 +2238,8 @@
     if (promptBlockToolbar) return promptBlockToolbar;
     const toolbar = document.createElement('div');
     toolbar.className = 'nai-prompt-block-toolbar nai-hidden';
-    toolbar.innerHTML = `<button type="button" data-action="group-selection" title="设为区块" aria-label="设为区块">${getPromptBlockIcon('group')}</button>`;
-    toolbar.querySelector('button').addEventListener('click', () => groupPromptSelection());
+    toolbar.innerHTML = `<button type="button" data-action="save-selection-library" title="保存到词库" aria-label="保存到词库">${getPromptBlockIcon('save')}</button>`;
+    toolbar.querySelector('button').addEventListener('click', () => openPromptLibraryDialogForSelection());
     document.body.appendChild(toolbar);
     promptBlockToolbar = toolbar;
     return toolbar;
@@ -1880,6 +2388,25 @@
     panel.classList.remove('nai-hidden');
   }
 
+  function renderPromptBlockPanelSoon(editor, updateToolbar = false) {
+    if (!editor) return;
+    pendingPromptBlockRenderEditor = editor;
+    pendingPromptBlockToolbarUpdate = pendingPromptBlockToolbarUpdate || updateToolbar;
+    if (promptBlockRenderFrame) return;
+
+    promptBlockRenderFrame = requestAnimationFrame(() => {
+      promptBlockRenderFrame = 0;
+      const nextEditor = pendingPromptBlockRenderEditor;
+      const shouldUpdateToolbar = pendingPromptBlockToolbarUpdate;
+      pendingPromptBlockRenderEditor = null;
+      pendingPromptBlockToolbarUpdate = false;
+
+      if (!nextEditor?.isConnected || nextEditor !== activeEditor) return;
+      renderPromptBlockPanel(nextEditor);
+      if (shouldUpdateToolbar) updatePromptBlockToolbar(nextEditor);
+    });
+  }
+
   function commitPromptBlocks(editor) {
     if (!editor) return;
     const text = serializePromptBlocks(promptBlocks);
@@ -1922,6 +2449,8 @@
       startTokenIndex,
       endTokenIndex: startTokenIndex + selectedTags.length - 1,
       selectedTags,
+      selectedText,
+      range: range.cloneRange(),
       rect,
     };
   }
@@ -1929,20 +2458,7 @@
   function updatePromptBlockToolbar(editor) {
     const toolbar = createPromptBlockToolbar();
     const context = getPromptSelectionContext(editor);
-    if (!context || context.selectedTags.length <= 1) {
-      hidePromptBlockToolbar();
-      return;
-    }
-
-    let cursor = 0;
-    const overlapsExistingGroup = promptBlocks.some(block => {
-      const blockStart = cursor;
-      const blockEnd = cursor + block.tags.length - 1;
-      cursor += block.tags.length;
-      return block.isGroup && context.startTokenIndex <= blockEnd && context.endTokenIndex >= blockStart;
-    });
-
-    if (overlapsExistingGroup) {
+    if (!context || !context.selectedTags.length) {
       hidePromptBlockToolbar();
       return;
     }
@@ -2112,7 +2628,8 @@
   }
 
   async function init() {
-    console.log('[NAI-AC] 扩展已加载');
+    document.documentElement.dataset.naiAcVersion = CONTENT_SCRIPT_VERSION;
+    console.log(`[NAI-AC] 扩展已加载 ${CONTENT_SCRIPT_VERSION}`);
 
     try {
       const saved = localStorage.getItem('nai-ac-settings');
@@ -2120,6 +2637,7 @@
     } catch (e) {}
 
     syncThemeFromStorage();
+    ensureOfficialChunkBridgeScript();
     await loadPromptLibrary();
     loadTags();
 
@@ -2136,9 +2654,10 @@
       const editor = e.target.closest('.ProseMirror');
       if (!editor) return;
       activeEditor = editor;
-      ensurePromptBlockModel(editor);
+      ensurePromptBlockModel(editor, { render: false });
+      renderPromptBlockPanelSoon(editor);
       updatePromptBlockToolbar(editor);
-      handleInput(editor);
+      refreshAutocomplete(editor);
     }, true);
 
     document.addEventListener('selectionchange', () => {
@@ -2146,7 +2665,7 @@
       if (!sel?.rangeCount) {
         hidePromptBlockToolbar();
         if (activeEditor?.isConnected) {
-          ensurePromptBlockModel(activeEditor);
+          renderPromptBlockPanelSoon(activeEditor);
         }
         return;
       }
@@ -2159,16 +2678,25 @@
       if (!editor) {
         hidePromptBlockToolbar();
         if (activeEditor?.isConnected) {
-          renderPromptBlockPanel(activeEditor);
+          renderPromptBlockPanelSoon(activeEditor);
         }
         return;
       }
 
+      const previousEditor = activeEditor;
       activeEditor = editor;
-      ensurePromptBlockModel(editor);
+      if (previousEditor !== editor) {
+        ensurePromptBlockModel(editor, { render: false });
+      }
+      renderPromptBlockPanelSoon(editor);
       updatePromptBlockToolbar(editor);
-      handleInput(editor);
+      refreshAutocomplete(editor);
+      scheduleAutocompleteReposition();
     });
+
+    document.addEventListener('scroll', scheduleAutocompleteReposition, true);
+    window.addEventListener('scroll', scheduleAutocompleteReposition, true);
+    window.addEventListener('resize', scheduleAutocompleteReposition);
 
     document.addEventListener('keydown', handleKeyDown, true);
     document.addEventListener('keydown', event => {
@@ -2194,7 +2722,8 @@
     }, true);
     window.addEventListener('blur', () => setPromptBlockDragMode(false));
     document.addEventListener('focusout', () => setTimeout(() => {
-      if (!autocompleteContainer?.contains(document.activeElement)) hideAutocomplete();
+      const isAutocompleteInteraction = Date.now() - autocompletePointerDownAt < 350;
+      if (!isAutocompleteInteraction && !autocompleteContainer?.contains(document.activeElement)) hideAutocomplete();
       if (!promptBlockPanel?.contains(document.activeElement)) hidePromptBlockToolbar();
     }, 150), true);
 
@@ -2218,14 +2747,12 @@
 
     window.addEventListener('resize', () => {
       if (!activeEditor) return;
-      renderPromptBlockPanel(activeEditor);
-      updatePromptBlockToolbar(activeEditor);
+      renderPromptBlockPanelSoon(activeEditor, true);
     });
 
     document.addEventListener('scroll', () => {
       if (!activeEditor) return;
-      renderPromptBlockPanel(activeEditor);
-      updatePromptBlockToolbar(activeEditor);
+      renderPromptBlockPanelSoon(activeEditor, true);
       hidePromptBlockDropIndicator();
     }, true);
   }

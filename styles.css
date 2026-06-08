@@ -135,46 +135,51 @@ html[data-nai-theme="moss"] {
 
 /* Autocomplete Container */
 .nai-autocomplete-container {
-  position: absolute;
+  position: fixed;
   z-index: 999999;
-  min-width: 280px;
-  max-width: 400px;
-  max-height: 320px;
+  min-width: 260px;
+  max-width: 360px;
+  max-height: 300px;
   background: var(--md-sys-color-surface-container);
-  border-radius: 18px;
+  border-radius: 6px;
   box-shadow: var(--md-sys-elevation-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-  backdrop-filter: blur(14px) saturate(1.04);
+  backdrop-filter: none;
   opacity: 0;
-  transform: translateY(-8px) scale(0.95);
-  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+  transform: none;
+  transition: opacity 0.08s linear;
   pointer-events: none;
 }
 
 .nai-autocomplete-container.visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: none;
   pointer-events: auto;
 }
 
 /* Header */
 .nai-autocomplete-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  min-height: 36px;
+  padding: 6px 11px;
   background: var(--md-sys-color-surface-container-high);
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
 }
 
 .nai-autocomplete-title {
   font-size: 11px;
-  font-weight: 500;
+  line-height: 1.2;
+  font-weight: 700;
   color: var(--md-sys-color-on-surface-variant);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* Slash Toggle */
@@ -182,10 +187,12 @@ html[data-nai-theme="moss"] {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
+  min-height: 22px;
+  padding: 0 7px;
   background: var(--md-sys-color-surface);
   border-radius: 999px;
   font-size: 10px;
+  line-height: 1;
   color: var(--md-sys-color-on-surface-variant);
   cursor: pointer;
 }
@@ -218,10 +225,12 @@ html[data-nai-theme="moss"] {
 
 /* Results List */
 .nai-autocomplete-list {
-  max-height: 260px;
+  flex: 1 1 auto;
+  max-height: 236px;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 0;
+  padding: 6px 7px 10px;
 }
 
 .nai-autocomplete-list::-webkit-scrollbar {
@@ -246,9 +255,11 @@ html[data-nai-theme="moss"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 10px 10px 12px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background 0.1s ease;
+  transition: none;
 }
 
 .nai-autocomplete-item:hover,
@@ -262,9 +273,9 @@ html[data-nai-theme="moss"] {
 
 /* Category Indicator */
 .nai-autocomplete-category {
-  width: 3px;
-  height: 28px;
-  border-radius: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
 
@@ -292,15 +303,16 @@ html[data-nai-theme="moss"] {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  align-self: center;
 }
 
 .nai-autocomplete-tag {
   font-size: 13px;
-  font-weight: 500;
+  line-height: 1.25;
+  font-weight: 700;
   color: var(--md-sys-color-on-surface);
   display: flex;
   align-items: center;
-  gap: 5px;
   overflow: hidden;
   min-width: 0;
 }
@@ -322,33 +334,54 @@ html[data-nai-theme="moss"] {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 20px;
   padding: 0 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   color: var(--md-sys-color-on-primary);
   background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
 }
 
 .nai-autocomplete-translation {
+  margin-top: 3px;
   font-size: 11px;
+  line-height: 1.25;
   color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 1px;
+}
+
+.nai-autocomplete-meta {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 50px;
 }
 
 /* Post Count Badge */
 .nai-autocomplete-count {
-  flex-shrink: 0;
-  font-size: 10px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
   color: var(--md-sys-color-outline);
   background: var(--md-sys-color-surface);
-  padding: 2px 5px;
-  border-radius: 10px;
 }
 
 /* Weight Controls */
@@ -356,8 +389,7 @@ html[data-nai-theme="moss"] {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
-  margin-left: 2px;
+  flex: 0 0 auto;
 }
 
 .nai-weight-btn {
@@ -369,6 +401,7 @@ html[data-nai-theme="moss"] {
   color: var(--md-sys-color-on-surface);
   cursor: pointer;
   font-size: 14px;
+  line-height: 1;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -382,10 +415,11 @@ html[data-nai-theme="moss"] {
 }
 
 .nai-weight-value {
-  min-width: 28px;
+  min-width: 26px;
   text-align: center;
   font-size: 11px;
-  font-weight: 500;
+  line-height: 20px;
+  font-weight: 700;
   color: var(--md-sys-color-primary);
 }
 
@@ -394,10 +428,12 @@ html[data-nai-theme="moss"] {
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: 2px 6px;
+  min-height: 20px;
+  padding: 0 6px;
   background: var(--md-sys-color-surface);
   border-radius: 4px;
   font-size: 10px;
+  line-height: 1;
   color: var(--nai-category-artist);
   cursor: pointer;
   flex-shrink: 0;
@@ -454,13 +490,16 @@ html[data-nai-theme="moss"] {
 
 /* Footer */
 .nai-autocomplete-footer {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  min-height: 30px;
+  padding: 7px 12px 8px;
   background: var(--md-sys-color-surface-container-high);
   border-top: 1px solid var(--md-sys-color-outline-variant);
   font-size: 10px;
+  line-height: 1;
   color: var(--md-sys-color-outline);
 }
 
@@ -517,7 +556,7 @@ html[data-nai-theme="moss"] {
   background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 94%, transparent);
   border: 1px solid var(--md-sys-color-outline-variant);
   box-shadow: var(--md-sys-elevation-2);
-  backdrop-filter: blur(12px) saturate(1.02);
+  backdrop-filter: none;
 }
 
 .nai-prompt-block-toolbar button,
@@ -534,14 +573,13 @@ html[data-nai-theme="moss"] {
   background: var(--md-sys-color-surface-container-high);
   color: var(--md-sys-color-on-surface);
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  transition: none;
 }
 
 .nai-prompt-block-toolbar button:hover,
 .nai-prompt-block-lock:hover,
 .nai-prompt-block-remove:hover,
 .nai-prompt-block-save:hover {
-  transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--md-sys-color-primary) 40%, var(--md-sys-color-outline-variant));
   background: color-mix(in srgb, var(--md-sys-color-primary) 8%, var(--md-sys-color-surface-container-high));
 }
@@ -560,7 +598,7 @@ html[data-nai-theme="moss"] {
   border-radius: 10px;
   background: color-mix(in srgb, var(--nai-block-accent) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 60%, transparent);
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: none;
 }
 
 .nai-prompt-block-highlight:hover {
@@ -601,7 +639,7 @@ html[data-nai-theme="moss"] {
 
 .nai-prompt-block-drag-hitbox.is-dragging {
   opacity: 0.55;
-  transform: scale(0.96);
+  transform: none;
 }
 
 .nai-prompt-block-lock,
@@ -757,7 +795,7 @@ html[data-nai-theme="moss"] {
     0 0 18px color-mix(in srgb, var(--md-sys-color-primary) 38%, transparent);
   z-index: 999998;
   pointer-events: none;
-  animation: nai-block-drop-pulse 1s ease-in-out infinite;
+  animation: none;
 }
 
 .nai-prompt-block-drop-indicator::before,
@@ -1233,6 +1271,13 @@ html.nai-image-pick-mode * {
 }
 
 /* MD3 Assistant */
+.nai-md3-root,
+.nai-md3-root *,
+.nai-md3-root *::before,
+.nai-md3-root *::after {
+  box-sizing: border-box;
+}
+
 .nai-md3-root {
   --md-sys-color-surface: #fffaf3;
   --md-sys-color-surface-container: #fff7ec;
@@ -1299,6 +1344,38 @@ html.nai-image-pick-mode * {
   z-index: 1000002;
   font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: initial;
+  text-transform: none;
+}
+
+.nai-md3-root button,
+.nai-md3-root input,
+.nai-md3-root select,
+.nai-md3-root textarea {
+  margin: 0;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.nai-md3-root button,
+.nai-md3-root input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.nai-md3-root button {
+  line-height: 1.2;
+}
+
+.nai-md3-root select {
+  line-height: 1.4;
+}
+
+.nai-md3-root textarea {
+  vertical-align: top;
 }
 
 .nai-md3-root[data-theme="porcelain"] {
@@ -1556,7 +1633,6 @@ html.nai-image-pick-mode * {
   cursor: pointer;
   box-shadow: var(--nai-md3-fab-shadow);
   transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
-  animation: nai-md3-fab-float 3.6s ease-in-out infinite;
 }
 
 .nai-md3-fab:hover {
@@ -2126,20 +2202,17 @@ html.nai-image-pick-mode * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nai-md3-fab,
-  .nai-md3-panel:not(.nai-hidden),
-  .nai-md3-page:not(.nai-hidden) {
+  .nai-autocomplete-container,
+  .nai-autocomplete-container *,
+  .nai-prompt-block-panel,
+  .nai-prompt-block-panel *,
+  .nai-prompt-block-toolbar,
+  .nai-prompt-block-toolbar *,
+  .nai-prompt-library-dialog,
+  .nai-prompt-library-dialog *,
+  .nai-md3-root,
+  .nai-md3-root * {
     animation: none !important;
-  }
-
-  .nai-md3-tabs button,
-  .nai-md3-actions button,
-  .nai-md3-inline-action,
-  .nai-history-item,
-  .nai-history-actions button,
-  .nai-md3-close,
-  .nai-md3-input,
-  .nai-md3-result {
     transition: none !important;
   }
 }
