@@ -10,6 +10,13 @@
   const PANEL_LAYOUT_KEY = 'nai-llm-panel-layout';
   const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
   const ROLE_LIBRARY_CATEGORY = 'char';
+  const PROMPT_LIBRARY_CATEGORIES = [
+    { id: 'char', label: '角色' },
+    { id: 'style', label: '风格' },
+    { id: 'scene', label: '场景' },
+    { id: 'outfit', label: '服装' },
+    { id: 'pose', label: '动作' },
+  ];
   const MAX_HISTORY = 30;
   const PANEL_MARGIN = 20;
   const PANEL_MIN_WIDTH = 320;
@@ -18,6 +25,9 @@
   const T = {
     title: '\u56fe\u50cf\u53cd\u63a8\u52a9\u624b',
     fab: '\u53cd\u63a8',
+    imagePageTitle: '\u8bcd\u5e93',
+    imagePageFab: '\u8bcd\u5e93',
+    tabLibrary: '\u8bcd\u5e93',
     tabReverse: '\u53cd\u63a8',
     tabHistory: '\u5386\u53f2',
     tabSettings: '\u8bbe\u7f6e',
@@ -66,7 +76,8 @@
     fallbackApiKey: '\u5907\u7528 API Key\uff08\u7559\u7a7a\u5219\u590d\u7528\u4e3b Key\uff09',
     themePreset: '\u989c\u8272\u9884\u8bbe',
     sendImageAsDataUrl: '\u53d1\u9001\u56fe\u7247\u5185\u5bb9\uff08\u5173\u95ed\u5219\u53d1\u9001\u539f\u59cb URL\uff09',
-    showBall: '\u663e\u793a\u60ac\u6d6e\u7403\uff08\u5173\u95ed\u540e\u4ec5\u53ef\u901a\u8fc7\u5feb\u6377\u952e\u6216\u6269\u5c55\u5f39\u7a97\u6253\u5f00\uff09',
+    showReverseEntry: '\u663e\u793a\u53cd\u63a8\u60ac\u6d6e\u5165\u53e3',
+    showWorkbenchEntry: '\u663e\u793a\u5de5\u4f5c\u53f0\u60ac\u6d6e\u5165\u53e3',
     saveSettings: '\u4fdd\u5b58\u8bbe\u7f6e',
     statusReady: '\u5c31\u7eea\u3002\u53ef\u4f7f\u7528 Alt + Shift + \u70b9\u51fb\u56fe\u7247 \u5feb\u901f\u53cd\u63a8\u3002',
     statusNeedImage: '\u8bf7\u5148\u901a\u8fc7\u5feb\u6377\u952e\u6216\u624b\u52a8\u9009\u56fe\u9501\u5b9a\u56fe\u7247\u3002',
@@ -94,6 +105,12 @@
     statusTestingConnection: '\u6b63\u5728\u6d4b\u8bd5\u8fde\u63a5...',
     statusNeedFallbackConfig: '\u5df2\u542f\u7528\u5907\u7528\u6a21\u578b\uff0c\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u5907\u7528\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002',
     statusContextInvalidated: '\u6269\u5c55\u5df2\u66f4\u65b0\uff0c\u8bf7\u5237\u65b0\u5f53\u524d\u9875\u9762\u540e\u91cd\u8bd5\u3002',
+    statusLibraryReady: '\u8bcd\u5e93\u5c31\u7eea\uff0c\u4fdd\u5b58\u540e\u4f1a\u5c1d\u8bd5\u540c\u6b65\u5230\u5b98\u65b9 Prompt Chunk\u3002',
+    statusLibrarySaved: '\u8bcd\u5e93\u5df2\u4fdd\u5b58\uff0c\u6b63\u5728\u540c\u6b65\u5230\u5b98\u65b9 Prompt Chunk...',
+    statusLibraryDeleted: '\u8bcd\u5e93\u6761\u76ee\u5df2\u5220\u9664\u3002',
+    statusLibrarySynced: '\u5df2\u540c\u6b65\u5230\u5b98\u65b9 Prompt Chunk\u3002',
+    statusLibrarySyncFailed: '\u672c\u5730\u8bcd\u5e93\u5df2\u4fdd\u7559\uff0c\u4f46\u5b98\u65b9 Prompt Chunk \u540c\u6b65\u5931\u8d25\uff1a',
+    statusLibraryInvalid: '\u8bf7\u586b\u5199\u5206\u7c7b\u3001\u540d\u79f0\u548c\u63d0\u793a\u8bcd\u5185\u5bb9\u3002',
   };
 
   const DEFAULT_SETTINGS = {
@@ -119,7 +136,8 @@
     fallbackApiKey: '',
     themePreset: 'sunrise',
     sendImageAsDataUrl: true,
-    showFloatingBall: true,
+    showReverseFloatingBall: true,
+    showWorkbenchFloatingBall: true,
   };
 
 
@@ -178,6 +196,11 @@
     hoveredImage: null,
     promptLibrary: [],
     activePage: 'reverse',
+    isNovelAIImagePage: false,
+    libraryEditingId: '',
+    libraryEditorOpen: false,
+    workbenchPage: 'library',
+    workbenchSidebarCollapsed: false,
     extensionContextInvalidated: false,
     panelLayout: null,
     panelDrag: {
@@ -217,14 +240,34 @@
     resultOutput: null,
     sendButton: null,
     historyList: null,
+    libraryList: null,
     navButtons: [],
     pages: {},
     settings: {},
+    library: {
+      drawer: null,
+      status: null,
+      editor: null,
+      sidebarToggle: null,
+      settingsPanel: null,
+    },
   };
 
 
   function upgradePromptSettings(settings) {
     const next = { ...settings };
+
+    if (typeof next.showReverseFloatingBall !== 'boolean') {
+      next.showReverseFloatingBall = typeof next.showFloatingBall === 'boolean'
+        ? next.showFloatingBall
+        : DEFAULT_SETTINGS.showReverseFloatingBall;
+    }
+
+    if (typeof next.showWorkbenchFloatingBall !== 'boolean') {
+      next.showWorkbenchFloatingBall = typeof next.showFloatingBall === 'boolean'
+        ? next.showFloatingBall
+        : DEFAULT_SETTINGS.showWorkbenchFloatingBall;
+    }
 
     if (!next.systemPrompt || LEGACY_DEFAULT_PROMPTS.systemPrompt.includes(next.systemPrompt)) {
       next.systemPrompt = DEFAULT_SETTINGS.systemPrompt;
@@ -268,7 +311,85 @@
       name: name || (alias.includes(':') ? alias.split(':').slice(1).join(':') : alias),
       tags,
       delimiters: delimiters.slice(0, tags.length),
+      promptText: serializePromptTags(tags, delimiters.slice(0, tags.length)),
+      officialChunkId: entry?.officialChunkId ? String(entry.officialChunkId) : '',
+      officialContainerId: entry?.officialContainerId ? String(entry.officialContainerId) : '',
+      officialRemoteId: entry?.officialRemoteId ? String(entry.officialRemoteId) : '',
+      officialSyncedAt: Number(entry?.officialSyncedAt) || 0,
+      createdAt: Number(entry?.createdAt) || Date.now(),
+      updatedAt: Number(entry?.updatedAt) || Date.now(),
     };
+  }
+
+  function createId(prefix) {
+    return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function normalizePromptLibraryCategory(category) {
+    return String(category || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[:\s]+/g, '_')
+      .replace(/[^\p{L}\p{N}_-]/gu, '');
+  }
+
+  function normalizePromptLibraryName(name) {
+    return String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/:+/g, '_')
+      .replace(/[^\p{L}\p{N}_-]/gu, '');
+  }
+
+  function normalizePromptLibraryAlias(category, name) {
+    const normalizedCategory = normalizePromptLibraryCategory(category) || 'char';
+    const normalizedName = normalizePromptLibraryName(name);
+    return normalizedName ? `${normalizedCategory}:${normalizedName}` : '';
+  }
+
+  function parsePromptTags(text) {
+    const source = String(text || '');
+    const tags = [];
+    const delimiters = [];
+    let current = '';
+    let index = 0;
+
+    while (index < source.length) {
+      const char = source[index];
+      if (char === ',' || char === '，' || char === '\n' || char === '|') {
+        const tag = current.trim();
+        let delimiter = char;
+        index += 1;
+
+        while (index < source.length && /[\s,，|]/.test(source[index])) {
+          delimiter += source[index];
+          index += 1;
+        }
+
+        if (tag) {
+          tags.push(tag);
+          delimiters.push(delimiter);
+        }
+        current = '';
+        continue;
+      }
+
+      current += char;
+      index += 1;
+    }
+
+    const lastTag = current.trim();
+    if (lastTag) {
+      tags.push(lastTag);
+      delimiters.push('');
+    }
+
+    return { tags, delimiters };
+  }
+
+  function serializePromptTags(tags, delimiters) {
+    return (tags || []).map((tag, index) => `${tag}${delimiters?.[index] || ''}`).join('');
   }
   function escapeHtml(text) {
     return String(text || '')
@@ -384,7 +505,109 @@
     });
   }
 
+  function ensureOfficialChunkBridgeScript() {
+    if (!state.isNovelAIImagePage) return;
+    if (document.documentElement.dataset.naiOfficialChunkBridgeInjected === 'true') return;
+    if (document.documentElement.dataset.naiOfficialChunkBridgeMain === 'true') return;
+    document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'true';
+
+    try {
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('official-chunk-bridge.js');
+      script.async = false;
+      script.onload = () => script.remove();
+      script.onerror = () => {
+        document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'error';
+      };
+      (document.head || document.documentElement).appendChild(script);
+    } catch (error) {
+      document.documentElement.dataset.naiOfficialChunkBridgeInjected = 'error';
+    }
+  }
+
+  function getPromptLibraryMacroLabel(entry) {
+    return entry?.shortAlias || entry?.name || entry?.alias || 'chunk';
+  }
+
+  function syncPromptLibraryEntryToOfficialChunk(entry, timeout = 5000) {
+    if (!entry || !state.isNovelAIImagePage) return Promise.resolve({ ok: false, skipped: true });
+    ensureOfficialChunkBridgeScript();
+
+    return new Promise((resolve) => {
+      const requestId = createId('official-chunk-sync');
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('nai-official-chunk-sync-response', handleResponse);
+        resolve(result);
+      };
+      const handleResponse = (event) => {
+        if (event?.detail?.requestId !== requestId) return;
+        finish(event.detail.error
+          ? { ok: false, error: event.detail.error }
+          : event.detail.result);
+      };
+
+      window.addEventListener('nai-official-chunk-sync-response', handleResponse);
+      window.dispatchEvent(new CustomEvent('nai-official-chunk-sync-request', {
+        detail: {
+          requestId,
+          entry: {
+            id: entry.officialChunkId || entry.id,
+            officialChunkId: entry.officialChunkId,
+            officialContainerId: entry.officialContainerId,
+            officialRemoteId: entry.officialRemoteId,
+            alias: entry.alias,
+            name: entry.name,
+            shortAlias: entry.shortAlias,
+            label: getPromptLibraryMacroLabel(entry),
+            promptText: entry.promptText || serializePromptTags(entry.tags, entry.delimiters),
+          },
+        },
+      }));
+      setTimeout(() => finish({ ok: false, error: '官方 Prompt Chunk 同步超时' }), timeout);
+    });
+  }
+
+  async function savePromptLibraryEntries(entries) {
+    state.promptLibrary = entries.map(normalizePromptLibraryEntry).filter(Boolean);
+    await storageSet({ [PROMPT_LIBRARY_KEY]: state.promptLibrary });
+    renderPromptLibraryOptions();
+    renderLibraryManager();
+
+    try {
+      chrome.runtime?.sendMessage?.({ type: 'nai-prompt-library-updated' });
+    } catch (error) {}
+  }
+
+  async function patchPromptLibraryOfficialSyncResult(entryId, result) {
+    if (!entryId || !result?.ok) return;
+    const index = state.promptLibrary.findIndex((entry) => entry.id === entryId);
+    if (index < 0) return;
+
+    const nextEntry = normalizePromptLibraryEntry({
+      ...state.promptLibrary[index],
+      officialChunkId: result.id,
+      officialContainerId: result.containerId,
+      officialRemoteId: result.remoteId,
+      officialSyncedAt: Date.now(),
+    });
+    if (!nextEntry) return;
+
+    const nextLibrary = [...state.promptLibrary];
+    nextLibrary[index] = nextEntry;
+    state.promptLibrary = nextLibrary;
+    await storageSet({ [PROMPT_LIBRARY_KEY]: nextLibrary });
+    renderPromptLibraryOptions();
+    renderLibraryManager();
+  }
+
   function setStatus(text, isError) {
+    if (state.isNovelAIImagePage && ui.library.status) {
+      ui.library.status.textContent = text || '';
+      ui.library.status.classList.toggle('is-error', Boolean(isError));
+    }
     if (!ui.status) return;
     ui.status.textContent = text || '';
     ui.status.classList.toggle('is-error', Boolean(isError));
@@ -668,7 +891,10 @@
 
   function updateFabVisibility() {
     if (!ui.fab) return;
-    ui.fab.classList.toggle('nai-hidden', !state.settings.showFloatingBall);
+    const visible = state.isNovelAIImagePage
+      ? state.settings.showWorkbenchFloatingBall
+      : state.settings.showReverseFloatingBall;
+    ui.fab.classList.toggle('nai-hidden', !visible);
   }
 
   function updatePreview() {
@@ -790,30 +1016,99 @@
   }
 
   function setPage(page) {
-    state.activePage = page;
+    const targetPage = state.isNovelAIImagePage ? 'library' : (page === 'library' ? 'reverse' : page);
+    state.activePage = targetPage;
     if (ui.root) {
-      ui.root.dataset.page = page;
+      ui.root.dataset.page = targetPage;
     }
     ui.navButtons.forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.page === page);
+      btn.classList.toggle('active', btn.dataset.page === targetPage);
     });
     Object.entries(ui.pages).forEach(([name, el]) => {
-      el.classList.toggle('nai-hidden', name !== page);
+      el.classList.toggle('nai-hidden', name !== targetPage);
     });
+    if (targetPage === 'library') renderLibraryManager();
     requestAnimationFrame(() => autoResizeAllTextareas());
   }
 
+  function openLibraryDrawer() {
+    state.isOpen = true;
+    ui.library.drawer?.classList.remove('nai-hidden');
+    syncWorkbenchLayoutState();
+    renderLibraryManager();
+    setStatus(T.statusLibraryReady, false);
+  }
+
+  function closeLibraryDrawer() {
+    state.isOpen = false;
+    ui.library.drawer?.classList.add('nai-hidden');
+  }
+
+  function syncWorkbenchLayoutState() {
+    if (!ui.library.drawer) return;
+    ui.library.drawer.dataset.editorOpen = state.libraryEditorOpen ? 'true' : 'false';
+    ui.library.drawer.dataset.workbenchPage = state.workbenchPage || 'library';
+    ui.library.drawer.dataset.sidebarCollapsed = state.workbenchSidebarCollapsed ? 'true' : 'false';
+    ui.library.drawer.querySelectorAll('.nai-workbench-nav-item[data-workbench-page]').forEach((button) => {
+      const isActive = button.dataset.workbenchPage === state.workbenchPage;
+      button.classList.toggle('is-active', isActive);
+      button.toggleAttribute('aria-current', isActive);
+    });
+    if (ui.library.sidebarToggle) {
+      ui.library.sidebarToggle.setAttribute('aria-expanded', state.workbenchSidebarCollapsed ? 'false' : 'true');
+      ui.library.sidebarToggle.querySelector('.nai-workbench-nav-text').textContent = state.workbenchSidebarCollapsed ? '展开' : '收起';
+    }
+  }
+
+  function openLibraryEditor() {
+    state.workbenchPage = 'library';
+    state.libraryEditorOpen = true;
+    syncWorkbenchLayoutState();
+    requestAnimationFrame(() => autoResizeAllTextareas());
+  }
+
+  function closeLibraryEditor() {
+    state.libraryEditorOpen = false;
+    state.libraryEditingId = '';
+    syncWorkbenchLayoutState();
+  }
+
+  function openLibrarySettingsPanel() {
+    state.workbenchPage = 'settings';
+    state.libraryEditorOpen = false;
+    syncWorkbenchLayoutState();
+    requestAnimationFrame(() => autoResizeAllTextareas());
+  }
+
+  function openLibraryIndexPanel() {
+    state.workbenchPage = 'library';
+    closeLibraryEditor();
+  }
+
+  function toggleWorkbenchSidebar() {
+    state.workbenchSidebarCollapsed = !state.workbenchSidebarCollapsed;
+    syncWorkbenchLayoutState();
+  }
+
   function openPanel(page) {
+    if (state.isNovelAIImagePage) {
+      openLibraryDrawer();
+      return;
+    }
     state.isOpen = true;
     if (state.panelLayout) {
       applyPanelLayout(state.panelLayout);
     }
     ui.panel.classList.remove('nai-hidden');
-    setPage(page || state.activePage || 'reverse');
+    setPage(page || state.activePage || (state.isNovelAIImagePage ? 'library' : 'reverse'));
     keepPanelInsideViewport();
   }
 
   function closePanel() {
+    if (state.isNovelAIImagePage) {
+      closeLibraryDrawer();
+      return;
+    }
     persistPanelLayout();
     state.isOpen = false;
     ui.panel.classList.add('nai-hidden');
@@ -852,8 +1147,8 @@
   }
 
   function renderPromptLibraryOptions() {
-    const select = ui.settings.roleLibrarySelect;
-    if (!select) return;
+    const selects = [ui.settings.roleLibrarySelect, ui.library.roleLibrarySelect].filter(Boolean);
+    if (!selects.length) return;
     const roleLibraryEntries = state.promptLibrary.filter((entry) => entry.category === ROLE_LIBRARY_CATEGORY);
 
     const libraryOptions = [
@@ -865,13 +1160,15 @@
         })),
     ];
 
-    select.innerHTML = libraryOptions
+    const html = libraryOptions
       .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
       .join('');
 
-    if (!roleLibraryEntries.some((entry) => entry.id === select.value)) {
-      select.value = '';
-    }
+    selects.forEach((select) => {
+      const currentValue = select.value;
+      select.innerHTML = html;
+      select.value = roleLibraryEntries.some((entry) => entry.id === currentValue) ? currentValue : '';
+    });
   }
 
   async function refreshPromptLibraryOptions() {
@@ -880,6 +1177,7 @@
       ? data[PROMPT_LIBRARY_KEY].map(normalizePromptLibraryEntry).filter(Boolean)
       : [];
     renderPromptLibraryOptions();
+    renderLibraryManager();
   }
 
   function applyPromptLibraryToRolePrompt() {
@@ -900,6 +1198,180 @@
     setStatus(T.statusRoleLibraryApplied, false);
   }
 
+  function applyPromptLibraryToLibraryRolePrompt() {
+    const select = ui.library.roleLibrarySelect;
+    const rolePrompt = ui.library.rolePrompt;
+    if (!select || !rolePrompt) return;
+
+    const entry = state.promptLibrary.find((item) => item.id === select.value && item.category === ROLE_LIBRARY_CATEGORY);
+    if (!entry) {
+      setStatus(T.statusRoleLibraryMissing, true);
+      return;
+    }
+
+    rolePrompt.value = entry.tags
+      .map((tag, index) => `${tag}${entry.delimiters?.[index] || ''}`)
+      .join('');
+    autoResizeTextarea(rolePrompt);
+    setStatus(T.statusRoleLibraryApplied, false);
+  }
+
+  function resetLibraryEditor() {
+    state.libraryEditingId = '';
+    if (ui.library.category) ui.library.category.value = 'char';
+    if (ui.library.name) ui.library.name.value = '';
+    if (ui.library.prompt) {
+      ui.library.prompt.value = '';
+      autoResizeTextarea(ui.library.prompt);
+    }
+  }
+
+  function renderLibraryManager() {
+    if (!ui.libraryList) return;
+    const entries = [...state.promptLibrary].sort((a, b) => {
+      const categoryCompare = a.category.localeCompare(b.category);
+      if (categoryCompare) return categoryCompare;
+      return a.alias.localeCompare(b.alias);
+    });
+
+    if (!entries.length) {
+      ui.libraryList.innerHTML = '<div class="nai-library-empty">暂无词库条目</div>';
+      return;
+    }
+
+    ui.libraryList.innerHTML = entries.map((entry) => {
+      const promptText = entry.promptText || serializePromptTags(entry.tags, entry.delimiters);
+      const preview = promptText.length > 160 ? `${promptText.slice(0, 160)}...` : promptText;
+      const syncText = entry.officialRemoteId || entry.officialChunkId
+        ? `已同步${entry.officialSyncedAt ? ` · ${formatTime(entry.officialSyncedAt)}` : ''}`
+        : '未同步';
+
+      return `
+        <article class="nai-library-row" data-id="${escapeHtml(entry.id)}">
+          <div class="nai-library-row-head">
+            <div>
+              <div class="nai-library-row-alias">${escapeHtml(entry.alias)}</div>
+              <div class="nai-library-row-sync">${escapeHtml(syncText)}</div>
+            </div>
+            <div class="nai-library-row-count">${entry.tags.length} tags</div>
+          </div>
+          <div class="nai-library-row-preview">${escapeHtml(preview)}</div>
+          <div class="nai-library-row-actions">
+            <button type="button" data-action="library-edit" data-id="${escapeHtml(entry.id)}">编辑</button>
+            <button type="button" data-action="library-copy" data-id="${escapeHtml(entry.id)}">复制</button>
+            <button type="button" data-action="library-sync" data-id="${escapeHtml(entry.id)}">同步</button>
+            <button type="button" data-action="library-delete" data-id="${escapeHtml(entry.id)}">删除</button>
+          </div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function editLibraryEntry(entryId) {
+    const entry = state.promptLibrary.find((item) => item.id === entryId);
+    if (!entry) return;
+
+    openLibraryEditor();
+    state.libraryEditingId = entry.id;
+    if (ui.library.category) ui.library.category.value = PROMPT_LIBRARY_CATEGORIES.some((item) => item.id === entry.category)
+      ? entry.category
+      : 'char';
+    if (ui.library.name) ui.library.name.value = entry.name || entry.shortAlias || '';
+    if (ui.library.prompt) {
+      ui.library.prompt.value = entry.promptText || serializePromptTags(entry.tags, entry.delimiters);
+      autoResizeTextarea(ui.library.prompt);
+      ui.library.prompt.focus();
+    }
+  }
+
+  async function saveLibraryEditorAndSync() {
+    const rawCategory = ui.library.category?.value || 'char';
+    const rawName = ui.library.name?.value || '';
+    const rawPrompt = ui.library.prompt?.value || '';
+    const category = normalizePromptLibraryCategory(rawCategory);
+    const name = normalizePromptLibraryName(rawName);
+    const alias = normalizePromptLibraryAlias(category, name);
+    const parsed = parsePromptTags(rawPrompt);
+
+    if (!category || !name || !alias || !parsed.tags.length) {
+      setStatus(T.statusLibraryInvalid, true);
+      return;
+    }
+
+    const existingById = state.promptLibrary.find((entry) => entry.id === state.libraryEditingId);
+    const existingByAlias = state.promptLibrary.find((entry) => entry.alias === alias);
+    const baseEntry = existingById || existingByAlias || {};
+    const nextEntry = normalizePromptLibraryEntry({
+      ...baseEntry,
+      id: baseEntry.id || createId('library'),
+      alias,
+      category,
+      name,
+      tags: parsed.tags,
+      delimiters: parsed.delimiters,
+      createdAt: baseEntry.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    });
+    if (!nextEntry) return;
+
+    const nextLibrary = state.promptLibrary.filter((entry) => entry.id !== nextEntry.id && entry.alias !== nextEntry.alias);
+    nextLibrary.unshift(nextEntry);
+
+    try {
+      await savePromptLibraryEntries(nextLibrary);
+      state.libraryEditingId = nextEntry.id;
+      setStatus(T.statusLibrarySaved, false);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), true);
+      return;
+    }
+
+    await syncLibraryEntry(nextEntry);
+  }
+
+  async function syncLibraryEntry(entry) {
+    if (!entry) return;
+    const result = await syncPromptLibraryEntryToOfficialChunk(entry);
+    if (result?.ok) {
+      await patchPromptLibraryOfficialSyncResult(entry.id, result);
+      setStatus(T.statusLibrarySynced, false);
+      return;
+    }
+
+    if (result?.skipped) {
+      setStatus('当前页面不可同步官方 Prompt Chunk。', true);
+      return;
+    }
+
+    setStatus(`${T.statusLibrarySyncFailed}${result?.error || '未知错误'}`, true);
+  }
+
+  async function syncLibraryEntryById(entryId) {
+    const entry = state.promptLibrary.find((item) => item.id === entryId);
+    if (!entry) return;
+    setStatus('正在同步到官方 Prompt Chunk...', false);
+    await syncLibraryEntry(entry);
+  }
+
+  async function copyLibraryEntry(entryId) {
+    const entry = state.promptLibrary.find((item) => item.id === entryId);
+    if (!entry) return;
+    const copied = await copyText(entry.promptText || serializePromptTags(entry.tags, entry.delimiters));
+    setStatus(copied ? T.statusCopied : T.statusCopyFailed, !copied);
+  }
+
+  async function deleteLibraryEntry(entryId) {
+    const entry = state.promptLibrary.find((item) => item.id === entryId);
+    if (!entry) return;
+    const confirmed = window.confirm(`删除词库条目 ${entry.alias}？`);
+    if (!confirmed) return;
+
+    const nextLibrary = state.promptLibrary.filter((item) => item.id !== entryId);
+    await savePromptLibraryEntries(nextLibrary);
+    if (state.libraryEditingId === entryId) resetLibraryEditor();
+    setStatus(T.statusLibraryDeleted, false);
+  }
+
   function updateFallbackSettingsVisibility() {
     if (!ui.settings.fallbackSection) return;
     ui.settings.fallbackSection.classList.toggle('nai-hidden', !ui.settings.enableFallbackModel.checked);
@@ -908,6 +1380,59 @@
   function applyThemePreset() {
     if (!ui.root) return;
     ui.root.dataset.theme = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
+  }
+
+  function isNovelAIImageLocation() {
+    return window.location.origin === 'https://novelai.net' && window.location.pathname === '/image';
+  }
+
+  function applyPageMode() {
+    state.isNovelAIImagePage = isNovelAIImageLocation();
+    if (!ui.root) return;
+
+    ui.root.dataset.novelaiImagePage = state.isNovelAIImagePage ? 'true' : 'false';
+    if (ui.fab) {
+      ui.fab.textContent = state.isNovelAIImagePage ? T.imagePageFab : T.fab;
+      ui.fab.title = state.isNovelAIImagePage ? T.imagePageTitle : T.title;
+    }
+    const title = ui.root.querySelector('.nai-md3-title');
+    if (title) title.textContent = state.isNovelAIImagePage ? T.imagePageTitle : T.title;
+
+    updateFabVisibility();
+
+    if (state.isNovelAIImagePage) {
+      ensureOfficialChunkBridgeScript();
+      if (ui.panel) ui.panel.classList.add('nai-hidden');
+      state.activePage = 'library';
+      renderLibraryManager();
+      setStatus(T.statusLibraryReady, false);
+    } else if (state.activePage === 'library') {
+      closeLibraryDrawer();
+      setPage('reverse');
+      setStatus(T.statusReady, false);
+    }
+  }
+
+  function bindLocationModeWatcher() {
+    let lastHref = window.location.href;
+    const checkLocation = () => {
+      if (window.location.href === lastHref) return;
+      lastHref = window.location.href;
+      applyPageMode();
+    };
+
+    ['pushState', 'replaceState'].forEach((method) => {
+      const original = history[method];
+      if (typeof original !== 'function') return;
+      history[method] = function (...args) {
+        const result = original.apply(this, args);
+        queueMicrotask(checkLocation);
+        return result;
+      };
+    });
+
+    window.addEventListener('popstate', () => queueMicrotask(checkLocation));
+    window.setInterval(checkLocation, 1000);
   }
 
   function autoResizeTextarea(textarea) {
@@ -938,6 +1463,29 @@
     const protocolField = isFallback ? ui.settings.fallbackProtocol : ui.settings.protocol;
     const endpointField = isFallback ? ui.settings.fallbackEndpoint : ui.settings.endpoint;
     const modelField = isFallback ? ui.settings.fallbackModel : ui.settings.model;
+    const preset = getProviderPresetById(presetField.value);
+
+    if (preset.protocol) {
+      protocolField.value = preset.protocol;
+    }
+
+    if (preset.endpoint || preset.id === 'custom') {
+      endpointField.value = preset.endpoint;
+    }
+
+    if (forceModel || !modelField.value.trim() || preset.id !== 'custom') {
+      modelField.value = preset.defaultModel || modelField.value;
+    }
+  }
+
+  function syncLibraryProviderFields(kind, forceModel) {
+    const isFallback = kind === 'fallback';
+    const presetField = isFallback ? ui.library.fallbackProviderPreset : ui.library.providerPreset;
+    const protocolField = isFallback ? ui.library.fallbackProtocol : ui.library.protocol;
+    const endpointField = isFallback ? ui.library.fallbackEndpoint : ui.library.endpoint;
+    const modelField = isFallback ? ui.library.fallbackModel : ui.library.model;
+    if (!presetField || !protocolField || !endpointField || !modelField) return;
+
     const preset = getProviderPresetById(presetField.value);
 
     if (preset.protocol) {
@@ -1077,10 +1625,33 @@
     };
   }
 
+  function getLibraryModelListConfig(kind) {
+    const isFallback = kind === 'fallback';
+    return {
+      providerId: isFallback ? ui.library.fallbackProviderPreset?.value : ui.library.providerPreset?.value,
+      protocol: isFallback ? ui.library.fallbackProtocol?.value : ui.library.protocol?.value,
+      endpoint: String(isFallback ? ui.library.fallbackEndpoint?.value || '' : ui.library.endpoint?.value || '').trim(),
+      apiKey: String((isFallback ? ui.library.fallbackApiKey?.value : ui.library.apiKey?.value) || ui.library.apiKey?.value || '').trim(),
+    };
+  }
+
   function populateModelSuggestions(kind, models) {
     const isFallback = kind === 'fallback';
     const list = isFallback ? ui.settings.fallbackModelList : ui.settings.modelList;
     const input = isFallback ? ui.settings.fallbackModel : ui.settings.model;
+    if (!list || !input) return;
+    list.innerHTML = models
+      .map((model) => `<option value="${escapeHtml(model)}"></option>`)
+      .join('');
+    if (!input.value.trim() && models[0]) {
+      input.value = models[0];
+    }
+  }
+
+  function populateLibraryModelSuggestions(kind, models) {
+    const isFallback = kind === 'fallback';
+    const list = isFallback ? ui.library.fallbackModelList : ui.library.modelList;
+    const input = isFallback ? ui.library.fallbackModel : ui.library.model;
     if (!list || !input) return;
     list.innerHTML = models
       .map((model) => `<option value="${escapeHtml(model)}"></option>`)
@@ -1118,6 +1689,50 @@
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
+    }
+  }
+
+  async function fetchLibraryModelsFor(kind) {
+    const config = getLibraryModelListConfig(kind);
+    if (!config.endpoint || !config.apiKey) {
+      setStatus('请先填写对应的 Endpoint 和 API Key，再获取模型列表。', true);
+      return;
+    }
+
+    setStatus('正在获取模型列表...', false);
+    try {
+      const response = await sendRuntimeMessage({
+        type: 'nai-list-models',
+        payload: config,
+      });
+
+      if (!response?.ok) {
+        throw new Error(response?.error || '获取模型列表失败');
+      }
+
+      const models = Array.isArray(response.models) ? response.models : [];
+      populateLibraryModelSuggestions(kind, models);
+      setStatus(
+        models.length
+          ? `已加载 ${models.length} 个模型候选${kind === 'fallback' ? '（备用）' : ''}。`
+          : `该服务未返回可用模型${kind === 'fallback' ? '（备用）' : ''}。`,
+        !models.length
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), true);
+    }
+  }
+
+  async function testLibraryConnection() {
+    const previousSettings = state.settings;
+    state.settings = { ...DEFAULT_SETTINGS, ...readLibrarySettingsFromInputs() };
+    applySettingsToInputs();
+    try {
+      await testConnection();
+    } finally {
+      state.settings = previousSettings;
+      applySettingsToInputs();
+      applyLibrarySettingsToInputs();
     }
   }
   function getPromptConfig() {
@@ -1471,7 +2086,7 @@
   }
 
   async function onShortcutClick(event) {
-    if (!ensureExtensionContext() || state.pending || state.isPickingImage) return;
+    if (!ensureExtensionContext() || state.isNovelAIImagePage || state.pending || state.isPickingImage) return;
     if (event.button !== 0 || !event.altKey || !event.shiftKey) return;
 
     const image = findImageCandidate(event);
@@ -1505,9 +2120,83 @@
     ui.settings.themePreset.value = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
     ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
     ui.settings.defaultCodeFence.checked = Boolean(state.settings.defaultCodeFence);
-    ui.settings.showFloatingBall.checked = Boolean(state.settings.showFloatingBall);
+    ui.settings.showReverseFloatingBall.checked = Boolean(state.settings.showReverseFloatingBall);
+    ui.settings.showWorkbenchFloatingBall.checked = Boolean(state.settings.showWorkbenchFloatingBall);
+    applyLibrarySettingsToInputs();
     updateFallbackSettingsVisibility();
     requestAnimationFrame(() => autoResizeAllTextareas());
+  }
+
+  function applyLibrarySettingsToInputs() {
+    const map = {
+      providerPreset: 'providerPreset',
+      protocol: 'protocol',
+      endpoint: 'endpoint',
+      model: 'model',
+      apiKey: 'apiKey',
+      systemPrompt: 'systemPrompt',
+      reversePrompt: 'reversePrompt',
+      roleSystemPrompt: 'roleSystemPrompt',
+      roleReversePrompt: 'roleReversePrompt',
+      rolePrompt: 'rolePrompt',
+      temperature: 'temperature',
+      maxTokens: 'maxTokens',
+      fallbackProviderPreset: 'fallbackProviderPreset',
+      fallbackProtocol: 'fallbackProtocol',
+      fallbackEndpoint: 'fallbackEndpoint',
+      fallbackModel: 'fallbackModel',
+      fallbackApiKey: 'fallbackApiKey',
+      themePreset: 'themePreset',
+    };
+
+    Object.entries(map).forEach(([key, settingKey]) => {
+      if (!ui.library[key]) return;
+      ui.library[key].value = String(state.settings[settingKey] ?? DEFAULT_SETTINGS[settingKey] ?? '');
+    });
+
+    const checks = {
+      enableRoleReplaceMode: 'enableRoleReplaceMode',
+      enableFallbackModel: 'enableFallbackModel',
+      sendImageAsDataUrl: 'sendImageAsDataUrl',
+      defaultCodeFence: 'defaultCodeFence',
+      showReverseFloatingBall: 'showReverseFloatingBall',
+      showWorkbenchFloatingBall: 'showWorkbenchFloatingBall',
+    };
+    Object.entries(checks).forEach(([key, settingKey]) => {
+      if (!ui.library[key]) return;
+      ui.library[key].checked = Boolean(state.settings[settingKey]);
+    });
+
+    renderPromptLibraryOptions();
+  }
+
+  function readLibrarySettingsFromInputs() {
+    return {
+      providerPreset: ui.library.providerPreset?.value || DEFAULT_SETTINGS.providerPreset,
+      protocol: ui.library.protocol?.value || DEFAULT_SETTINGS.protocol,
+      endpoint: ui.library.endpoint?.value.trim() || DEFAULT_SETTINGS.endpoint,
+      model: ui.library.model?.value.trim() || DEFAULT_SETTINGS.model,
+      apiKey: ui.library.apiKey?.value.trim() || '',
+      systemPrompt: ui.library.systemPrompt?.value.trim() || DEFAULT_SETTINGS.systemPrompt,
+      reversePrompt: ui.library.reversePrompt?.value.trim() || DEFAULT_SETTINGS.reversePrompt,
+      enableRoleReplaceMode: Boolean(ui.library.enableRoleReplaceMode?.checked),
+      roleSystemPrompt: ui.library.roleSystemPrompt?.value.trim() || DEFAULT_SETTINGS.roleSystemPrompt,
+      roleReversePrompt: ui.library.roleReversePrompt?.value.trim() || DEFAULT_SETTINGS.roleReversePrompt,
+      rolePrompt: ui.library.rolePrompt?.value.trim() || '',
+      defaultCodeFence: Boolean(ui.library.defaultCodeFence?.checked),
+      temperature: Number(ui.library.temperature?.value) || DEFAULT_SETTINGS.temperature,
+      maxTokens: Number(ui.library.maxTokens?.value) || DEFAULT_SETTINGS.maxTokens,
+      enableFallbackModel: Boolean(ui.library.enableFallbackModel?.checked),
+      fallbackProviderPreset: ui.library.fallbackProviderPreset?.value || DEFAULT_SETTINGS.fallbackProviderPreset,
+      fallbackProtocol: ui.library.fallbackProtocol?.value || DEFAULT_SETTINGS.fallbackProtocol,
+      fallbackEndpoint: ui.library.fallbackEndpoint?.value.trim() || '',
+      fallbackModel: ui.library.fallbackModel?.value.trim() || '',
+      fallbackApiKey: ui.library.fallbackApiKey?.value.trim() || '',
+      themePreset: ui.library.themePreset?.value || DEFAULT_SETTINGS.themePreset,
+      sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
+      showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
+      showWorkbenchFloatingBall: Boolean(ui.library.showWorkbenchFloatingBall?.checked),
+    };
   }
 
   function readSettingsFromInputs() {
@@ -1534,7 +2223,8 @@
       fallbackApiKey: ui.settings.fallbackApiKey.value.trim(),
       themePreset: ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset,
       sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),
-      showFloatingBall: Boolean(ui.settings.showFloatingBall.checked),
+      showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),
+      showWorkbenchFloatingBall: Boolean(ui.settings.showWorkbenchFloatingBall.checked),
     };
   }
 
@@ -1545,6 +2235,18 @@
     if (!saved) return;
     applyThemePreset();
     updateFabVisibility();
+    applyLibrarySettingsToInputs();
+    setStatus(T.statusSaved, false);
+  }
+
+  async function saveLibrarySettings() {
+    if (!ensureExtensionContext()) return;
+    state.settings = { ...DEFAULT_SETTINGS, ...readLibrarySettingsFromInputs() };
+    const saved = await storageSet({ [SETTINGS_KEY]: state.settings });
+    if (!saved) return;
+    applyThemePreset();
+    updateFabVisibility();
+    applySettingsToInputs();
     setStatus(T.statusSaved, false);
   }
 
@@ -1568,6 +2270,7 @@
           applySettingsToInputs();
           applyThemePreset();
           updateFabVisibility();
+          applyLibrarySettingsToInputs();
         }
 
         if (changes[HISTORY_KEY]?.newValue) {
@@ -1580,6 +2283,7 @@
             ? changes[PROMPT_LIBRARY_KEY].newValue.map(normalizePromptLibraryEntry).filter(Boolean)
             : [];
           renderPromptLibraryOptions();
+          renderLibraryManager();
         }
       });
     } catch (error) {
@@ -1599,6 +2303,7 @@
         </header>
 
         <nav class="nai-md3-tabs">
+          <button type="button" data-page="library">${T.tabLibrary}</button>
           <button type="button" class="active" data-page="reverse">${T.tabReverse}</button>
           <button type="button" data-page="history">${T.tabHistory}</button>
           <button type="button" data-page="settings">${T.tabSettings}</button>
@@ -1632,7 +2337,10 @@
               <div class="nai-md3-section-note">${T.sectionAppearanceHint}</div>
             </div>
             <div><label class="nai-md3-label">${T.themePreset}</label><select class="nai-md3-input" data-field="themePreset"></select></div>
-            <label class="nai-md3-switch"><input data-field="showFloatingBall" type="checkbox" /><span>${T.showBall}</span></label>
+            <div class="nai-md3-switch-stack">
+              <label class="nai-md3-switch"><input data-field="showReverseFloatingBall" type="checkbox" /><span>${T.showReverseEntry}</span></label>
+              <label class="nai-md3-switch"><input data-field="showWorkbenchFloatingBall" type="checkbox" /><span>${T.showWorkbenchEntry}</span></label>
+            </div>
           </div>
 
           <div class="nai-md3-settings-section">
@@ -1717,12 +2425,253 @@
         </div>
         <div class="nai-md3-resize-handle" aria-hidden="true"></div>
       </section>
+      <aside class="nai-library-drawer nai-hidden" aria-label="工作台">
+        <div class="nai-library-drawer-surface">
+          <header class="nai-library-drawer-head">
+            <div>
+              <div class="nai-library-drawer-kicker">NAI Autocomplete</div>
+              <div class="nai-library-drawer-title">工作台</div>
+            </div>
+            <button class="nai-library-drawer-close" type="button" data-action="close" aria-label="关闭">×</button>
+          </header>
+
+          <div class="nai-library-drawer-status"></div>
+
+          <div class="nai-library-drawer-content">
+            <nav class="nai-workbench-sidebar" aria-label="工作台窗口">
+              <div class="nai-workbench-nav-main">
+                <button type="button" class="nai-workbench-nav-item is-active" data-workbench-page="library" data-action="workbench-open-library" title="词库">
+                  <span class="nai-workbench-nav-icon" aria-hidden="true">#</span>
+                  <span class="nai-workbench-nav-text">词库</span>
+                </button>
+                <button type="button" class="nai-workbench-nav-item" data-workbench-page="settings" data-action="workbench-open-settings" title="设置">
+                  <span class="nai-workbench-nav-icon" aria-hidden="true">*</span>
+                  <span class="nai-workbench-nav-text">设置</span>
+                </button>
+              </div>
+              <div class="nai-workbench-nav-bottom">
+                <button type="button" class="nai-workbench-nav-item is-collapse" data-action="workbench-toggle-sidebar" aria-expanded="true" title="收起侧边栏">
+                  <span class="nai-workbench-nav-icon" aria-hidden="true">&lt;</span>
+                  <span class="nai-workbench-nav-text">收起</span>
+                </button>
+              </div>
+            </nav>
+
+            <section class="nai-library-editor" aria-label="词库编辑">
+              <div class="nai-library-editor-head">
+                <div>
+                  <div class="nai-library-editor-kicker">Prompt Chunk</div>
+                  <div class="nai-library-editor-title">词库编辑</div>
+                </div>
+                <button class="nai-library-editor-close" type="button" data-action="library-close-editor" aria-label="隐藏词库编辑">×</button>
+              </div>
+              <div class="nai-library-editor-row">
+                <label class="nai-library-field">
+                  <span>分类</span>
+                  <select data-field="libraryCategory">
+                    ${PROMPT_LIBRARY_CATEGORIES.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`).join('')}
+                  </select>
+                </label>
+                <label class="nai-library-field">
+                  <span>名称</span>
+                  <input data-field="libraryName" type="text" placeholder="yuukarin" />
+                </label>
+              </div>
+              <label class="nai-library-field">
+                <span>Prompt Chunk 内容</span>
+                <textarea data-field="libraryPrompt" rows="8" placeholder="hair, eyes, outfit"></textarea>
+              </label>
+              <div class="nai-library-editor-actions">
+                <button type="button" data-action="library-new">新建</button>
+                <button type="button" class="is-primary" data-action="library-save-sync">保存并同步</button>
+              </div>
+            </section>
+
+            <section class="nai-library-main" aria-label="工作台页面">
+              <section class="nai-library-index" data-workbench-panel="library">
+                <div class="nai-library-index-head">
+                  <div>已保存词库</div>
+                  <button type="button" data-action="library-new">新建</button>
+                </div>
+                <div class="nai-library-list"></div>
+              </section>
+
+              <section class="nai-library-settings" data-workbench-panel="settings">
+                <div class="nai-library-page-head">
+                  <div>
+                    <div class="nai-library-page-kicker">Workbench</div>
+                    <div class="nai-library-page-title">工作台设置</div>
+                  </div>
+                </div>
+                <div class="nai-library-settings-stack">
+                  <div class="nai-library-settings-group">
+                    <div class="nai-library-settings-title">外观</div>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>颜色预设</span>
+                        <select data-field="libraryThemePreset"></select>
+                      </label>
+                      <div class="nai-library-check-stack">
+                        <label class="nai-library-check">
+                          <input data-field="libraryShowReverseFloatingBall" type="checkbox" />
+                          <span>${T.showReverseEntry}</span>
+                        </label>
+                        <label class="nai-library-check">
+                          <input data-field="libraryShowWorkbenchFloatingBall" type="checkbox" />
+                          <span>${T.showWorkbenchEntry}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="nai-library-settings-group">
+                    <div class="nai-library-settings-title">主模型</div>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>${T.serviceProvider}</span>
+                        <select data-field="libraryProviderPreset"></select>
+                      </label>
+                      <label class="nai-library-field">
+                        <span>${T.protocol}</span>
+                        <select data-field="libraryProtocol"></select>
+                      </label>
+                    </div>
+                    <label class="nai-library-field">
+                      <span>API Endpoint</span>
+                      <input data-field="libraryEndpoint" type="text" />
+                    </label>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>${T.model}</span>
+                        <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
+                        <datalist id="nai-library-primary-model-list"></datalist>
+                      </label>
+                      <label class="nai-library-field">
+                        <span>API Key</span>
+                        <input data-field="libraryApiKey" type="password" />
+                      </label>
+                    </div>
+                    <div class="nai-library-settings-actions">
+                      <button type="button" data-action="library-fetch-models">${T.fetchModels}</button>
+                      <button type="button" data-action="library-test-connection">${T.testConnection}</button>
+                    </div>
+                  </div>
+
+                  <div class="nai-library-settings-group">
+                    <div class="nai-library-settings-title">提示词</div>
+                    <label class="nai-library-field">
+                      <span>${T.systemPrompt}</span>
+                      <textarea data-field="librarySystemPrompt" rows="3"></textarea>
+                    </label>
+                    <label class="nai-library-field">
+                      <span>${T.reversePrompt}</span>
+                      <textarea data-field="libraryReversePrompt" rows="3"></textarea>
+                    </label>
+                    <label class="nai-library-check">
+                      <input data-field="libraryEnableRoleReplaceMode" type="checkbox" />
+                      <span>${T.roleMode}</span>
+                    </label>
+                    <label class="nai-library-field">
+                      <span>${T.roleSystemPrompt}</span>
+                      <textarea data-field="libraryRoleSystemPrompt" rows="3"></textarea>
+                    </label>
+                    <label class="nai-library-field">
+                      <span>${T.roleReversePrompt}</span>
+                      <textarea data-field="libraryRoleReversePrompt" rows="3"></textarea>
+                    </label>
+                    <label class="nai-library-field">
+                      <span>${T.rolePrompt}</span>
+                      <textarea data-field="libraryRolePrompt" rows="2"></textarea>
+                    </label>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>${T.roleLibrary}</span>
+                        <select data-field="libraryRoleLibrarySelect"></select>
+                      </label>
+                      <div class="nai-library-settings-actions is-bottom">
+                        <button type="button" data-action="library-apply-role-library">${T.applyRoleLibrary}</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="nai-library-settings-group">
+                    <div class="nai-library-settings-title">生成选项</div>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>Temperature</span>
+                        <input data-field="libraryTemperature" type="number" min="0" max="2" step="0.1" />
+                      </label>
+                      <label class="nai-library-field">
+                        <span>Max Tokens</span>
+                        <input data-field="libraryMaxTokens" type="number" min="64" max="4096" step="1" />
+                      </label>
+                    </div>
+                    <label class="nai-library-check">
+                      <input data-field="librarySendImageAsDataUrl" type="checkbox" />
+                      <span>${T.sendImageAsDataUrl}</span>
+                    </label>
+                    <label class="nai-library-check">
+                      <input data-field="libraryDefaultCodeFence" type="checkbox" />
+                      <span>${T.defaultCodeFence}</span>
+                    </label>
+                    <label class="nai-library-check">
+                      <input data-field="libraryEnableFallbackModel" type="checkbox" />
+                      <span>${T.fallbackMode}</span>
+                    </label>
+                  </div>
+
+                  <div class="nai-library-settings-group">
+                    <div class="nai-library-settings-title">备用模型</div>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>${T.fallbackProvider}</span>
+                        <select data-field="libraryFallbackProviderPreset"></select>
+                      </label>
+                      <label class="nai-library-field">
+                        <span>${T.fallbackProtocol}</span>
+                        <select data-field="libraryFallbackProtocol"></select>
+                      </label>
+                    </div>
+                    <label class="nai-library-field">
+                      <span>${T.fallbackEndpoint}</span>
+                      <input data-field="libraryFallbackEndpoint" type="text" />
+                    </label>
+                    <div class="nai-library-settings-grid">
+                      <label class="nai-library-field">
+                        <span>${T.fallbackModel}</span>
+                        <input data-field="libraryFallbackModel" list="nai-library-fallback-model-list" type="text" />
+                        <datalist id="nai-library-fallback-model-list"></datalist>
+                      </label>
+                      <label class="nai-library-field">
+                        <span>${T.fallbackApiKey}</span>
+                        <input data-field="libraryFallbackApiKey" type="password" />
+                      </label>
+                    </div>
+                    <div class="nai-library-settings-actions">
+                      <button type="button" data-action="library-fetch-fallback-models">${T.fetchModels}</button>
+                    </div>
+                  </div>
+
+                  <div class="nai-library-settings-save">
+                    <button type="button" class="is-primary" data-action="library-save-settings">${T.saveSettings}</button>
+                  </div>
+                </div>
+              </section>
+            </section>
+          </div>
+        </div>
+      </aside>
     `;
 
     document.body.appendChild(root);
     ui.root = root;
     ui.fab = root.querySelector('.nai-md3-fab');
     ui.panel = root.querySelector('.nai-md3-panel');
+    ui.library.drawer = root.querySelector('.nai-library-drawer');
+    ui.library.status = root.querySelector('.nai-library-drawer-status');
+    ui.library.editor = root.querySelector('.nai-library-editor');
+    ui.library.sidebarToggle = root.querySelector('[data-action="workbench-toggle-sidebar"]');
+    ui.library.settingsPanel = root.querySelector('[data-workbench-panel="settings"]');
     ui.header = root.querySelector('.nai-md3-header');
     ui.resizeHandle = root.querySelector('.nai-md3-resize-handle');
     ui.status = root.querySelector('.nai-md3-status');
@@ -1731,6 +2680,7 @@
     ui.resultOutput = root.querySelector('.nai-md3-result');
     ui.sendButton = root.querySelector('[data-action="reverse"]');
     ui.historyList = root.querySelector('.nai-history-list');
+    ui.libraryList = root.querySelector('.nai-library-list');
     ui.navButtons = Array.from(root.querySelectorAll('.nai-md3-tabs [data-page]'));
 
     root.querySelectorAll('.nai-md3-page').forEach((el) => {
@@ -1763,13 +2713,49 @@
     ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
     ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
     ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
-    ui.settings.showFloatingBall = root.querySelector('[data-field="showFloatingBall"]');
+    ui.settings.showReverseFloatingBall = root.querySelector('[data-field="showReverseFloatingBall"]');
+    ui.settings.showWorkbenchFloatingBall = root.querySelector('[data-field="showWorkbenchFloatingBall"]');
+    ui.library.category = ui.library.drawer?.querySelector('[data-field="libraryCategory"]');
+    ui.library.name = ui.library.drawer?.querySelector('[data-field="libraryName"]');
+    ui.library.prompt = ui.library.drawer?.querySelector('[data-field="libraryPrompt"]');
+    ui.library.themePreset = ui.library.drawer?.querySelector('[data-field="libraryThemePreset"]');
+    ui.library.showReverseFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowReverseFloatingBall"]');
+    ui.library.showWorkbenchFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowWorkbenchFloatingBall"]');
+    ui.library.providerPreset = ui.library.drawer?.querySelector('[data-field="libraryProviderPreset"]');
+    ui.library.protocol = ui.library.drawer?.querySelector('[data-field="libraryProtocol"]');
+    ui.library.endpoint = ui.library.drawer?.querySelector('[data-field="libraryEndpoint"]');
+    ui.library.model = ui.library.drawer?.querySelector('[data-field="libraryModel"]');
+    ui.library.modelList = ui.library.drawer?.querySelector('#nai-library-primary-model-list');
+    ui.library.apiKey = ui.library.drawer?.querySelector('[data-field="libraryApiKey"]');
+    ui.library.systemPrompt = ui.library.drawer?.querySelector('[data-field="librarySystemPrompt"]');
+    ui.library.reversePrompt = ui.library.drawer?.querySelector('[data-field="libraryReversePrompt"]');
+    ui.library.enableRoleReplaceMode = ui.library.drawer?.querySelector('[data-field="libraryEnableRoleReplaceMode"]');
+    ui.library.roleSystemPrompt = ui.library.drawer?.querySelector('[data-field="libraryRoleSystemPrompt"]');
+    ui.library.roleReversePrompt = ui.library.drawer?.querySelector('[data-field="libraryRoleReversePrompt"]');
+    ui.library.rolePrompt = ui.library.drawer?.querySelector('[data-field="libraryRolePrompt"]');
+    ui.library.roleLibrarySelect = ui.library.drawer?.querySelector('[data-field="libraryRoleLibrarySelect"]');
+    ui.library.temperature = ui.library.drawer?.querySelector('[data-field="libraryTemperature"]');
+    ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
+    ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
+    ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');
+    ui.library.enableFallbackModel = ui.library.drawer?.querySelector('[data-field="libraryEnableFallbackModel"]');
+    ui.library.fallbackProviderPreset = ui.library.drawer?.querySelector('[data-field="libraryFallbackProviderPreset"]');
+    ui.library.fallbackProtocol = ui.library.drawer?.querySelector('[data-field="libraryFallbackProtocol"]');
+    ui.library.fallbackEndpoint = ui.library.drawer?.querySelector('[data-field="libraryFallbackEndpoint"]');
+    ui.library.fallbackModel = ui.library.drawer?.querySelector('[data-field="libraryFallbackModel"]');
+    ui.library.fallbackModelList = ui.library.drawer?.querySelector('#nai-library-fallback-model-list');
+    ui.library.fallbackApiKey = ui.library.drawer?.querySelector('[data-field="libraryFallbackApiKey"]');
 
     fillSelectOptions(ui.settings.providerPreset, PROVIDER_PRESETS);
     fillSelectOptions(ui.settings.protocol, PROTOCOL_OPTIONS);
     fillSelectOptions(ui.settings.themePreset, THEME_PRESETS);
+    fillSelectOptions(ui.library.themePreset, THEME_PRESETS);
     fillSelectOptions(ui.settings.fallbackProviderPreset, PROVIDER_PRESETS);
     fillSelectOptions(ui.settings.fallbackProtocol, PROTOCOL_OPTIONS);
+    fillSelectOptions(ui.library.providerPreset, PROVIDER_PRESETS);
+    fillSelectOptions(ui.library.protocol, PROTOCOL_OPTIONS);
+    fillSelectOptions(ui.library.fallbackProviderPreset, PROVIDER_PRESETS);
+    fillSelectOptions(ui.library.fallbackProtocol, PROTOCOL_OPTIONS);
     renderPromptLibraryOptions();
 
     ui.settings.providerPreset.addEventListener('change', () => syncProviderFields('primary', true));
@@ -1778,9 +2764,25 @@
     ui.settings.themePreset.addEventListener('change', () => {
       state.settings.themePreset = ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset;
       applyThemePreset();
+      applyLibrarySettingsToInputs();
     });
+    ui.settings.showReverseFloatingBall.addEventListener('change', () => {
+      state.settings.showReverseFloatingBall = Boolean(ui.settings.showReverseFloatingBall.checked);
+      updateFabVisibility();
+      applyLibrarySettingsToInputs();
+    });
+    ui.settings.showWorkbenchFloatingBall.addEventListener('change', () => {
+      state.settings.showWorkbenchFloatingBall = Boolean(ui.settings.showWorkbenchFloatingBall.checked);
+      updateFabVisibility();
+      applyLibrarySettingsToInputs();
+    });
+    ui.library.themePreset?.addEventListener('change', () => saveLibrarySettings());
+    ui.library.showReverseFloatingBall?.addEventListener('change', () => saveLibrarySettings());
+    ui.library.showWorkbenchFloatingBall?.addEventListener('change', () => saveLibrarySettings());
+    ui.library.providerPreset?.addEventListener('change', () => syncLibraryProviderFields('primary', true));
+    ui.library.fallbackProviderPreset?.addEventListener('change', () => syncLibraryProviderFields('fallback', true));
 
-    ui.fab.addEventListener('click', () => openPanel('reverse'));
+    ui.fab.addEventListener('click', () => openPanel(state.isNovelAIImagePage ? 'library' : 'reverse'));
     bindPanelInteractions();
     bindTextareaAutosize();
     applyPanelLayout(state.panelLayout);
@@ -1810,6 +2812,25 @@
       else if (action === 'test-connection') await testConnection();
       else if (action === 'wrap-code') await wrapCurrentResult();
       else if (action === 'apply-role-library') applyPromptLibraryToRolePrompt();
+      else if (action === 'workbench-toggle-sidebar') toggleWorkbenchSidebar();
+      else if (action === 'workbench-open-settings') openLibrarySettingsPanel();
+      else if (actionTarget.dataset.workbenchPage === 'library') openLibraryIndexPanel();
+      else if (action === 'library-close-editor') closeLibraryEditor();
+      else if (action === 'library-new') {
+        resetLibraryEditor();
+        openLibraryEditor();
+        ui.library.name?.focus();
+      }
+      else if (action === 'library-save-sync') await saveLibraryEditorAndSync();
+      else if (action === 'library-edit') editLibraryEntry(actionTarget.dataset.id);
+      else if (action === 'library-copy') await copyLibraryEntry(actionTarget.dataset.id);
+      else if (action === 'library-sync') await syncLibraryEntryById(actionTarget.dataset.id);
+      else if (action === 'library-delete') await deleteLibraryEntry(actionTarget.dataset.id);
+      else if (action === 'library-save-settings') await saveLibrarySettings();
+      else if (action === 'library-fetch-models') await fetchLibraryModelsFor('primary');
+      else if (action === 'library-fetch-fallback-models') await fetchLibraryModelsFor('fallback');
+      else if (action === 'library-test-connection') await testLibraryConnection();
+      else if (action === 'library-apply-role-library') applyPromptLibraryToLibraryRolePrompt();
       else if (action === 'save-settings') await saveSettings();
       else if (action === 'clear-history') await clearHistory();
       else if (action === 'history-copy') {
@@ -1848,7 +2869,10 @@
         if (!message || typeof message !== 'object') return false;
 
         if (message.type === 'nai-open-panel') {
-          openPanel(message.page === 'settings' ? 'settings' : 'reverse');
+          const requestedPage = message.page === 'library'
+            ? 'library'
+            : (message.page === 'settings' ? 'settings' : 'reverse');
+          openPanel(requestedPage);
           sendResponse({ ok: true });
           return true;
         }
@@ -1876,12 +2900,15 @@
 
     applySettingsToInputs();
     applyThemePreset();
+    bindLocationModeWatcher();
+    applyPageMode();
     updateFabVisibility();
     updatePreview();
     renderHistory();
+    renderLibraryManager();
     setResult('');
-    setPage('reverse');
-    setStatus(T.statusReady, false);
+    setPage(state.isNovelAIImagePage ? 'library' : 'reverse');
+    setStatus(state.isNovelAIImagePage ? T.statusLibraryReady : T.statusReady, false);
 
     bindStorageListener();
     bindMessageListener();
