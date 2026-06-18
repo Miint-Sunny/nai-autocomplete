@@ -133,3 +133,29 @@ html[data-nai-theme="moss"] {
   --nai-category-character: #89d59a;
 }
 
+/* NovelAI 夜 — sampled from the live novelai.net/image palette
+   (deep navy #0e0f21 + signature cream-gold #f5f3c2). */
+html[data-nai-theme="novelai"] {
+  --md-sys-color-surface: #0e0f21;
+  --md-sys-color-surface-container: #15172f;
+  --md-sys-color-surface-container-high: #1d2347;
+  --md-sys-color-on-surface: #edeff7;
+  --md-sys-color-on-surface-variant: #9aa1c8;
+  --md-sys-color-outline: #3c4475;
+  --md-sys-color-outline-variant: #242b54;
+  --md-sys-color-primary: #f5f3c2;
+  --md-sys-color-on-primary: #1a1b2e;
+  --md-sys-color-secondary: #c6ccf2;
+  --md-sys-color-tertiary: #86cdf3;
+  --md-sys-color-error: #ff6b85;
+
+  --nai-category-general: #8fbcff;
+  --nai-category-artist: #f6b48a;
+  --nai-category-copyright: #c3a8ff;
+  --nai-category-character: #86d6a2;
+  --nai-category-meta: #f5f3c2;
+
+  --md-sys-elevation-2: 0 8px 20px rgba(0, 0, 0, 0.4);
+  --md-sys-elevation-3: 0 16px 34px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.36);
+}
+

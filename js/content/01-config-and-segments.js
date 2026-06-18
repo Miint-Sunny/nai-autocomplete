@@ -1,5 +1,5 @@
 const ASSISTANT_SETTINGS_KEY = 'nai-llm-assistant-settings';
-const DEFAULT_THEME = 'sunrise';
+const DEFAULT_THEME = 'novelai';
 const PROMPT_BLOCK_STORAGE_PREFIX = 'nai-ac-prompt-blocks';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
 const PROMPT_PRESET_LIBRARY_KEY = 'nai-shared-prompt-presets';
