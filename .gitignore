@@ -2,6 +2,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+dist/
 # 构建产物（由 scripts/build-modular.mjs 生成，请勿手改）
 js/bundle/
 styles/bundle.css
