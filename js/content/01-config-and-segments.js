@@ -70,6 +70,15 @@ function isPromptBoundaryChar(char) {
   return !char || isPromptSegmentSeparator(char);
 }
 
+function countOpenParenDepth(text) {
+  let depth = 0;
+  for (const char of String(text || '')) {
+    if (char === '(') depth += 1;
+    else if (char === ')') depth = Math.max(0, depth - 1);
+  }
+  return depth;
+}
+
 function createId(prefix) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }

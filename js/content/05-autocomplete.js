@@ -604,6 +604,16 @@ function selectTag(tag) {
   const context = lastAutocompleteContext || getSegmentContext();
   if (!context) return;
 
+  const freshContext = getSegmentContext();
+  if (freshContext) {
+    context.segmentTailText = freshContext.segmentTailText;
+    context.nodeSegmentTailText = freshContext.nodeSegmentTailText;
+    context.scopeSegmentTailText = freshContext.scopeSegmentTailText;
+    context.nextMeaningfulChar = freshContext.nextMeaningfulChar;
+    context.caretOffset = freshContext.caretOffset;
+    context.caretNodeOffset = freshContext.caretNodeOffset;
+  }
+
   const {
     segmentText: currentSegment,
     segmentTailText,
@@ -679,22 +689,31 @@ function selectTag(tag) {
   const hasExplicitArtistPrefix = /artist(?::|：)$/i.test(existingPrefix);
   const hasExplicitWeightedPrefix = /-?\d+\.?\d*(?::|：){2}(artist(?::|：))?$/i.test(existingPrefix);
 
+  let outputSuffix = '';
+  if (replaceTail && preservedSuffix) {
+    const depthCheckEnd = context.caretOffset + normalizedTail.length;
+    const textBeforeSuffix = getEditorTextBeforeOffset(context.editor, depthCheckEnd);
+    if (countOpenParenDepth(textBeforeSuffix) > 0) {
+      outputSuffix = preservedSuffix;
+    }
+  }
+
   let output;
   if (isAfterComplete || isMultiTagFormat) {
-    output = `${tagName}${preservedSuffix}${shouldAppendComma ? ',' : ''}`;
+    output = `${tagName}${outputSuffix}${shouldAppendComma ? ',' : ''}`;
   } else if (hasExplicitWeightedPrefix) {
-    output = `${tagName}::${preservedSuffix}${commaSuffix}`;
+    output = `${tagName}::${outputSuffix}${commaSuffix}`;
   } else if (hasExplicitArtistPrefix) {
-    output = `${tagName}${preservedSuffix}${commaSuffix}`;
+    output = `${tagName}${outputSuffix}${commaSuffix}`;
   } else if (weight !== 1.0) {
     const weightStr = weight.toFixed(1);
     output = useArtist
-      ? `${weightStr}::artist:${tagName}::${preservedSuffix}${commaSuffix}`
-      : `${weightStr}::${tagName}::${preservedSuffix}${commaSuffix}`;
+      ? `${weightStr}::artist:${tagName}::${outputSuffix}${commaSuffix}`
+      : `${weightStr}::${tagName}::${outputSuffix}${commaSuffix}`;
   } else {
     output = useArtist
-      ? `artist:${tagName}${preservedSuffix}${commaSuffix}`
-      : `${tagName}${preservedSuffix}${commaSuffix}`;
+      ? `artist:${tagName}${outputSuffix}${commaSuffix}`
+      : `${tagName}${outputSuffix}${commaSuffix}`;
   }
 
   const replaced = replacePromptEditorSegment(context, start, replaceTail, output, {

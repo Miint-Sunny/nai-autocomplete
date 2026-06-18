@@ -196,6 +196,18 @@ function computeReplacementOffsets(context, start, includeTail, options = {}) {
   };
 }
 
+function getEditorTextBeforeOffset(editor, endOffset) {
+  if (!editor) return '';
+
+  const normalizedEnd = Math.max(0, endOffset);
+  if (isPlainTextPromptEditor(editor)) {
+    return (editor.value || '').slice(0, normalizedEnd);
+  }
+
+  const range = createRangeFromTextOffsets(editor, 0, normalizedEnd);
+  return range ? range.toString() : '';
+}
+
 function replacePromptEditorText(editor, start, end, text) {
   if (!editor) return;
 
