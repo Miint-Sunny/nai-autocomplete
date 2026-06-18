@@ -1,5 +1,5 @@
 async function initState() {
-  const data = await storageGet([SETTINGS_KEY, HISTORY_KEY, PANEL_LAYOUT_KEY, PROMPT_LIBRARY_KEY, PRESETS_KEY]);
+  const data = await storageGet([SETTINGS_KEY, HISTORY_KEY, PANEL_LAYOUT_KEY, DRAWER_LAYOUT_KEY, PROMPT_LIBRARY_KEY, PRESETS_KEY]);
   const rawSettings = { ...DEFAULT_SETTINGS, ...(data[SETTINGS_KEY] || {}) };
   const upgradedSettings = upgradePromptSettings(rawSettings);
   state.settings = upgradedSettings;
@@ -7,6 +7,7 @@ async function initState() {
   state.history = Array.isArray(data[HISTORY_KEY]) ? data[HISTORY_KEY] : [];
   state.promptLibrary = Array.isArray(data[PROMPT_LIBRARY_KEY]) ? data[PROMPT_LIBRARY_KEY].map(normalizePromptLibraryEntry).filter(Boolean) : [];
   state.panelLayout = normalizeStoredPanelLayout(data[PANEL_LAYOUT_KEY]);
+  state.drawerLayout = normalizeStoredDrawerLayout(data[DRAWER_LAYOUT_KEY]);
 
   if (upgradedSettings._migrationPreset) {
     state.customPresets.push(upgradedSettings._migrationPreset);

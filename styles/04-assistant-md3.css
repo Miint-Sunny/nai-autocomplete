@@ -362,8 +362,8 @@
 .nai-library-drawer {
   position: fixed;
   inset: 0 0 0 auto;
-  width: min(82vw, 1160px);
-  min-width: min(620px, 100vw);
+  width: var(--nai-drawer-width, min(82vw, 1160px));
+  min-width: min(420px, 100vw);
   height: 100vh;
   z-index: 1000003;
   --nai-lib-ink: var(--md-sys-color-on-surface);
@@ -382,6 +382,48 @@
   font-family: "Inter Tight", "IBM Plex Sans", "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   transform: translateX(0);
   transition: transform 140ms ease-out;
+}
+
+.nai-library-drawer-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.nai-library-drawer-resize-handle::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 44px;
+  border-radius: 3px;
+  background: var(--md-sys-color-outline-variant);
+  opacity: 0.7;
+  transition: background 120ms ease, height 120ms ease, opacity 120ms ease;
+}
+
+.nai-library-drawer-resize-handle:hover::before,
+.nai-library-drawer.nai-drawer-resizing .nai-library-drawer-resize-handle::before {
+  background: var(--md-sys-color-primary);
+  height: 76px;
+  opacity: 1;
+}
+
+.nai-library-drawer.nai-drawer-resizing {
+  user-select: none;
+  transition: none;
+}
+
+.nai-library-drawer.nai-drawer-resizing .nai-library-drawer-surface * {
+  pointer-events: none;
 }
 
 .nai-library-drawer.nai-hidden {
@@ -956,7 +998,7 @@
 
 @media (max-width: 980px) {
   .nai-library-drawer {
-    width: min(92vw, 760px);
+    width: var(--nai-drawer-width, min(92vw, 760px));
     min-width: 0;
   }
 
@@ -1009,7 +1051,7 @@
 
 @media (max-width: 560px) {
   .nai-library-drawer {
-    width: 100vw;
+    width: var(--nai-drawer-width, 100vw);
   }
 
   .nai-library-drawer-head,
