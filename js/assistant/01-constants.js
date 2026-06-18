@@ -2,6 +2,7 @@
 const SETTINGS_KEY = 'nai-llm-assistant-settings';
 const HISTORY_KEY = 'nai-llm-reverse-history';
 const PANEL_LAYOUT_KEY = 'nai-llm-panel-layout';
+const DRAWER_LAYOUT_KEY = 'nai-llm-drawer-layout';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
 const ROLE_LIBRARY_CATEGORY = 'char';
 const PROMPT_LIBRARY_CATEGORIES = [
@@ -15,6 +16,7 @@ const MAX_HISTORY = 30;
 const PANEL_MARGIN = 20;
 const PANEL_MIN_WIDTH = 320;
 const PANEL_MIN_HEIGHT = 260;
+const DRAWER_MIN_WIDTH = 480;
 
 const T = {
   title: '\u56fe\u50cf\u53cd\u63a8\u52a9\u624b',
@@ -573,6 +575,15 @@ const state = {
   lastSettingsPresetTextarea: null,
   lastWorkbenchPresetTextarea: null,
   panelLayout: null,
+  drawerLayout: null,
+  drawerResize: {
+    active: false,
+    moved: false,
+    startX: 0,
+    startWidth: 0,
+    rafId: 0,
+    clientX: 0,
+  },
   panelDrag: {
     active: false,
     startX: 0,

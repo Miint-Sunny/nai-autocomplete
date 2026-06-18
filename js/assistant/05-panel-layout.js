@@ -230,3 +230,101 @@ function bindPanelInteractions() {
   });
 }
 
+/* ---- 设置抽屉(.nai-library-drawer)左边缘拖拽调宽 + 宽度记忆 ---- */
+/* 抽屉右贴边(inset:0 0 0 auto)，故左边缘左移=变宽：delta = startX - clientX */
+
+function getDrawerMaxWidth() {
+  return Math.max(DRAWER_MIN_WIDTH, window.innerWidth - PANEL_MARGIN);
+}
+
+function normalizeStoredDrawerLayout(layout) {
+  if (!layout || typeof layout !== 'object') return null;
+  const width = Number(layout.width);
+  if (!Number.isFinite(width) || width < DRAWER_MIN_WIDTH) return null;
+  return { width: Math.round(width) };
+}
+
+function applyDrawerWidth(layout) {
+  if (!ui.library?.drawer) return;
+  const normalized = normalizeStoredDrawerLayout(layout);
+  if (!normalized) {
+    ui.library.drawer.style.removeProperty('--nai-drawer-width');
+    return;
+  }
+  const width = clamp(normalized.width, DRAWER_MIN_WIDTH, getDrawerMaxWidth());
+  ui.library.drawer.style.setProperty('--nai-drawer-width', `${Math.round(width)}px`);
+}
+
+function persistDrawerWidth() {
+  if (!ui.library?.drawer) return;
+  const width = Math.round(clamp(ui.library.drawer.getBoundingClientRect().width, DRAWER_MIN_WIDTH, getDrawerMaxWidth()));
+  state.drawerLayout = { width };
+  void storageSet({ [DRAWER_LAYOUT_KEY]: state.drawerLayout });
+}
+
+function flushDrawerPointerUpdate() {
+  state.drawerResize.rafId = 0;
+  if (!state.drawerResize.active || !ui.library?.drawer) return;
+  const delta = state.drawerResize.startX - state.drawerResize.clientX;
+  const width = clamp(state.drawerResize.startWidth + delta, DRAWER_MIN_WIDTH, getDrawerMaxWidth());
+  ui.library.drawer.style.setProperty('--nai-drawer-width', `${Math.round(width)}px`);
+}
+
+function onDrawerPointerMove(event) {
+  state.drawerResize.clientX = event.clientX;
+  state.drawerResize.moved = true;
+  if (!state.drawerResize.rafId) {
+    state.drawerResize.rafId = requestAnimationFrame(flushDrawerPointerUpdate);
+  }
+}
+
+function onDrawerPointerUp() {
+  const wasActive = state.drawerResize.active;
+  if (state.drawerResize.rafId) {
+    cancelAnimationFrame(state.drawerResize.rafId);
+    state.drawerResize.rafId = 0;
+    flushDrawerPointerUpdate();
+  }
+  state.drawerResize.active = false;
+  ui.library?.drawer?.classList.remove('nai-drawer-resizing');
+  document.removeEventListener('pointermove', onDrawerPointerMove, true);
+  document.removeEventListener('pointerup', onDrawerPointerUp, true);
+  document.removeEventListener('pointercancel', onDrawerPointerUp, true);
+  if (wasActive && state.drawerResize.moved) persistDrawerWidth();
+}
+
+function startDrawerResize(event) {
+  if (!ui.library?.drawer) return;
+  state.drawerResize.active = true;
+  state.drawerResize.moved = false;
+  state.drawerResize.startX = event.clientX;
+  state.drawerResize.clientX = event.clientX;
+  state.drawerResize.startWidth = ui.library.drawer.getBoundingClientRect().width;
+  ui.library.drawer.classList.add('nai-drawer-resizing');
+  document.addEventListener('pointermove', onDrawerPointerMove, true);
+  document.addEventListener('pointerup', onDrawerPointerUp, true);
+  document.addEventListener('pointercancel', onDrawerPointerUp, true);
+}
+
+function bindDrawerResize() {
+  if (!ui.library?.resizeHandle) return;
+
+  ui.library.resizeHandle.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    startDrawerResize(event);
+  });
+
+  ui.library.resizeHandle.addEventListener('dblclick', () => {
+    state.drawerLayout = null;
+    ui.library.drawer?.style.removeProperty('--nai-drawer-width');
+    void storageSet({ [DRAWER_LAYOUT_KEY]: null });
+  });
+
+  window.addEventListener('resize', () => {
+    if (!state.drawerLayout) return;
+    if (!ui.library?.drawer || ui.library.drawer.classList.contains('nai-hidden')) return;
+    applyDrawerWidth(state.drawerLayout);
+  });
+}
+

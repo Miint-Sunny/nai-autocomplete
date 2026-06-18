@@ -150,6 +150,7 @@ function createUI() {
       <div class="nai-md3-resize-handle" aria-hidden="true"></div>
     </section>
     <aside class="nai-library-drawer nai-hidden" aria-label="工作台">
+      <div class="nai-library-drawer-resize-handle" role="separator" aria-orientation="vertical" aria-label="拖拽调整宽度（双击重置）" title="拖拽调整宽度 · 双击重置"></div>
       <div class="nai-library-drawer-surface">
         <header class="nai-library-drawer-head">
           <div>
@@ -434,6 +435,7 @@ function createUI() {
   ui.stPresetInput = root.querySelector('[data-field="stPresetInput"]');
   ui.panel = root.querySelector('.nai-md3-panel');
   ui.library.drawer = root.querySelector('.nai-library-drawer');
+  ui.library.resizeHandle = ui.library.drawer?.querySelector('.nai-library-drawer-resize-handle');
   ui.library.status = root.querySelector('.nai-library-drawer-status');
   ui.library.editor = root.querySelector('.nai-library-editor');
   ui.library.sidebarToggle = root.querySelector('[data-action="workbench-toggle-sidebar"]');
@@ -594,8 +596,10 @@ function createUI() {
 
   ui.fab.addEventListener('click', () => openPanel(state.isNovelAIImagePage ? 'library' : 'reverse'));
   bindPanelInteractions();
+  bindDrawerResize();
   bindTextareaAutosize();
   applyPanelLayout(state.panelLayout);
+  applyDrawerWidth(state.drawerLayout);
 
   // Direct tab listeners: avoid delegated click edge cases.
   ui.navButtons.forEach((btn) => {
