@@ -2,6 +2,8 @@ name: Release Extension
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -41,6 +43,8 @@ jobs:
             tag="$GITHUB_REF_NAME"
           elif [[ -n "$INPUT_TAG" ]]; then
             tag="$INPUT_TAG"
+          elif [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            tag="v$MANIFEST_VERSION"
           else
             tag="v$MANIFEST_VERSION"
           fi
@@ -54,7 +58,23 @@ jobs:
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "archive_name=${archive_name}" >> "$GITHUB_OUTPUT"
 
+      - name: Skip existing main release
+        id: release_gate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; skipping packaging."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Package extension
+        if: steps.release_gate.outputs.skip != 'true'
         shell: bash
         env:
           ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
@@ -83,6 +103,7 @@ jobs:
           (cd dist && zip -r "$ARCHIVE_NAME" nai-autocomplete)
 
       - name: Upload release
+        if: steps.release_gate.outputs.skip != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
