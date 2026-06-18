@@ -399,6 +399,9 @@
   --nai-md3-history-hover-border: color-mix(in srgb, var(--md-sys-color-primary) 24%, rgba(214, 220, 255, 0.12));
   --nai-md3-panel-sheen: rgba(245, 243, 194, 0.08);
   --nai-md3-resize-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+  --nai-md3-tab-active-bg: linear-gradient(180deg, #3a4374, #2c3460);
+  --nai-md3-tab-active-fg: #edeff7;
+  --nai-md3-tab-active-shadow: 0 12px 24px rgba(8, 11, 28, 0.45);
 }
 
 .nai-md3-root[data-page="settings"] .nai-md3-panel::after {
@@ -1292,7 +1295,13 @@
   box-shadow: var(--nai-md3-chip-hover-shadow);
 }
 
-.nai-md3-tabs button.active,
+.nai-md3-tabs button.active {
+  background: var(--nai-md3-tab-active-bg, linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary)));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+  border-color: transparent;
+  box-shadow: var(--nai-md3-tab-active-shadow, 0 14px 28px rgba(146, 78, 45, 0.18));
+}
+
 .nai-md3-actions .nai-md3-primary {
   background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
   color: var(--md-sys-color-on-primary);

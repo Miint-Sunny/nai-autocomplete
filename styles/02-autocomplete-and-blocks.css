@@ -129,11 +129,11 @@
 
 .nai-autocomplete-item:hover,
 .nai-autocomplete-item.selected {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
+  background: var(--nai-ac-item-hover, color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent));
 }
 
 .nai-autocomplete-item.selected {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent);
+  background: var(--nai-ac-item-selected, color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent));
 }
 
 /* Category Indicator */
@@ -245,8 +245,8 @@
   font-size: 11px;
   line-height: 1;
   font-weight: 700;
-  color: var(--md-sys-color-outline);
-  background: var(--md-sys-color-surface);
+  color: var(--nai-ac-count-fg, var(--md-sys-color-outline));
+  background: var(--nai-ac-count-bg, var(--md-sys-color-surface));
 }
 
 /* Weight Controls */
@@ -262,7 +262,7 @@
   height: 20px;
   border: none;
   border-radius: 4px;
-  background: var(--md-sys-color-surface);
+  background: var(--nai-ac-weight-btn-bg, var(--md-sys-color-surface));
   color: var(--md-sys-color-on-surface);
   cursor: pointer;
   font-size: 14px;

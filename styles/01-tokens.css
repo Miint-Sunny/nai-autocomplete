@@ -155,6 +155,15 @@ html[data-nai-theme="novelai"] {
   --nai-category-character: #86d6a2;
   --nai-category-meta: #f5f3c2;
 
+  /* NovelAI 双强调色：靛蓝(#323a63)承载"选中/激活/分组"，
+     金色仅留给主行动与匹配点睛。下列语义 token 在共享样式中以
+     var(token, 原值) 引用，未定义的主题会回退到原方案、互不影响。 */
+  --nai-ac-item-hover: rgba(50, 58, 99, 0.42);
+  --nai-ac-item-selected: rgba(50, 58, 99, 0.7);
+  --nai-ac-count-bg: rgba(50, 58, 99, 0.55);
+  --nai-ac-count-fg: #c6ccf2;
+  --nai-ac-weight-btn-bg: rgba(50, 58, 99, 0.5);
+
   --md-sys-elevation-2: 0 8px 20px rgba(0, 0, 0, 0.4);
   --md-sys-elevation-3: 0 16px 34px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.36);
 }
