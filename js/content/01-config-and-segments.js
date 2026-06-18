@@ -2,7 +2,6 @@ const ASSISTANT_SETTINGS_KEY = 'nai-llm-assistant-settings';
 const DEFAULT_THEME = 'sunrise';
 const PROMPT_BLOCK_STORAGE_PREFIX = 'nai-ac-prompt-blocks';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
-const PROMPT_PRESET_LIBRARY_KEY = 'nai-shared-prompt-presets';
 const PRESET_PROMPT_LIBRARY_CATEGORIES = [
   { id: 'char', label: '角色' },
   { id: 'style', label: '风格' },
@@ -17,7 +16,7 @@ const CONFIG = {
   MIN_QUERY_LENGTH: 1,
   DEBOUNCE_DELAY: 150,
 };
-const CONTENT_SCRIPT_VERSION = '1.5.14';
+const CONTENT_SCRIPT_VERSION = '1.5.15';
 
 // 全局设置
 let settings = {
@@ -41,14 +40,10 @@ let promptBlockDragId = null;
 let promptBlockDropIndicator = null;
 let promptLibraryDialog = null;
 let promptLibraryDialogState = { blockId: '', mode: 'block', selection: null };
-let promptPresetToolbar = null;
-let promptPresetDialog = null;
-let promptPresetDialogState = { presetId: '', renameOnly: false };
 let promptBlockStates = new WeakMap();
 let promptBlockHistoryStates = new WeakMap();
 let isPromptBlockDragMode = false;
 let promptLibrary = [];
-let promptPresetLibrary = [];
 let autocompleteRepositionFrame = 0;
 let promptBlockRenderFrame = 0;
 let pendingPromptBlockRenderEditor = null;

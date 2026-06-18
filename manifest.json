@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NovelAI Prompt Autocomplete",
-  "version": "1.5.14",
+  "version": "1.5.12",
   "description": "NovelAI autocomplete with MD3 image reverse assistant",
   "permissions": [
     "storage",
