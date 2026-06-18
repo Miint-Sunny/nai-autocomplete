@@ -76,6 +76,7 @@
     fallbackApiKey: '\u5907\u7528 API Key\uff08\u6309\u4f9b\u5e94\u5546\u4fdd\u5b58\uff09',
     themePreset: '\u989c\u8272\u9884\u8bbe',
     sendImageAsDataUrl: '\u53d1\u9001\u56fe\u7247\u5185\u5bb9\uff08\u5173\u95ed\u5219\u53d1\u9001\u539f\u59cb URL\uff09',
+    enableBooruTagContext: '\u9644\u52a0\u7f51\u7ad9\u6807\u7b7e\u4e0a\u4e0b\u6587\uff08Danbooru / Gelbooru\uff09',
     showReverseEntry: '\u663e\u793a\u53cd\u63a8\u60ac\u6d6e\u5165\u53e3',
     showWorkbenchEntry: '\u663e\u793a\u5de5\u4f5c\u53f0\u60ac\u6d6e\u5165\u53e3',
     saveSettings: '\u4fdd\u5b58\u8bbe\u7f6e',
@@ -397,6 +398,9 @@ Output only the final prompt. Nothing else.`,
     fallbackProviderConnections: {},
     themePreset: 'sunrise',
     sendImageAsDataUrl: true,
+    enableBooruTagContext: false,
+    activePresetId: 'nai-v4',
+    booruTagTypes: { artist: true, character: true, copyright: true, general: true, meta: false },
     showReverseFloatingBall: true,
     showWorkbenchFloatingBall: true,
   };
@@ -450,8 +454,108 @@ Output only the final prompt. Nothing else.`,
       '\u8bf7\u5c06\u8fd9\u5f20\u56fe\u53cd\u63a8\u4e3a\u53ef\u76f4\u63a5\u7528\u4e8e NovelAI \u7684\u5355\u4e2a\u82f1\u6587 prompt\uff0c\u4f46\u8981\u5b8c\u6210\u89d2\u8272\u66ff\u6362\uff1a\u4fdd\u6301\u539f\u56fe\u7684 pose\u3001composition\u3001camera angle\u3001clothing structure\u3001scene\u3001lighting\u3001mood \u4e0e style\uff0c\u540c\u65f6\u5c06\u4eba\u7269\u66ff\u6362\u4e3a\u76ee\u6807\u89d2\u8272\u3002\u53ea\u8f93\u51fa prompt \u672c\u4f53\uff0c\u4e0d\u8981\u4efb\u4f55\u989d\u5916\u6587\u5b57\u3002\u5355\u89d2\u8272\u65f6\u7528\u6362\u884c\u5206\u5c42\u8f93\u51fa\uff0c\u591a\u89d2\u8272\u65f6\u4f7f\u7528 NovelAI V4+ \u7684 | \u7ed3\u6784\u5e76\u4ee5 | \u7ed3\u5c3e\u3002\u4f18\u5148\u4f7f\u7528 Danbooru \u7cbe\u786e tag\uff0c\u53ef\u6df7\u5408\u7b80\u77ed\u81ea\u7136\u8bed\u8a00\uff0c\u4f46\u4e0d\u8981\u51fa\u73b0\u4efb\u4f55\u6807\u9898\u6216\u6ce8\u91ca\u6587\u5b57\u3002',
     ],
   };
+
+  const PRESETS_KEY = 'nai-llm-prompt-presets';
+  const DEFAULT_BOORU_TAG_TYPES = { artist: true, character: true, copyright: true, general: true, meta: false };
+
+  const BUILTIN_PRESETS = [
+    {
+      id: 'nai-v4',
+      name: 'NovelAI V4+',
+      builtIn: true,
+      blocks: [
+        { id: 'nai-v4-sys', role: 'system', content: DEFAULT_SETTINGS.systemPrompt, enabled: true },
+        { id: 'nai-v4-user', role: 'user', content: DEFAULT_SETTINGS.reversePrompt + '\n\n{{booru_tags}}', enabled: true },
+      ],
+    },
+    {
+      id: 'anima',
+      name: 'Anima',
+      builtIn: true,
+      blocks: [
+        {
+          id: 'anima-sys', role: 'system', enabled: true,
+          content: `You are an image-to-prompt converter for Anima, an anime illustration model that uses a hybrid of natural language descriptions and Danbooru-style tags.
+
+═══ OUTPUT STYLE ═══
+
+Anima prompts blend short natural-language phrases with precise tags.
+Use natural language for: scene setting, spatial relationships, lighting mood,
+complex poses, and emotional atmosphere.
+Use tags for: concrete visual attributes (hair color, eye color, clothing items,
+accessories, specific expressions).
+
+Example output style:
+  A girl sitting by the window in warm afternoon light, black hair, long hair,
+  blue eyes, white sundress, bare shoulders, looking outside with a gentle smile,
+  sunlight casting soft shadows across her lap
+
+═══ OUTPUT FORMAT ═══
+
+Single character:
+  Output one continuous paragraph mixing NL phrases and tags. No line breaks
+  unless the prompt exceeds roughly 200 words.
+
+Multiple characters:
+  Use Anima's character separator syntax:
+  {base scene description} ||| {character 1} ||| {character 2} ||| ...
+
+  Base: full scene/atmosphere in natural language + relevant scene tags.
+  Each character: appearance tags + pose/action in NL phrases.
+
+═══ PRIORITY ORDER ═══
+
+1. Scene atmosphere, lighting, time of day, location (NL preferred)
+2. Composition, camera angle, framing (mix of NL and tags)
+3. Character count and positions (NL)
+4. Per-character: hair, eyes, expression (tags)
+5. Per-character: outfit from top to bottom (tags, NL for complex layers)
+6. Pose, gesture, body language (NL preferred)
+7. Props, accessories, background details (tags)
+8. Art style if distinctive (tags)
+
+═══ RULES ═══
+
+- Prefer natural language over pure tags when describing spatial relationships,
+  actions, and atmosphere.
+- Use tags for unambiguous visual attributes (hair_color, clothing_items).
+- Do NOT output quality tags or meta tags.
+- Do NOT output explanations, JSON, markdown, or multiple versions.
+- Do NOT invent elements not visible in the image.
+- Keep total length under 300 words for single character,
+  under 150 words per segment for multi-character.`,
+        },
+        {
+          id: 'anima-user', role: 'user', enabled: true,
+          content: `Analyze this image and write an Anima-style prompt that blends natural language descriptions with precise Danbooru tags.
+
+Think through:
+1. Overall scene atmosphere and lighting
+2. Composition and framing
+3. Character appearance (use tags) and pose (use natural language)
+4. Outfit details (tags for items, NL for how they're worn)
+
+Output only the final prompt. Nothing else.
+
+{{booru_tags}}`,
+        },
+      ],
+    },
+    {
+      id: 'role-swap',
+      name: '角色替换',
+      builtIn: true,
+      blocks: [
+        { id: 'rs-sys', role: 'system', content: DEFAULT_SETTINGS.roleSystemPrompt, enabled: true },
+        { id: 'rs-role', role: 'user', content: '目标角色设定：{{role_prompt}}\n\n要求：在同一次回复中完成反推与角色替换，直接输出最终可用的提示词。', enabled: true },
+        { id: 'rs-user', role: 'user', content: DEFAULT_SETTINGS.roleReversePrompt + '\n\n{{booru_tags}}', enabled: true },
+      ],
+    },
+  ];
+
   const state = {
     settings: { ...DEFAULT_SETTINGS },
+    customPresets: [],
     history: [],
     selectedImage: null,
     lastResult: '',
@@ -467,6 +571,8 @@ Output only the final prompt. Nothing else.`,
     workbenchPage: 'library',
     workbenchSidebarCollapsed: false,
     extensionContextInvalidated: false,
+    lastSettingsPresetTextarea: null,
+    lastWorkbenchPresetTextarea: null,
     panelLayout: null,
     panelDrag: {
       active: false,
@@ -553,6 +659,34 @@ Output only the final prompt. Nothing else.`,
       next.roleReversePrompt = DEFAULT_SETTINGS.roleReversePrompt;
     }
 
+    if (!next.activePresetId) {
+      if (next.enableRoleReplaceMode) {
+        next.activePresetId = 'role-swap';
+      } else {
+        next.activePresetId = 'nai-v4';
+      }
+      next.enableRoleReplace = Boolean(next.enableRoleReplaceMode);
+
+      const hasCustomSystem = next.systemPrompt && next.systemPrompt !== DEFAULT_SETTINGS.systemPrompt;
+      const hasCustomReverse = next.reversePrompt && next.reversePrompt !== DEFAULT_SETTINGS.reversePrompt;
+      if (hasCustomSystem || hasCustomReverse) {
+        next._migrationPreset = {
+          id: 'migrated-' + Date.now().toString(36),
+          name: '我的预设',
+          builtIn: false,
+          blocks: [
+            { id: 'mig-sys', role: 'system', content: next.systemPrompt, enabled: true },
+            { id: 'mig-user', role: 'user', content: next.reversePrompt + '\n\n{{booru_tags}}', enabled: true },
+          ],
+        };
+        next.activePresetId = next._migrationPreset.id;
+      }
+    }
+
+    if (!next.booruTagTypes) {
+      next.booruTagTypes = { ...DEFAULT_BOORU_TAG_TYPES };
+    }
+
     next.providerConnections = rememberProviderConnection(next.providerConnections, next.providerPreset, {
       protocol: next.protocol,
       endpoint: next.endpoint,
@@ -567,6 +701,264 @@ Output only the final prompt. Nothing else.`,
     });
 
     return next;
+  }
+
+  function generateBlockId() {
+    return 'blk-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function normalizePresetBlock(block) {
+    if (!block || typeof block !== 'object') {
+      return { id: generateBlockId(), role: 'user', content: '', enabled: true };
+    }
+    const role = block.role === 'system' || block.role === 'assistant' ? block.role : 'user';
+    return {
+      id: typeof block.id === 'string' && block.id ? block.id : generateBlockId(),
+      role,
+      content: typeof block.content === 'string' ? block.content : '',
+      enabled: block.enabled !== false,
+    };
+  }
+
+  function normalizePreset(preset) {
+    if (!preset || typeof preset !== 'object' || typeof preset.id !== 'string' || !preset.id) {
+      return null;
+    }
+
+    const builtin = BUILTIN_PRESETS.find((p) => p.id === preset.id);
+    const rawBlocks = Array.isArray(preset.blocks) && preset.blocks.length
+      ? preset.blocks
+      : (builtin?.blocks || [
+          { id: generateBlockId(), role: 'system', content: DEFAULT_SETTINGS.systemPrompt, enabled: true },
+          {
+            id: generateBlockId(),
+            role: 'user',
+            content: `${DEFAULT_SETTINGS.reversePrompt}\n\n{{booru_tags}}`,
+            enabled: true,
+          },
+        ]);
+
+    return {
+      id: preset.id,
+      name: typeof preset.name === 'string' && preset.name.trim() ? preset.name.trim() : (builtin?.name || '自定义预设'),
+      builtIn: builtin ? preset.builtIn !== false : Boolean(preset.builtIn),
+      blocks: rawBlocks.map(normalizePresetBlock),
+    };
+  }
+
+  function normalizeCustomPresets(presets) {
+    if (!Array.isArray(presets)) return [];
+    return presets.map(normalizePreset).filter(Boolean);
+  }
+
+  function getAllPresets() {
+    const overrides = new Map(normalizeCustomPresets(state.customPresets).map((p) => [p.id, p]));
+    const merged = BUILTIN_PRESETS.map((bp) => {
+      const override = overrides.get(bp.id);
+      if (!override) return normalizePreset(bp);
+      return normalizePreset({ ...bp, ...override, builtIn: true });
+    }).filter(Boolean);
+    const custom = normalizeCustomPresets(state.customPresets)
+      .filter((p) => !BUILTIN_PRESETS.some((bp) => bp.id === p.id));
+    return [...merged, ...custom];
+  }
+
+  function getActivePresetIdFromUI() {
+    if (state.isNovelAIImagePage && state.workbenchPage === 'presets' && ui.wb?.presetId?.value) {
+      return ui.wb.presetId.value;
+    }
+    if (ui.settings?.activePresetId?.value) {
+      return ui.settings.activePresetId.value;
+    }
+    if (ui.wb?.presetId?.value) {
+      return ui.wb.presetId.value;
+    }
+    return state.settings.activePresetId || 'nai-v4';
+  }
+
+  function syncActivePresetIdFromUI() {
+    state.settings.activePresetId = getActivePresetIdFromUI();
+  }
+
+  function getActivePreset() {
+    const id = state.settings.activePresetId || 'nai-v4';
+    return getAllPresets().find((p) => p.id === id) || normalizePreset(BUILTIN_PRESETS[0]);
+  }
+
+  async function loadCustomPresets() {
+    const data = await storageGet([PRESETS_KEY]);
+    state.customPresets = normalizeCustomPresets(data[PRESETS_KEY]);
+  }
+
+  async function saveCustomPresets() {
+    return storageSet({ [PRESETS_KEY]: state.customPresets });
+  }
+
+  function persistActivePreset(blocksFromEditor, presetId) {
+    if (!presetId) syncActivePresetIdFromUI();
+    const id = presetId || state.settings.activePresetId || 'nai-v4';
+    const current = getAllPresets().find((p) => p.id === id) || normalizePreset(BUILTIN_PRESETS[0]);
+    const blocks = Array.isArray(blocksFromEditor) && blocksFromEditor.length
+      ? blocksFromEditor.map(normalizePresetBlock)
+      : current.blocks;
+    const stored = normalizePreset({ ...current, id, blocks });
+    if (!stored) return;
+
+    const idx = state.customPresets.findIndex((p) => p.id === id);
+    if (idx >= 0) {
+      state.customPresets[idx] = stored;
+    } else {
+      state.customPresets.push(stored);
+    }
+  }
+
+  function readPresetBlocksFromEditor(editor) {
+    if (editor === 'workbench') return readWorkbenchBlocksFromEditor();
+    return readBlocksFromEditor();
+  }
+
+  function renderPresetEditor(editor) {
+    if (editor === 'workbench') {
+      renderWorkbenchPresetBlocks();
+      bindWorkbenchBlockDragListeners();
+      updateWorkbenchRoleSectionVisibility();
+      return;
+    }
+    renderPresetBlocks();
+    bindBlockDragListeners();
+    updateRoleSectionVisibility();
+  }
+
+  function appendActivePresetBlock(editor) {
+    syncActivePresetIdFromUI();
+    let blocks = readPresetBlocksFromEditor(editor);
+    if (!blocks.length) {
+      blocks = getActivePreset().blocks.map((block) => ({ ...block }));
+    }
+    blocks.push({ id: generateBlockId(), role: 'user', content: '', enabled: true });
+    persistActivePreset(blocks);
+    renderPresetEditor(editor);
+  }
+
+  function resetPresetToDefault(presetId) {
+    const builtin = BUILTIN_PRESETS.find((p) => p.id === presetId);
+    if (!builtin) return false;
+    state.customPresets = state.customPresets.filter((p) => p.id !== presetId);
+    return true;
+  }
+
+  function createPreset(name) {
+    const preset = {
+      id: 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+      name: name || '自定义预设',
+      builtIn: false,
+      blocks: [
+        { id: generateBlockId(), role: 'system', content: '', enabled: true },
+        { id: generateBlockId(), role: 'user', content: '{{booru_tags}}', enabled: true },
+      ],
+    };
+    state.customPresets.push(preset);
+    return preset;
+  }
+
+  function duplicatePreset(sourceId) {
+    const source = getAllPresets().find((p) => p.id === sourceId);
+    if (!source) return null;
+    const preset = {
+      id: 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+      name: source.name + ' (副本)',
+      builtIn: false,
+      blocks: source.blocks.map((b) => ({ ...b, id: generateBlockId() })),
+    };
+    state.customPresets.push(preset);
+    return preset;
+  }
+
+  function deletePreset(presetId) {
+    if (BUILTIN_PRESETS.some((p) => p.id === presetId)) return;
+    state.customPresets = state.customPresets.filter((p) => p.id !== presetId);
+    if (state.settings.activePresetId === presetId) {
+      state.settings.activePresetId = 'nai-v4';
+    }
+  }
+
+  function detectBooruTagsFiltered() {
+    const host = window.location.hostname;
+    const types = state.settings.booruTagTypes || DEFAULT_BOORU_TAG_TYPES;
+    const tags = [];
+
+    if (host.includes('donmai.us') || host === 'aibooru.online') {
+      const typeMap = { artist: 'artist', character: 'character', copyright: 'copyright', general: 'general', meta: 'meta' };
+      Object.entries(typeMap).forEach(([tagType, settingKey]) => {
+        if (types[settingKey] === false) return;
+        document.querySelectorAll(`.${tagType}-tag-list > li[data-tag-name]`).forEach((li) => {
+          const name = li.dataset.tagName;
+          if (name) tags.push(name.replace(/_/g, ' '));
+        });
+      });
+    } else if (host === 'gelbooru.com') {
+      const typeMap = { general: 'general', character: 'character', copyright: 'copyright', artist: 'artist', metadata: 'meta' };
+      Object.entries(typeMap).forEach(([cssClass, settingKey]) => {
+        if (types[settingKey] === false) return;
+        document.querySelectorAll(`.tag-type-${cssClass} a[href*="page=post"]`).forEach((a) => {
+          const text = a.textContent.trim();
+          if (text && !text.match(/^\d+$/)) tags.push(text.replace(/_/g, ' '));
+        });
+      });
+    }
+
+    return tags.length ? tags.join(', ') : '';
+  }
+
+  function resolveVariables(content) {
+    let result = content;
+
+    if (result.includes('{{booru_tags}}')) {
+      const tags = state.settings.enableBooruTagContext ? detectBooruTagsFiltered() : '';
+      result = result.replace(/\{\{booru_tags\}\}/g, tags);
+    }
+
+    if (result.includes('{{role_prompt}}')) {
+      const rp = state.settings.rolePrompt?.trim() || '';
+      result = result.replace(/\{\{role_prompt\}\}/g, rp);
+    }
+
+    return result;
+  }
+
+  function mergeAdjacentSameRole(blocks) {
+    if (blocks.length <= 1) return blocks;
+    const merged = [{ ...blocks[0] }];
+    for (let i = 1; i < blocks.length; i++) {
+      const prev = merged[merged.length - 1];
+      if (blocks[i].role === prev.role) {
+        prev.content = prev.content + '\n\n' + blocks[i].content;
+      } else {
+        merged.push({ ...blocks[i] });
+      }
+    }
+    return merged;
+  }
+
+  function mergeBlocksForProtocol(blocks, protocol) {
+    let merged = [...blocks];
+    let didMerge = false;
+    const original = blocks.length;
+
+    merged = mergeAdjacentSameRole(merged);
+    if (merged.length !== original) didMerge = true;
+
+    if (protocol === 'anthropic-messages' || protocol === 'responses') {
+      const systemBlocks = merged.filter((b) => b.role === 'system');
+      const nonSystem = merged.filter((b) => b.role !== 'system');
+      if (systemBlocks.length > 1) didMerge = true;
+      const singleSystem = systemBlocks.length
+        ? [{ role: 'system', content: systemBlocks.map((b) => b.content).join('\n\n') }]
+        : [];
+      merged = [...singleSystem, ...mergeAdjacentSameRole(nonSystem)];
+    }
+
+    return { merged, didMerge };
   }
 
   function normalizePromptLibraryEntry(entry) {
@@ -1361,6 +1753,17 @@ Output only the final prompt. Nothing else.`,
     requestAnimationFrame(() => autoResizeAllTextareas());
   }
 
+  function openPresetsPanel() {
+    state.workbenchPage = 'presets';
+    state.libraryEditorOpen = false;
+    syncWorkbenchLayoutState();
+    renderWorkbenchPresetSelector();
+    renderWorkbenchPresetBlocks();
+    bindWorkbenchBlockDragListeners();
+    updateWorkbenchRoleSectionVisibility();
+    requestAnimationFrame(() => autoResizeAllTextareas());
+  }
+
   function openLibraryIndexPanel() {
     state.workbenchPage = 'library';
     closeLibraryEditor();
@@ -1397,22 +1800,34 @@ Output only the final prompt. Nothing else.`,
     stopPickMode();
   }
 
-  function buildMessages(userPrompt, systemPrompt) {
-    const messages = [];
+  function buildMessages(resolvedBlocks) {
+    if (!resolvedBlocks || !resolvedBlocks.length) return [];
 
-    if (systemPrompt?.trim()) {
-      messages.push({ role: 'system', content: systemPrompt.trim() });
+    const protocol = state.settings.protocol;
+    const { merged, didMerge } = mergeBlocksForProtocol(resolvedBlocks, protocol);
+
+    if (didMerge) {
+      setStatus('消息块已按协议要求自动合并。', false);
     }
 
-    const content = [{ type: 'text', text: userPrompt }];
-    const imagePayload = state.settings.sendImageAsDataUrl
-      ? state.selectedImage?.dataUrl || state.selectedImage?.sourceUrl
-      : state.selectedImage?.sourceUrl || state.selectedImage?.dataUrl;
-    if (imagePayload) {
-      content.push({ type: 'image_url', image_url: { url: imagePayload } });
+    const messages = merged.map((block) => ({
+      role: block.role,
+      content: block.content,
+    }));
+
+    const lastUserIndex = messages.reduce((idx, m, i) => (m.role === 'user' ? i : idx), -1);
+    if (lastUserIndex >= 0) {
+      const textContent = messages[lastUserIndex].content;
+      const imagePayload = state.settings.sendImageAsDataUrl
+        ? state.selectedImage?.dataUrl || state.selectedImage?.sourceUrl
+        : state.selectedImage?.sourceUrl || state.selectedImage?.dataUrl;
+      const parts = [{ type: 'text', text: textContent }];
+      if (imagePayload) {
+        parts.push({ type: 'image_url', image_url: { url: imagePayload } });
+      }
+      messages[lastUserIndex].content = parts;
     }
 
-    messages.push({ role: 'user', content });
     return messages;
   }
 
@@ -2078,26 +2493,14 @@ Output only the final prompt. Nothing else.`,
       applyLibrarySettingsToInputs();
     }
   }
+
   function getPromptConfig() {
-    if (state.settings.enableRoleReplaceMode) {
-      const roleReversePrompt = state.settings.roleReversePrompt?.trim();
-      const rolePrompt = state.settings.rolePrompt?.trim();
-      const userPrompt = [
-        roleReversePrompt,
-        rolePrompt ? `\u76ee\u6807\u89d2\u8272\u8bbe\u5b9a\uff1a${rolePrompt}` : '',
-        '\u8981\u6c42\uff1a\u5728\u540c\u4e00\u6b21\u56de\u590d\u4e2d\u5b8c\u6210\u53cd\u63a8\u4e0e\u89d2\u8272\u66ff\u6362\uff0c\u76f4\u63a5\u8f93\u51fa\u6700\u7ec8\u53ef\u7528\u7684\u6807\u7b7e\u4e0e\u63d0\u793a\u8bcd\u3002',
-      ].filter(Boolean).join('\n\n');
-
-      return {
-        systemPrompt: state.settings.roleSystemPrompt?.trim() || state.settings.systemPrompt?.trim(),
-        userPrompt,
-      };
-    }
-
-    return {
-      systemPrompt: state.settings.systemPrompt?.trim(),
-      userPrompt: state.settings.reversePrompt?.trim(),
-    };
+    const preset = getActivePreset();
+    const enabledBlocks = preset.blocks.filter((b) => b.enabled);
+    const resolvedBlocks = enabledBlocks
+      .map((b) => ({ role: b.role, content: resolveVariables(b.content) }))
+      .filter((b) => b.content.trim());
+    return resolvedBlocks;
   }
 
   function isCodeFenceWrapped(text) {
@@ -2191,20 +2594,24 @@ Output only the final prompt. Nothing else.`,
       return;
     }
 
-    const promptConfig = getPromptConfig();
-    if (!promptConfig.userPrompt) {
+    const resolvedBlocks = getPromptConfig();
+    if (!resolvedBlocks.length || !resolvedBlocks.some((b) => b.role === 'user')) {
       setStatus(T.statusNeedPrompt, true);
       openPanel('settings');
       return;
     }
 
-    if (state.settings.enableRoleReplaceMode && !state.settings.rolePrompt?.trim()) {
-      setStatus(T.statusNeedRolePrompt, true);
-      openPanel('settings');
-      return;
+    if (!state.settings.rolePrompt?.trim()) {
+      const preset = getActivePreset();
+      const hasRoleVar = preset.blocks.some((b) => b.enabled && b.content.includes('{{role_prompt}}'));
+      if (hasRoleVar) {
+        setStatus(T.statusNeedRolePrompt, true);
+        openPanel('settings');
+        return;
+      }
     }
 
-    const messages = buildMessages(promptConfig.userPrompt, promptConfig.systemPrompt);
+    const messages = buildMessages(resolvedBlocks);
     const primaryConfig = buildPrimaryConfig(messages);
 
     if (!hasCompleteModelConfig(primaryConfig)) {
@@ -2440,6 +2847,364 @@ Output only the final prompt. Nothing else.`,
     await useImageElement(image, true);
   }
 
+  function renderPresetSelector() {
+    const select = ui.settings.activePresetId;
+    if (!select) return;
+    const all = getAllPresets();
+    select.innerHTML = all.map((p) =>
+      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}${p.builtIn ? '' : ' ✦'}</option>`
+    ).join('');
+    select.value = state.settings.activePresetId || 'nai-v4';
+    const active = getActivePreset();
+    const isBuiltIn = active.builtIn;
+    const isModifiedBuiltIn = isBuiltIn && state.customPresets.some((p) => p.id === active.id);
+    if (ui.settings.presetDeleteBtn) {
+      ui.settings.presetDeleteBtn.classList.toggle('nai-hidden', isBuiltIn);
+    }
+    if (ui.settings.presetResetBtn) {
+      ui.settings.presetResetBtn.classList.toggle('nai-hidden', !isModifiedBuiltIn);
+    }
+  }
+
+  function renderPresetBlocks() {
+    const container = ui.settings.presetBlocksContainer;
+    if (!container) return;
+    const preset = getActivePreset();
+    container.innerHTML = preset.blocks.map((block, idx) => `
+      <div class="nai-preset-block" data-block-id="${escapeHtml(block.id)}">
+        <span class="nai-preset-block-handle" draggable="true" title="拖动排序">≡</span>
+        <input type="checkbox" class="nai-preset-block-enabled" ${block.enabled ? 'checked' : ''} />
+        <select class="nai-preset-block-role">
+          <option value="system" ${block.role === 'system' ? 'selected' : ''}>system</option>
+          <option value="user" ${block.role === 'user' ? 'selected' : ''}>user</option>
+          <option value="assistant" ${block.role === 'assistant' ? 'selected' : ''}>assistant</option>
+        </select>
+        <textarea class="nai-md3-input nai-preset-block-content" rows="3">${escapeHtml(block.content)}</textarea>
+        <button type="button" class="nai-preset-block-delete" data-block-idx="${idx}" title="删除">×</button>
+      </div>
+    `).join('');
+  }
+
+  function readBlocksFromEditor() {
+    const container = ui.settings.presetBlocksContainer;
+    if (!container) return [];
+    return readPresetBlockElements(container);
+  }
+
+  function readWorkbenchBlocksFromEditor() {
+    if (!ui.wb?.blocksContainer) return [];
+    return readPresetBlockElements(ui.wb.blocksContainer);
+  }
+
+  function readPresetBlockElements(container) {
+    return Array.from(container.querySelectorAll('.nai-preset-block')).map((el) => {
+      const roleEl = el.querySelector('.nai-preset-block-role');
+      const contentEl = el.querySelector('.nai-preset-block-content');
+      const enabledEl = el.querySelector('.nai-preset-block-enabled');
+      return {
+        id: el.dataset.blockId || generateBlockId(),
+        role: roleEl?.value || 'user',
+        content: contentEl?.value || '',
+        enabled: enabledEl ? enabledEl.checked : true,
+      };
+    });
+  }
+
+  function syncBlocksToPreset() {
+    const blocks = readBlocksFromEditor();
+    if (blocks.length) persistActivePreset(blocks);
+  }
+
+  function updateRoleSectionVisibility() {
+    if (!ui.settings.roleSection) return;
+    const preset = getActivePreset();
+    const hasRoleVar = preset.blocks.some((b) => b.enabled && b.content.includes('{{role_prompt}}'));
+    ui.settings.roleSection.classList.toggle('nai-hidden', !hasRoleVar);
+  }
+
+  function updateBooruTagTypesVisibility() {
+    if (ui.settings.booruTagTypesSection) {
+      ui.settings.booruTagTypesSection.classList.toggle('nai-hidden', !ui.settings.enableBooruTagContext.checked);
+    }
+  }
+
+  function handleDuplicatePreset() {
+    const dup = duplicatePreset(state.settings.activePresetId);
+    if (!dup) return;
+    state.settings.activePresetId = dup.id;
+    renderPresetSelector();
+    renderPresetBlocks();
+    saveCustomPresets();
+  }
+
+  function handleNewPreset() {
+    const np = createPreset('自定义预设');
+    state.settings.activePresetId = np.id;
+    renderPresetSelector();
+    renderPresetBlocks();
+    saveCustomPresets();
+  }
+
+  function handleDeletePreset() {
+    const active = getActivePreset();
+    if (active.builtIn) return;
+    deletePreset(active.id);
+    state.settings.activePresetId = 'nai-v4';
+    renderPresetSelector();
+    renderPresetBlocks();
+    bindBlockDragListeners();
+    updateRoleSectionVisibility();
+    saveCustomPresets();
+  }
+
+  function handleResetPreset() {
+    const active = getActivePreset();
+    if (!active.builtIn) return;
+    resetPresetToDefault(active.id);
+    renderPresetSelector();
+    renderPresetBlocks();
+    bindBlockDragListeners();
+    updateRoleSectionVisibility();
+    saveCustomPresets();
+  }
+
+  function handleAddBlock() {
+    appendActivePresetBlock('settings');
+  }
+
+  function handleDeleteBlock(idx) {
+    syncActivePresetIdFromUI();
+    const blocks = readBlocksFromEditor();
+    if (blocks.length <= 1) return;
+    blocks.splice(idx, 1);
+    persistActivePreset(blocks);
+    renderPresetEditor('settings');
+  }
+
+  function bindPresetTextareaFocus(container, focusKey) {
+    if (!container) return;
+    container.querySelectorAll('.nai-preset-block-content').forEach((textarea) => {
+      textarea.addEventListener('focus', () => {
+        state[focusKey] = textarea;
+      });
+    });
+  }
+
+  function insertPresetVariable(variable, editor) {
+    const container = editor === 'workbench' ? ui.wb?.blocksContainer : ui.settings.presetBlocksContainer;
+    const focusKey = editor === 'workbench' ? 'lastWorkbenchPresetTextarea' : 'lastSettingsPresetTextarea';
+    if (!container || !variable) return;
+
+    const focused = container.querySelector('.nai-preset-block-content:focus');
+    const tracked = state[focusKey];
+    const target = focused instanceof HTMLTextAreaElement
+      ? focused
+      : (tracked instanceof HTMLTextAreaElement && container.contains(tracked)
+        ? tracked
+        : container.querySelector('.nai-preset-block-content'));
+
+    if (!(target instanceof HTMLTextAreaElement)) return;
+
+    const start = typeof target.selectionStart === 'number' ? target.selectionStart : target.value.length;
+    const end = typeof target.selectionEnd === 'number' ? target.selectionEnd : start;
+    target.value = target.value.slice(0, start) + variable + target.value.slice(end);
+    const cursor = start + variable.length;
+    target.focus();
+    target.setSelectionRange(cursor, cursor);
+    state[focusKey] = target;
+  }
+
+  function insertVariableAtCursor(variable) {
+    insertPresetVariable(variable, 'settings');
+  }
+
+  function bindPresetBlockDragListeners(container, readBlocks, onReordered) {
+    if (!container) return;
+    let dragSrc = null;
+
+    container.querySelectorAll('.nai-preset-block-handle').forEach((handle) => {
+      handle.addEventListener('dragstart', (e) => {
+        const block = handle.closest('.nai-preset-block');
+        if (!block) return;
+        dragSrc = block;
+        block.classList.add('nai-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', block.dataset.blockId || '');
+      });
+      handle.addEventListener('dragend', () => {
+        const block = handle.closest('.nai-preset-block');
+        block?.classList.remove('nai-dragging');
+        dragSrc = null;
+        container.querySelectorAll('.nai-preset-block').forEach((b) => b.classList.remove('nai-drag-over'));
+      });
+    });
+
+    container.querySelectorAll('.nai-preset-block').forEach((block) => {
+      block.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (block !== dragSrc) block.classList.add('nai-drag-over');
+      });
+      block.addEventListener('dragleave', () => { block.classList.remove('nai-drag-over'); });
+      block.addEventListener('drop', (e) => {
+        e.preventDefault();
+        block.classList.remove('nai-drag-over');
+        if (!dragSrc || dragSrc === block) return;
+        const blocks = readBlocks();
+        if (!blocks.length) return;
+        const fromIdx = [...container.children].indexOf(dragSrc);
+        const toIdx = [...container.children].indexOf(block);
+        const [moved] = blocks.splice(fromIdx, 1);
+        blocks.splice(toIdx, 0, moved);
+        onReordered(blocks);
+      });
+    });
+  }
+
+  function bindBlockDragListeners() {
+    const container = ui.settings.presetBlocksContainer;
+    if (!container) return;
+    bindPresetTextareaFocus(container, 'lastSettingsPresetTextarea');
+    bindPresetBlockDragListeners(container, readBlocksFromEditor, (blocks) => {
+      persistActivePreset(blocks);
+      renderPresetBlocks();
+      bindBlockDragListeners();
+    });
+
+    container.querySelectorAll('.nai-preset-block-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleDeleteBlock(Number(btn.dataset.blockIdx));
+      });
+    });
+
+    container.querySelectorAll('.nai-preset-block-enabled').forEach((cb) => {
+      cb.addEventListener('change', () => updateRoleSectionVisibility());
+    });
+  }
+
+  function renderWorkbenchPresetSelector() {
+    if (!ui.wb?.presetId) return;
+    const all = getAllPresets();
+    ui.wb.presetId.innerHTML = all.map((p) =>
+      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}${p.builtIn ? '' : ' ✦'}</option>`
+    ).join('');
+    ui.wb.presetId.value = state.settings.activePresetId || 'nai-v4';
+    const active = getActivePreset();
+    const isBuiltIn = active.builtIn;
+    const isModifiedBuiltIn = isBuiltIn && state.customPresets.some((p) => p.id === active.id);
+    if (ui.wb.deleteBtn) ui.wb.deleteBtn.classList.toggle('nai-hidden', isBuiltIn);
+    if (ui.wb.resetBtn) ui.wb.resetBtn.classList.toggle('nai-hidden', !isModifiedBuiltIn);
+  }
+
+  function renderWorkbenchPresetBlocks() {
+    if (!ui.wb?.blocksContainer) return;
+    const preset = getActivePreset();
+    ui.wb.blocksContainer.innerHTML = preset.blocks.map((block, idx) => `
+      <div class="nai-preset-block" data-block-id="${escapeHtml(block.id)}">
+        <span class="nai-preset-block-handle" draggable="true" title="拖动排序">≡</span>
+        <input type="checkbox" class="nai-preset-block-enabled" ${block.enabled ? 'checked' : ''} />
+        <select class="nai-preset-block-role">
+          <option value="system" ${block.role === 'system' ? 'selected' : ''}>system</option>
+          <option value="user" ${block.role === 'user' ? 'selected' : ''}>user</option>
+          <option value="assistant" ${block.role === 'assistant' ? 'selected' : ''}>assistant</option>
+        </select>
+        <textarea class="nai-md3-input nai-preset-block-content" rows="3">${escapeHtml(block.content)}</textarea>
+        <button type="button" class="nai-preset-block-delete" data-block-idx="${idx}" title="删除">×</button>
+      </div>
+    `).join('');
+    if (ui.wb.rolePrompt) ui.wb.rolePrompt.value = state.settings.rolePrompt || '';
+  }
+
+  function syncWorkbenchBlocksToPreset() {
+    const blocks = readWorkbenchBlocksFromEditor();
+    if (blocks.length) persistActivePreset(blocks);
+  }
+
+  function updateWorkbenchRoleSectionVisibility() {
+    if (!ui.wb?.roleSection) return;
+    const preset = getActivePreset();
+    const hasRoleVar = preset.blocks.some((b) => b.enabled && b.content.includes('{{role_prompt}}'));
+    ui.wb.roleSection.classList.toggle('nai-hidden', !hasRoleVar);
+  }
+
+  function insertWorkbenchVariableAtCursor(variable) {
+    insertPresetVariable(variable, 'workbench');
+  }
+
+  function bindWorkbenchBlockDragListeners() {
+    const container = ui.wb?.blocksContainer;
+    if (!container) return;
+    bindPresetTextareaFocus(container, 'lastWorkbenchPresetTextarea');
+    bindPresetBlockDragListeners(container, readWorkbenchBlocksFromEditor, (blocks) => {
+      persistActivePreset(blocks);
+      renderWorkbenchPresetBlocks();
+      bindWorkbenchBlockDragListeners();
+    });
+
+    container.querySelectorAll('.nai-preset-block-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncActivePresetIdFromUI();
+        const blocks = readWorkbenchBlocksFromEditor();
+        if (blocks.length <= 1) return;
+        blocks.splice(Number(btn.dataset.blockIdx), 1);
+        persistActivePreset(blocks);
+        renderPresetEditor('workbench');
+      });
+    });
+
+    container.querySelectorAll('.nai-preset-block-enabled').forEach((cb) => {
+      cb.addEventListener('change', () => updateWorkbenchRoleSectionVisibility());
+    });
+  }
+
+  async function saveWorkbenchPresets() {
+    if (!ensureExtensionContext()) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
+
+    syncActivePresetIdFromUI();
+    syncWorkbenchBlocksToPreset();
+    if (ui.wb?.rolePrompt) state.settings.rolePrompt = ui.wb.rolePrompt.value.trim();
+
+    const settingsSaved = await storageSet({ [SETTINGS_KEY]: state.settings });
+    if (!settingsSaved) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
+
+    const presetsSaved = await saveCustomPresets();
+    if (!presetsSaved) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
+
+    renderWorkbenchPresetSelector();
+    renderPresetEditor('workbench');
+    renderPresetSelector();
+    renderPresetEditor('settings');
+    setStatus(T.statusSaved, false);
+  }
+
+  function applyBooruTagTypesToCheckboxes() {
+    const types = state.settings.booruTagTypes || DEFAULT_BOORU_TAG_TYPES;
+    if (!ui.settings.booruTagTypesSection) return;
+    ui.settings.booruTagTypesSection.querySelectorAll('[data-booru-type]').forEach((cb) => {
+      cb.checked = types[cb.dataset.booruType] !== false;
+    });
+  }
+
+  function readBooruTagTypesFromCheckboxes() {
+    const types = { ...DEFAULT_BOORU_TAG_TYPES };
+    if (!ui.settings.booruTagTypesSection) return types;
+    ui.settings.booruTagTypesSection.querySelectorAll('[data-booru-type]').forEach((cb) => {
+      types[cb.dataset.booruType] = cb.checked;
+    });
+    return types;
+  }
+
   function applySettingsToInputs() {
     ui.settings.providerPreset.value = state.settings.providerPreset;
     ui.settings.providerPreset.dataset.currentProvider = state.settings.providerPreset;
@@ -2447,12 +3212,10 @@ Output only the final prompt. Nothing else.`,
     ui.settings.endpoint.value = state.settings.endpoint;
     ui.settings.model.value = state.settings.model;
     ui.settings.apiKey.value = state.settings.apiKey;
-    ui.settings.systemPrompt.value = state.settings.systemPrompt;
-    ui.settings.reversePrompt.value = state.settings.reversePrompt;
-    ui.settings.enableRoleReplaceMode.checked = Boolean(state.settings.enableRoleReplaceMode);
-    ui.settings.roleSystemPrompt.value = state.settings.roleSystemPrompt;
-    ui.settings.roleReversePrompt.value = state.settings.roleReversePrompt;
-    ui.settings.rolePrompt.value = state.settings.rolePrompt;
+    renderPresetSelector();
+    renderPresetBlocks();
+    ui.settings.rolePrompt.value = state.settings.rolePrompt || '';
+    updateRoleSectionVisibility();
     ui.settings.temperature.value = String(state.settings.temperature);
     ui.settings.maxTokens.value = String(state.settings.maxTokens);
     ui.settings.enableFallbackModel.checked = Boolean(state.settings.enableFallbackModel);
@@ -2464,6 +3227,9 @@ Output only the final prompt. Nothing else.`,
     ui.settings.fallbackApiKey.value = state.settings.fallbackApiKey;
     ui.settings.themePreset.value = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
     ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
+    ui.settings.enableBooruTagContext.checked = Boolean(state.settings.enableBooruTagContext);
+    updateBooruTagTypesVisibility();
+    applyBooruTagTypesToCheckboxes();
     ui.settings.defaultCodeFence.checked = Boolean(state.settings.defaultCodeFence);
     ui.settings.showReverseFloatingBall.checked = Boolean(state.settings.showReverseFloatingBall);
     ui.settings.showWorkbenchFloatingBall.checked = Boolean(state.settings.showWorkbenchFloatingBall);
@@ -2479,10 +3245,6 @@ Output only the final prompt. Nothing else.`,
       endpoint: 'endpoint',
       model: 'model',
       apiKey: 'apiKey',
-      systemPrompt: 'systemPrompt',
-      reversePrompt: 'reversePrompt',
-      roleSystemPrompt: 'roleSystemPrompt',
-      roleReversePrompt: 'roleReversePrompt',
       rolePrompt: 'rolePrompt',
       temperature: 'temperature',
       maxTokens: 'maxTokens',
@@ -2505,10 +3267,18 @@ Output only the final prompt. Nothing else.`,
       ui.library.fallbackProviderPreset.dataset.currentProvider = state.settings.fallbackProviderPreset;
     }
 
+    if (ui.library.activePresetId) {
+      const all = getAllPresets();
+      ui.library.activePresetId.innerHTML = all.map((p) =>
+        `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}${p.builtIn ? '' : ' ✦'}</option>`
+      ).join('');
+      ui.library.activePresetId.value = state.settings.activePresetId || 'nai-v4';
+    }
+
     const checks = {
-      enableRoleReplaceMode: 'enableRoleReplaceMode',
       enableFallbackModel: 'enableFallbackModel',
       sendImageAsDataUrl: 'sendImageAsDataUrl',
+      enableBooruTagContext: 'enableBooruTagContext',
       defaultCodeFence: 'defaultCodeFence',
       showReverseFloatingBall: 'showReverseFloatingBall',
       showWorkbenchFloatingBall: 'showWorkbenchFloatingBall',
@@ -2534,12 +3304,9 @@ Output only the final prompt. Nothing else.`,
       model: primaryConnection.model,
       apiKey: primaryConnection.apiKey,
       providerConnections: rememberProviderConnection(state.settings.providerConnections, providerPreset, primaryConnection),
-      systemPrompt: ui.library.systemPrompt?.value.trim() || DEFAULT_SETTINGS.systemPrompt,
-      reversePrompt: ui.library.reversePrompt?.value.trim() || DEFAULT_SETTINGS.reversePrompt,
-      enableRoleReplaceMode: Boolean(ui.library.enableRoleReplaceMode?.checked),
-      roleSystemPrompt: ui.library.roleSystemPrompt?.value.trim() || DEFAULT_SETTINGS.roleSystemPrompt,
-      roleReversePrompt: ui.library.roleReversePrompt?.value.trim() || DEFAULT_SETTINGS.roleReversePrompt,
+      activePresetId: ui.library.activePresetId?.value || state.settings.activePresetId || DEFAULT_SETTINGS.activePresetId,
       rolePrompt: ui.library.rolePrompt?.value.trim() || '',
+      booruTagTypes: state.settings.booruTagTypes || DEFAULT_BOORU_TAG_TYPES,
       defaultCodeFence: Boolean(ui.library.defaultCodeFence?.checked),
       temperature: Number(ui.library.temperature?.value) || DEFAULT_SETTINGS.temperature,
       maxTokens: Number(ui.library.maxTokens?.value) || DEFAULT_SETTINGS.maxTokens,
@@ -2552,6 +3319,7 @@ Output only the final prompt. Nothing else.`,
       fallbackProviderConnections: rememberProviderConnection(state.settings.fallbackProviderConnections, fallbackProviderPreset, fallbackConnection),
       themePreset: ui.library.themePreset?.value || DEFAULT_SETTINGS.themePreset,
       sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
+      enableBooruTagContext: Boolean(ui.library.enableBooruTagContext?.checked),
       showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
       showWorkbenchFloatingBall: Boolean(ui.library.showWorkbenchFloatingBall?.checked),
     };
@@ -2570,12 +3338,9 @@ Output only the final prompt. Nothing else.`,
       model: primaryConnection.model,
       apiKey: primaryConnection.apiKey,
       providerConnections: rememberProviderConnection(state.settings.providerConnections, providerPreset, primaryConnection),
-      systemPrompt: ui.settings.systemPrompt.value.trim() || DEFAULT_SETTINGS.systemPrompt,
-      reversePrompt: ui.settings.reversePrompt.value.trim() || DEFAULT_SETTINGS.reversePrompt,
-      enableRoleReplaceMode: Boolean(ui.settings.enableRoleReplaceMode.checked),
-      roleSystemPrompt: ui.settings.roleSystemPrompt.value.trim() || DEFAULT_SETTINGS.roleSystemPrompt,
-      roleReversePrompt: ui.settings.roleReversePrompt.value.trim() || DEFAULT_SETTINGS.roleReversePrompt,
+      activePresetId: ui.settings.activePresetId.value || DEFAULT_SETTINGS.activePresetId,
       rolePrompt: ui.settings.rolePrompt.value.trim(),
+      booruTagTypes: readBooruTagTypesFromCheckboxes(),
       defaultCodeFence: Boolean(ui.settings.defaultCodeFence.checked),
       temperature: Number(ui.settings.temperature.value) || DEFAULT_SETTINGS.temperature,
       maxTokens: Number(ui.settings.maxTokens.value) || DEFAULT_SETTINGS.maxTokens,
@@ -2588,19 +3353,34 @@ Output only the final prompt. Nothing else.`,
       fallbackProviderConnections: rememberProviderConnection(state.settings.fallbackProviderConnections, fallbackProviderPreset, fallbackConnection),
       themePreset: ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset,
       sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),
+      enableBooruTagContext: Boolean(ui.settings.enableBooruTagContext.checked),
       showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),
       showWorkbenchFloatingBall: Boolean(ui.settings.showWorkbenchFloatingBall.checked),
     };
   }
 
   async function saveSettings() {
-    if (!ensureExtensionContext()) return;
+    if (!ensureExtensionContext()) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
+    syncActivePresetIdFromUI();
+    syncBlocksToPreset();
     state.settings = { ...DEFAULT_SETTINGS, ...readSettingsFromInputs() };
     const saved = await storageSet({ [SETTINGS_KEY]: state.settings });
-    if (!saved) return;
+    if (!saved) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
+    const presetsSaved = await saveCustomPresets();
+    if (!presetsSaved) {
+      setStatus(T.statusContextInvalidated, true);
+      return;
+    }
     applyThemePreset();
     updateFabVisibility();
     applyLibrarySettingsToInputs();
+    renderPresetEditor('workbench');
     setStatus(T.statusSaved, false);
   }
 
@@ -2649,6 +3429,14 @@ Output only the final prompt. Nothing else.`,
             : [];
           renderPromptLibraryOptions();
           renderLibraryManager();
+        }
+
+        if (changes[PRESETS_KEY]?.newValue) {
+          state.customPresets = normalizeCustomPresets(changes[PRESETS_KEY].newValue);
+          renderWorkbenchPresetSelector();
+          renderPresetEditor('workbench');
+          renderPresetSelector();
+          renderPresetEditor('settings');
         }
       });
     } catch (error) {
@@ -2734,17 +3522,23 @@ Output only the final prompt. Nothing else.`,
           <div class="nai-md3-settings-section">
             <div class="nai-md3-section-head">
               <div class="nai-md3-section-title">${T.sectionPrompt}</div>
-              <div class="nai-md3-section-note">${T.sectionPromptHint}</div>
+              <div class="nai-md3-section-note">预设与消息块编辑器</div>
             </div>
-            <label class="nai-md3-label">${T.systemPrompt}</label><textarea class="nai-md3-input" data-field="systemPrompt" rows="3"></textarea>
-            <label class="nai-md3-label">${T.reversePrompt}</label><textarea class="nai-md3-input" data-field="reversePrompt" rows="3"></textarea>
-            <label class="nai-md3-switch"><input data-field="enableRoleReplaceMode" type="checkbox" /><span>${T.roleMode}</span></label>
-            <label class="nai-md3-label">${T.roleSystemPrompt}</label><textarea class="nai-md3-input" data-field="roleSystemPrompt" rows="3"></textarea>
-            <label class="nai-md3-label">${T.roleReversePrompt}</label><textarea class="nai-md3-input" data-field="roleReversePrompt" rows="3"></textarea>
-            <label class="nai-md3-label">${T.rolePrompt}</label><textarea class="nai-md3-input" data-field="rolePrompt" rows="2"></textarea>
-            <div class="nai-md3-grid-2 nai-md3-library-row">
-              <div><label class="nai-md3-label">${T.roleLibrary}</label><select class="nai-md3-input" data-field="roleLibrarySelect"></select></div>
-              <div class="nai-md3-library-action"><button type="button" class="nai-md3-inline-action" data-action="apply-role-library">${T.applyRoleLibrary}</button></div>
+            <div class="nai-md3-grid-2" style="align-items:end">
+              <div><label class="nai-md3-label">预设</label><select class="nai-md3-input" data-field="activePresetId"></select></div>
+              <div style="display:flex;gap:.4em;padding-bottom:2px"><button type="button" class="nai-md3-inline-action" data-action="duplicate-preset">复制</button><button type="button" class="nai-md3-inline-action" data-action="new-preset">新建</button><button type="button" class="nai-md3-inline-action nai-preset-delete-btn nai-hidden" data-action="delete-preset">删除</button><button type="button" class="nai-md3-inline-action nai-preset-reset-btn nai-hidden" data-action="reset-preset">恢复默认</button></div>
+            </div>
+            <div class="nai-preset-role-section nai-hidden">
+              <label class="nai-md3-label">${T.rolePrompt}</label><textarea class="nai-md3-input" data-field="rolePrompt" rows="2"></textarea>
+              <div class="nai-md3-grid-2 nai-md3-library-row">
+                <div><label class="nai-md3-label">${T.roleLibrary}</label><select class="nai-md3-input" data-field="roleLibrarySelect"></select></div>
+                <div class="nai-md3-library-action"><button type="button" class="nai-md3-inline-action" data-action="apply-role-library">${T.applyRoleLibrary}</button></div>
+              </div>
+            </div>
+            <div class="nai-preset-blocks-editor" data-preset-blocks></div>
+            <div style="display:flex;gap:.5em;margin-top:.4em;flex-wrap:wrap">
+              <button type="button" class="nai-md3-inline-action" data-action="add-block">+ 添加消息块</button>
+              <span class="nai-preset-var-chips"><button type="button" class="nai-preset-var-chip" data-action="insert-variable" data-variable="{{booru_tags}}">{{booru_tags}}</button><button type="button" class="nai-preset-var-chip" data-action="insert-variable" data-variable="{{role_prompt}}">{{role_prompt}}</button></span>
             </div>
           </div>
 
@@ -2758,6 +3552,14 @@ Output only the final prompt. Nothing else.`,
               <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="4096" step="1" /></div>
             </div>
             <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
+            <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
+            <div class="nai-booru-tag-types nai-hidden" data-booru-tag-types>
+              <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="artist" /><span>artist</span></label>
+              <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="character" /><span>character</span></label>
+              <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="copyright" /><span>copyright</span></label>
+              <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="general" /><span>general</span></label>
+              <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="meta" /><span>meta</span></label>
+            </div>
             <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
             <label class="nai-md3-switch"><input data-field="enableFallbackModel" type="checkbox" /><span>${T.fallbackMode}</span></label>
           </div>
@@ -2809,6 +3611,10 @@ Output only the final prompt. Nothing else.`,
                   <span class="nai-workbench-nav-icon" aria-hidden="true">#</span>
                   <span class="nai-workbench-nav-text">词库</span>
                 </button>
+                <button type="button" class="nai-workbench-nav-item" data-workbench-page="presets" data-action="workbench-open-presets" title="预设">
+                  <span class="nai-workbench-nav-icon" aria-hidden="true">≡</span>
+                  <span class="nai-workbench-nav-text">预设</span>
+                </button>
                 <button type="button" class="nai-workbench-nav-item" data-workbench-page="settings" data-action="workbench-open-settings" title="设置">
                   <span class="nai-workbench-nav-icon" aria-hidden="true">*</span>
                   <span class="nai-workbench-nav-text">设置</span>
@@ -2859,6 +3665,49 @@ Output only the final prompt. Nothing else.`,
                   <button type="button" data-action="library-new">新建</button>
                 </div>
                 <div class="nai-library-list"></div>
+              </section>
+
+              <section class="nai-library-presets" data-workbench-panel="presets">
+                <div class="nai-library-page-head">
+                  <div>
+                    <div class="nai-library-page-kicker">Workbench</div>
+                    <div class="nai-library-page-title">提示词预设</div>
+                  </div>
+                </div>
+                <div class="nai-library-settings-stack">
+                  <div class="nai-library-settings-group">
+                    <div style="display:flex;gap:.5em;align-items:end;flex-wrap:wrap">
+                      <label class="nai-library-field" style="flex:1;min-width:120px">
+                        <span>预设</span>
+                        <select data-field="wbPresetId"></select>
+                      </label>
+                      <div style="display:flex;gap:.4em;padding-bottom:2px">
+                        <button type="button" class="nai-md3-inline-action" data-action="wb-duplicate-preset">复制</button>
+                        <button type="button" class="nai-md3-inline-action" data-action="wb-new-preset">新建</button>
+                        <button type="button" class="nai-md3-inline-action nai-wb-preset-delete-btn nai-hidden" data-action="wb-delete-preset">删除</button>
+                        <button type="button" class="nai-md3-inline-action nai-wb-preset-reset-btn nai-hidden" data-action="wb-reset-preset">恢复默认</button>
+                      </div>
+                    </div>
+                    <div class="nai-wb-preset-role-section nai-hidden">
+                      <label class="nai-library-field">
+                        <span>${T.rolePrompt}</span>
+                        <textarea data-field="wbRolePrompt" rows="2"></textarea>
+                      </label>
+                      <div style="display:flex;gap:.5em;align-items:end">
+                        <label class="nai-library-field" style="flex:1"><span>${T.roleLibrary}</span><select data-field="wbRoleLibrarySelect"></select></label>
+                        <button type="button" class="nai-md3-inline-action" data-action="wb-apply-role-library" style="margin-bottom:2px">套用</button>
+                      </div>
+                    </div>
+                    <div class="nai-preset-blocks-container" data-wb-preset-blocks></div>
+                    <div style="display:flex;gap:.5em;margin-top:.4em;flex-wrap:wrap">
+                      <button type="button" class="nai-md3-inline-action" data-action="wb-add-block">+ 添加消息块</button>
+                      <span class="nai-preset-var-chips"><button type="button" class="nai-preset-var-chip" data-action="wb-insert-variable" data-variable="{{booru_tags}}">{{booru_tags}}</button><button type="button" class="nai-preset-var-chip" data-action="wb-insert-variable" data-variable="{{role_prompt}}">{{role_prompt}}</button></span>
+                    </div>
+                  </div>
+                  <div class="nai-library-settings-group">
+                    <button type="button" class="nai-md3-inline-action is-primary" data-action="wb-save-presets" style="align-self:flex-start">保存预设</button>
+                  </div>
+                </div>
               </section>
 
               <section class="nai-library-settings" data-workbench-panel="settings">
@@ -2925,24 +3774,8 @@ Output only the final prompt. Nothing else.`,
                   <div class="nai-library-settings-group">
                     <div class="nai-library-settings-title">提示词</div>
                     <label class="nai-library-field">
-                      <span>${T.systemPrompt}</span>
-                      <textarea data-field="librarySystemPrompt" rows="3"></textarea>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>${T.reversePrompt}</span>
-                      <textarea data-field="libraryReversePrompt" rows="3"></textarea>
-                    </label>
-                    <label class="nai-library-check">
-                      <input data-field="libraryEnableRoleReplaceMode" type="checkbox" />
-                      <span>${T.roleMode}</span>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>${T.roleSystemPrompt}</span>
-                      <textarea data-field="libraryRoleSystemPrompt" rows="3"></textarea>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>${T.roleReversePrompt}</span>
-                      <textarea data-field="libraryRoleReversePrompt" rows="3"></textarea>
+                      <span>预设</span>
+                      <select data-field="libraryActivePresetId"></select>
                     </label>
                     <label class="nai-library-field">
                       <span>${T.rolePrompt}</span>
@@ -2974,6 +3807,10 @@ Output only the final prompt. Nothing else.`,
                     <label class="nai-library-check">
                       <input data-field="librarySendImageAsDataUrl" type="checkbox" />
                       <span>${T.sendImageAsDataUrl}</span>
+                    </label>
+                    <label class="nai-library-check">
+                      <input data-field="libraryEnableBooruTagContext" type="checkbox" />
+                      <span>${T.enableBooruTagContext}</span>
                     </label>
                     <label class="nai-library-check">
                       <input data-field="libraryDefaultCodeFence" type="checkbox" />
@@ -3037,6 +3874,16 @@ Output only the final prompt. Nothing else.`,
     ui.library.editor = root.querySelector('.nai-library-editor');
     ui.library.sidebarToggle = root.querySelector('[data-action="workbench-toggle-sidebar"]');
     ui.library.settingsPanel = root.querySelector('[data-workbench-panel="settings"]');
+    ui.library.presetsPanel = root.querySelector('[data-workbench-panel="presets"]');
+    ui.wb = {
+      presetId: root.querySelector('[data-field="wbPresetId"]'),
+      blocksContainer: root.querySelector('[data-wb-preset-blocks]'),
+      deleteBtn: root.querySelector('.nai-wb-preset-delete-btn'),
+      resetBtn: root.querySelector('.nai-wb-preset-reset-btn'),
+      roleSection: root.querySelector('.nai-wb-preset-role-section'),
+      rolePrompt: root.querySelector('[data-field="wbRolePrompt"]'),
+      roleLibrarySelect: root.querySelector('[data-field="wbRoleLibrarySelect"]'),
+    };
     ui.header = root.querySelector('.nai-md3-header');
     ui.resizeHandle = root.querySelector('.nai-md3-resize-handle');
     ui.status = root.querySelector('.nai-md3-status');
@@ -3059,13 +3906,14 @@ Output only the final prompt. Nothing else.`,
     ui.settings.model = root.querySelector('[data-field="model"]');
     ui.settings.modelList = root.querySelector('#nai-primary-model-list');
     ui.settings.apiKey = root.querySelector('[data-field="apiKey"]');
-    ui.settings.systemPrompt = root.querySelector('[data-field="systemPrompt"]');
-    ui.settings.reversePrompt = root.querySelector('[data-field="reversePrompt"]');
-    ui.settings.enableRoleReplaceMode = root.querySelector('[data-field="enableRoleReplaceMode"]');
-    ui.settings.roleSystemPrompt = root.querySelector('[data-field="roleSystemPrompt"]');
-    ui.settings.roleReversePrompt = root.querySelector('[data-field="roleReversePrompt"]');
+    ui.settings.activePresetId = root.querySelector('[data-field="activePresetId"]');
+    ui.settings.roleSection = root.querySelector('.nai-preset-role-section');
     ui.settings.rolePrompt = root.querySelector('[data-field="rolePrompt"]');
     ui.settings.roleLibrarySelect = root.querySelector('[data-field="roleLibrarySelect"]');
+    ui.settings.presetBlocksContainer = root.querySelector('[data-preset-blocks]');
+    ui.settings.presetDeleteBtn = root.querySelector('.nai-preset-delete-btn');
+    ui.settings.presetResetBtn = root.querySelector('.nai-preset-reset-btn');
+    ui.settings.booruTagTypesSection = root.querySelector('[data-booru-tag-types]');
     ui.settings.temperature = root.querySelector('[data-field="temperature"]');
     ui.settings.maxTokens = root.querySelector('[data-field="maxTokens"]');
     ui.settings.enableFallbackModel = root.querySelector('[data-field="enableFallbackModel"]');
@@ -3077,6 +3925,7 @@ Output only the final prompt. Nothing else.`,
     ui.settings.fallbackApiKey = root.querySelector('[data-field="fallbackApiKey"]');
     ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
     ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
+    ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
     ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
     ui.settings.showReverseFloatingBall = root.querySelector('[data-field="showReverseFloatingBall"]');
     ui.settings.showWorkbenchFloatingBall = root.querySelector('[data-field="showWorkbenchFloatingBall"]');
@@ -3092,16 +3941,13 @@ Output only the final prompt. Nothing else.`,
     ui.library.model = ui.library.drawer?.querySelector('[data-field="libraryModel"]');
     ui.library.modelList = ui.library.drawer?.querySelector('#nai-library-primary-model-list');
     ui.library.apiKey = ui.library.drawer?.querySelector('[data-field="libraryApiKey"]');
-    ui.library.systemPrompt = ui.library.drawer?.querySelector('[data-field="librarySystemPrompt"]');
-    ui.library.reversePrompt = ui.library.drawer?.querySelector('[data-field="libraryReversePrompt"]');
-    ui.library.enableRoleReplaceMode = ui.library.drawer?.querySelector('[data-field="libraryEnableRoleReplaceMode"]');
-    ui.library.roleSystemPrompt = ui.library.drawer?.querySelector('[data-field="libraryRoleSystemPrompt"]');
-    ui.library.roleReversePrompt = ui.library.drawer?.querySelector('[data-field="libraryRoleReversePrompt"]');
+    ui.library.activePresetId = ui.library.drawer?.querySelector('[data-field="libraryActivePresetId"]');
     ui.library.rolePrompt = ui.library.drawer?.querySelector('[data-field="libraryRolePrompt"]');
     ui.library.roleLibrarySelect = ui.library.drawer?.querySelector('[data-field="libraryRoleLibrarySelect"]');
     ui.library.temperature = ui.library.drawer?.querySelector('[data-field="libraryTemperature"]');
     ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
     ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
+    ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
     ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');
     ui.library.enableFallbackModel = ui.library.drawer?.querySelector('[data-field="libraryEnableFallbackModel"]');
     ui.library.fallbackProviderPreset = ui.library.drawer?.querySelector('[data-field="libraryFallbackProviderPreset"]');
@@ -3126,6 +3972,17 @@ Output only the final prompt. Nothing else.`,
     ui.settings.providerPreset.addEventListener('change', () => syncProviderFields('primary'));
     ui.settings.fallbackProviderPreset.addEventListener('change', () => syncProviderFields('fallback'));
     ui.settings.enableFallbackModel.addEventListener('change', () => updateFallbackSettingsVisibility());
+    ui.settings.activePresetId.addEventListener('change', () => {
+      const previousId = state.settings.activePresetId;
+      const blocks = readBlocksFromEditor();
+      if (blocks.length && previousId) persistActivePreset(blocks, previousId);
+      state.settings.activePresetId = ui.settings.activePresetId.value;
+      renderPresetSelector();
+      renderPresetEditor('settings');
+    });
+    if (ui.settings.enableBooruTagContext) {
+      ui.settings.enableBooruTagContext.addEventListener('change', () => updateBooruTagTypesVisibility());
+    }
     ui.settings.themePreset.addEventListener('change', () => {
       state.settings.themePreset = ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset;
       applyThemePreset();
@@ -3146,6 +4003,14 @@ Output only the final prompt. Nothing else.`,
     ui.library.showWorkbenchFloatingBall?.addEventListener('change', () => saveLibrarySettings());
     ui.library.providerPreset?.addEventListener('change', () => syncLibraryProviderFields('primary'));
     ui.library.fallbackProviderPreset?.addEventListener('change', () => syncLibraryProviderFields('fallback'));
+    ui.wb.presetId?.addEventListener('change', () => {
+      const previousId = state.settings.activePresetId;
+      const blocks = readWorkbenchBlocksFromEditor();
+      if (blocks.length && previousId) persistActivePreset(blocks, previousId);
+      state.settings.activePresetId = ui.wb.presetId.value;
+      renderWorkbenchPresetSelector();
+      renderPresetEditor('workbench');
+    });
 
     ui.fab.addEventListener('click', () => openPanel(state.isNovelAIImagePage ? 'library' : 'reverse'));
     bindPanelInteractions();
@@ -3159,6 +4024,13 @@ Output only the final prompt. Nothing else.`,
         setPage(btn.dataset.page);
       });
     });
+
+    root.addEventListener('mousedown', (event) => {
+      const chip = event.target instanceof HTMLElement
+        ? event.target.closest('[data-action="insert-variable"], [data-action="wb-insert-variable"]')
+        : null;
+      if (chip) event.preventDefault();
+    }, true);
 
     root.addEventListener('click', async (event) => {
       const actionTarget = event.target instanceof HTMLElement ? event.target.closest('[data-action]') : null;
@@ -3179,6 +4051,7 @@ Output only the final prompt. Nothing else.`,
       else if (action === 'apply-role-library') applyPromptLibraryToRolePrompt();
       else if (action === 'workbench-toggle-sidebar') toggleWorkbenchSidebar();
       else if (action === 'workbench-open-settings') openLibrarySettingsPanel();
+      else if (action === 'workbench-open-presets') openPresetsPanel();
       else if (actionTarget.dataset.workbenchPage === 'library') openLibraryIndexPanel();
       else if (action === 'library-close-editor') closeLibraryEditor();
       else if (action === 'library-new') {
@@ -3196,6 +4069,48 @@ Output only the final prompt. Nothing else.`,
       else if (action === 'library-fetch-fallback-models') await fetchLibraryModelsFor('fallback');
       else if (action === 'library-test-connection') await testLibraryConnection();
       else if (action === 'library-apply-role-library') applyPromptLibraryToLibraryRolePrompt();
+      else if (action === 'duplicate-preset') handleDuplicatePreset();
+      else if (action === 'new-preset') handleNewPreset();
+      else if (action === 'delete-preset') handleDeletePreset();
+      else if (action === 'reset-preset') handleResetPreset();
+      else if (action === 'add-block') handleAddBlock();
+      else if (action === 'insert-variable') insertVariableAtCursor(actionTarget.dataset.variable || '');
+      else if (action === 'wb-duplicate-preset') {
+        syncActivePresetIdFromUI();
+        duplicatePreset(state.settings.activePresetId);
+        state.settings.activePresetId = state.customPresets[state.customPresets.length - 1].id;
+        renderWorkbenchPresetSelector();
+        renderPresetEditor('workbench');
+        saveCustomPresets();
+      }
+      else if (action === 'wb-new-preset') {
+        createPreset('自定义预设');
+        state.settings.activePresetId = state.customPresets[state.customPresets.length - 1].id;
+        renderWorkbenchPresetSelector();
+        renderPresetEditor('workbench');
+        saveCustomPresets();
+      }
+      else if (action === 'wb-delete-preset') {
+        syncActivePresetIdFromUI();
+        const a = getActivePreset();
+        if (!a.builtIn) {
+          deletePreset(a.id);
+          renderWorkbenchPresetSelector();
+          renderPresetEditor('workbench');
+          saveCustomPresets();
+        }
+      }
+      else if (action === 'wb-reset-preset') {
+        syncActivePresetIdFromUI();
+        resetPresetToDefault(state.settings.activePresetId);
+        renderWorkbenchPresetSelector();
+        renderPresetEditor('workbench');
+        saveCustomPresets();
+      }
+      else if (action === 'wb-add-block') appendActivePresetBlock('workbench');
+      else if (action === 'wb-insert-variable') insertWorkbenchVariableAtCursor(actionTarget.dataset.variable || '');
+      else if (action === 'wb-save-presets') await saveWorkbenchPresets();
+      else if (action === 'wb-apply-role-library') { const sel = ui.wb.roleLibrarySelect; const entry = state.promptLibrary.find((x) => x.id === sel?.value && x.category === ROLE_LIBRARY_CATEGORY); if (entry && ui.wb.rolePrompt) { ui.wb.rolePrompt.value = entry.tags.map((t, i) => `${t}${entry.delimiters?.[i] || ''}`).join(''); } }
       else if (action === 'save-settings') await saveSettings();
       else if (action === 'clear-history') await clearHistory();
       else if (action === 'history-copy') {
@@ -3213,13 +4128,20 @@ Output only the final prompt. Nothing else.`,
   }
 
   async function initState() {
-    const data = await storageGet([SETTINGS_KEY, HISTORY_KEY, PANEL_LAYOUT_KEY, PROMPT_LIBRARY_KEY]);
+    const data = await storageGet([SETTINGS_KEY, HISTORY_KEY, PANEL_LAYOUT_KEY, PROMPT_LIBRARY_KEY, PRESETS_KEY]);
     const rawSettings = { ...DEFAULT_SETTINGS, ...(data[SETTINGS_KEY] || {}) };
     const upgradedSettings = upgradePromptSettings(rawSettings);
     state.settings = upgradedSettings;
+    state.customPresets = normalizeCustomPresets(data[PRESETS_KEY]);
     state.history = Array.isArray(data[HISTORY_KEY]) ? data[HISTORY_KEY] : [];
     state.promptLibrary = Array.isArray(data[PROMPT_LIBRARY_KEY]) ? data[PROMPT_LIBRARY_KEY].map(normalizePromptLibraryEntry).filter(Boolean) : [];
     state.panelLayout = normalizeStoredPanelLayout(data[PANEL_LAYOUT_KEY]);
+
+    if (upgradedSettings._migrationPreset) {
+      state.customPresets.push(upgradedSettings._migrationPreset);
+      delete upgradedSettings._migrationPreset;
+      await storageSet({ [PRESETS_KEY]: state.customPresets });
+    }
 
     if (JSON.stringify(rawSettings) !== JSON.stringify(upgradedSettings)) {
       await storageSet({ [SETTINGS_KEY]: upgradedSettings });
@@ -3264,6 +4186,7 @@ Output only the final prompt. Nothing else.`,
     createUI();
 
     applySettingsToInputs();
+    bindBlockDragListeners();
     applyThemePreset();
     bindLocationModeWatcher();
     applyPageMode();
@@ -3280,5 +4203,7 @@ Output only the final prompt. Nothing else.`,
     document.addEventListener('click', onShortcutClick, true);
   }
 
-  init();
+  init().catch((error) => {
+    console.error('[NAI Assistant] Failed to initialize:', error);
+  });
 })();

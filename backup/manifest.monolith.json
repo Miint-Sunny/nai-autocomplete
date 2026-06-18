@@ -1,4 +1,4 @@
-{
+﻿{
   "manifest_version": 3,
   "name": "NovelAI Prompt Autocomplete",
   "version": "1.5.4",
@@ -28,10 +28,10 @@
         "https://novelai.net/*"
       ],
       "js": [
-        "js/bundle/content.js"
+        "content.js"
       ],
       "css": [
-        "styles/bundle.css"
+        "styles.css"
       ],
       "run_at": "document_idle"
     },
@@ -40,10 +40,10 @@
         "<all_urls>"
       ],
       "js": [
-        "js/bundle/image-assistant.js"
+        "image-assistant.js"
       ],
       "css": [
-        "styles/bundle.css"
+        "styles.css"
       ],
       "run_at": "document_idle"
     }
@@ -71,3 +71,4 @@
     "128": "icons/128.png"
   }
 }
+

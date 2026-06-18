@@ -1,0 +1,440 @@
+/* LLM Image Assistant */
+.nai-hidden {
+  display: none !important;
+}
+
+.nai-llm-root {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000001;
+  font-family: 'Roboto', 'Segoe UI', -apple-system, sans-serif;
+}
+
+.nai-llm-fab {
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+}
+
+.nai-llm-panel {
+  position: absolute;
+  right: 0;
+  bottom: 64px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(76vh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container);
+  box-shadow: var(--md-sys-elevation-3);
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-llm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nai-llm-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.nai-llm-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--md-sys-color-on-surface);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nai-llm-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nai-llm-toolbar button,
+.nai-llm-send,
+.nai-llm-settings button {
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nai-llm-toolbar button:hover,
+.nai-llm-send:hover,
+.nai-llm-settings button:hover,
+.nai-llm-close:hover {
+  background: rgba(208, 188, 255, 0.18);
+}
+
+.nai-llm-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nai-llm-image-preview {
+  width: 100%;
+  max-height: 170px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: #111;
+}
+
+.nai-llm-preview-hint {
+  font-size: 11px;
+  color: var(--md-sys-color-outline);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nai-llm-status {
+  min-height: 18px;
+  font-size: 12px;
+  color: #9ae6b4;
+}
+
+.nai-llm-status.is-error {
+  color: var(--md-sys-color-error);
+}
+
+.nai-llm-messages {
+  overflow: auto;
+  max-height: 260px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.nai-llm-message {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.nai-llm-message-role {
+  font-size: 10px;
+  color: var(--md-sys-color-outline);
+  margin-bottom: 4px;
+}
+
+.nai-llm-message-text {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nai-llm-user {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.nai-llm-assistant {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.nai-llm-system {
+  background: rgba(250, 204, 21, 0.12);
+}
+
+.nai-llm-error {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.nai-llm-input-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.nai-llm-input,
+.nai-llm-settings input,
+.nai-llm-settings textarea {
+  width: 100%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.nai-llm-settings {
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  padding-top: 8px;
+}
+
+.nai-llm-settings summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: 8px;
+}
+
+.nai-llm-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--md-sys-color-outline);
+}
+
+.nai-llm-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+html.nai-image-pick-mode,
+html.nai-image-pick-mode * {
+  cursor: crosshair !important;
+}
+
+.nai-image-pick-hover {
+  outline: 3px solid #06b6d4 !important;
+  outline-offset: 1px !important;
+}
+
+@media (max-width: 640px) {
+  .nai-llm-root {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .nai-llm-panel {
+    width: min(94vw, 420px);
+    right: -2px;
+    bottom: 58px;
+    max-height: 82vh;
+  }
+
+  .nai-llm-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.nai-llm-shortcut-hint {
+  font-size: 11px;
+  color: var(--md-sys-color-outline);
+}
+
+.nai-llm-shortcut-hint kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: inherit;
+  font-size: 10px;
+}
+
+/* LLM Assistant V2 */
+.nai-llm-root {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1000001;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.nai-llm-fab {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f7df7, #26c3d8);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.nai-llm-panel {
+  position: absolute;
+  right: 0;
+  bottom: 58px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  border: 1px solid #2f3d6a;
+  border-radius: 14px;
+  padding: 12px;
+  background: linear-gradient(180deg, #181d34, #13182b);
+  color: #edf1ff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+}
+
+.nai-llm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nai-llm-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nai-llm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nai-llm-mini-btn,
+.nai-llm-close,
+.nai-llm-toolbar button {
+  border: 1px solid #33416f;
+  border-radius: 8px;
+  background: #151a30;
+  color: #d9e2ff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nai-llm-mini-btn {
+  padding: 4px 10px;
+}
+
+.nai-llm-close {
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.nai-llm-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.nai-llm-toolbar button {
+  padding: 8px 6px;
+}
+
+.nai-llm-send {
+  background: #2163ff !important;
+  border-color: #2163ff !important;
+  color: #fff !important;
+}
+
+.nai-llm-shortcut-hint {
+  font-size: 12px;
+  color: #98a6cc;
+}
+
+.nai-llm-shortcut-hint kbd {
+  padding: 1px 5px;
+  border: 1px solid #415281;
+  border-radius: 5px;
+  background: #131a31;
+  color: #cfdbff;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.nai-llm-preview-wrap {
+  margin-top: 6px;
+}
+
+.nai-llm-image-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid #2f3d6a;
+  background: #090b12;
+}
+
+.nai-llm-preview-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #98a6cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nai-llm-status {
+  min-height: 20px;
+  margin: 8px 0;
+  color: #9fe2b0;
+  font-size: 12px;
+}
+
+.nai-llm-status.is-error {
+  color: #ff9d9d;
+}
+
+.nai-llm-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: #a8b5dc;
+}
+
+.nai-llm-input,
+.nai-llm-result {
+  width: 100%;
+  border: 1px solid #33416f;
+  border-radius: 10px;
+  background: #10162a;
+  color: #edf1ff;
+  padding: 10px;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.nai-llm-result {
+  min-height: 120px;
+}
+
+@media (max-width: 640px) {
+  .nai-llm-root {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .nai-llm-panel {
+    width: min(95vw, 420px);
+    min-width: min(320px, calc(100vw - 20px));
+    right: 10px;
+    bottom: 78px;
+  }
+
+  .nai-llm-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+

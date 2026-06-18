@@ -150,22 +150,44 @@
 
 ## 项目结构
 
-- [manifest.json](./manifest.json)：扩展清单
-- [content.js](./content.js)：NovelAI 页面标签补全脚本
-- [image-assistant.js](./image-assistant.js)：图像反推悬浮面板与交互逻辑
-- [background.js](./background.js)：后台请求、抓图、LLM 调用逻辑
-- [styles.css](./styles.css)：扩展样式
-- `dist/`：本地打包产物
+维护时改这些（**源码**）：
+
+- [js/content/](./js/content/)：自动补全分片
+- [js/assistant/](./js/assistant/)：图像反推助手分片
+- [js/background/](./js/background/)：后台 Service Worker 分片
+- [styles/](./styles/)：`01-*.css` … `05-*.css` 样式分片
+
+构建后 Chrome 实际加载的是打包产物（**不要手改**）：
+
+- [js/bundle/content.js](./js/bundle/content.js)
+- [js/bundle/image-assistant.js](./js/bundle/image-assistant.js)
+- [js/bundle/background.js](./js/bundle/background.js)
+- [styles/bundle.css](./styles/bundle.css)
+- [manifest.json](./manifest.json)
+- [background.js](./background.js)：`importScripts` 入口
+
+[backup/](./backup/) 仅保留早期单文件归档，不是日常开发入口。
 
 ## 开发说明
 
-本项目当前没有复杂构建步骤，核心文件可直接作为扩展源码加载。
+1. 编辑 `js/`、`styles/` 下的分片源码
+2. 在仓库根目录执行：
+
+```bash
+node scripts/build-modular.mjs
+```
+
+3. 在浏览器扩展页重新加载扩展
+
+### 为什么要打包？
+
+Chrome 的 content script **不能**把多个独立 `.js` 文件当成一个 IIFE 作用域来共享 `const` / `let`。  
+所以维护用分片，运行时用构建脚本把分片**合并回单个 bundle**——这才是「拆分维护、整体运行」。
 
 常用本地校验：
 
-```powershell
-node --check "D:/Code/Codex/nai-autocomplete/image-assistant.js"
-node --check "D:/Code/Codex/nai-autocomplete/background.js"
+```bash
+node scripts/build-modular.mjs
 ```
 
 ## 已知说明

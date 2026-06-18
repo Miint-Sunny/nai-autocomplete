@@ -1844,7 +1844,8 @@ html.nai-image-pick-mode * {
 .nai-library-editor,
 .nai-library-main,
 .nai-library-index,
-.nai-library-settings {
+.nai-library-settings,
+.nai-library-presets {
   min-height: 0;
   overflow: auto;
   padding: 22px 24px;
@@ -1855,7 +1856,8 @@ html.nai-image-pick-mode * {
 .nai-library-editor::-webkit-scrollbar,
 .nai-library-main::-webkit-scrollbar,
 .nai-library-index::-webkit-scrollbar,
-.nai-library-settings::-webkit-scrollbar {
+.nai-library-settings::-webkit-scrollbar,
+.nai-library-presets::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
@@ -1863,14 +1865,16 @@ html.nai-image-pick-mode * {
 .nai-library-editor::-webkit-scrollbar-track,
 .nai-library-main::-webkit-scrollbar-track,
 .nai-library-index::-webkit-scrollbar-track,
-.nai-library-settings::-webkit-scrollbar-track {
+.nai-library-settings::-webkit-scrollbar-track,
+.nai-library-presets::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .nai-library-editor::-webkit-scrollbar-thumb,
 .nai-library-main::-webkit-scrollbar-thumb,
 .nai-library-index::-webkit-scrollbar-thumb,
-.nai-library-settings::-webkit-scrollbar-thumb {
+.nai-library-settings::-webkit-scrollbar-thumb,
+.nai-library-presets::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: var(--nai-lib-border);
 }
@@ -1904,7 +1908,8 @@ html.nai-image-pick-mode * {
 }
 
 .nai-library-drawer[data-workbench-page="library"] [data-workbench-panel="library"],
-.nai-library-drawer[data-workbench-page="settings"] [data-workbench-panel="settings"] {
+.nai-library-drawer[data-workbench-page="settings"] [data-workbench-panel="settings"],
+.nai-library-drawer[data-workbench-page="presets"] [data-workbench-panel="presets"] {
   display: block;
 }
 
@@ -2969,4 +2974,217 @@ html.nai-image-pick-mode * {
 .nai-history-list::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* Preset block editor */
+.nai-preset-blocks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.nai-preset-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--nai-md3-surface-container, #f3f3f3);
+  border: 1px solid var(--nai-md3-outline-variant, #ccc);
+  transition: box-shadow 0.15s, opacity 0.15s;
+}
+
+.nai-preset-block.nai-dragging {
+  opacity: 0.4;
+}
+
+.nai-preset-block.nai-drag-over {
+  box-shadow: 0 -2px 0 0 var(--nai-md3-primary, #6750a4) inset;
+}
+
+.nai-preset-block-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 16px;
+  line-height: 32px;
+  color: var(--nai-md3-on-surface-variant, #666);
+  padding: 0 2px;
+  touch-action: none;
+}
+
+.nai-preset-block-handle:active {
+  cursor: grabbing;
+}
+
+.nai-preset-block-enabled {
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px;
+  height: 20px;
+  min-width: 36px;
+  border-radius: 10px;
+  border: 2px solid var(--nai-md3-header-border);
+  background: var(--nai-md3-switch-track, #e0e0e0);
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.nai-preset-block-enabled::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--nai-md3-switch-thumb, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 160ms ease;
+}
+
+.nai-preset-block-enabled:checked {
+  border-color: transparent;
+  background: var(--md-sys-color-primary);
+}
+
+.nai-preset-block-enabled:checked::before {
+  transform: translateX(16px);
+  background: var(--md-sys-color-on-primary, #fff);
+}
+
+.nai-preset-block-role {
+  min-width: 80px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--nai-md3-outline-variant, #ccc);
+  background: var(--nai-md3-surface, #fff);
+  color: var(--nai-md3-on-surface, #1c1b1f);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.nai-preset-block-content {
+  flex: 1;
+  min-height: 48px;
+  resize: vertical;
+  font-size: 13px;
+  user-select: text;
+  -webkit-user-drag: none;
+  cursor: text;
+}
+
+.nai-preset-block-delete {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--nai-md3-error, #b3261e);
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.nai-preset-block-delete:hover {
+  background: var(--nai-md3-error-container, #f9dedc);
+}
+
+/* Preset action bar */
+.nai-preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.nai-preset-actions select {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Variable chips */
+.nai-preset-var-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.nai-preset-var-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  background: var(--nai-md3-secondary-container, #e8def8);
+  color: var(--nai-md3-on-secondary-container, #1d192b);
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  transition: filter 0.1s;
+}
+
+.nai-preset-var-chip:hover {
+  filter: brightness(0.92);
+}
+
+/* Booru tag type checkboxes */
+.nai-booru-tag-types {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--nai-md3-surface-container, #f3f3f3);
+}
+
+.nai-md3-check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant, #49454f);
+  cursor: pointer;
+}
+
+.nai-md3-check-inline input[type="checkbox"] {
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px;
+  height: 20px;
+  min-width: 36px;
+  border-radius: 10px;
+  border: 2px solid var(--nai-md3-header-border);
+  background: var(--nai-md3-switch-track, #e0e0e0);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.nai-md3-check-inline input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--nai-md3-switch-thumb, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 160ms ease;
+}
+
+.nai-md3-check-inline input[type="checkbox"]:checked {
+  border-color: transparent;
+  background: var(--md-sys-color-primary);
+}
+
+.nai-md3-check-inline input[type="checkbox"]:checked::before {
+  transform: translateX(16px);
+  background: var(--md-sys-color-on-primary, #fff);
 }

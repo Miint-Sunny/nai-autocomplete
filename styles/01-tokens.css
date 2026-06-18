@@ -1,0 +1,135 @@
+/* MD3 Design System - NovelAI Autocomplete */
+
+/* CSS Custom Properties - MD3 Color Tokens */
+:root,
+html[data-nai-theme="sunrise"] {
+  --md-sys-color-surface: #fffaf3;
+  --md-sys-color-surface-container: #fff7ec;
+  --md-sys-color-surface-container-high: #fffdf8;
+  --md-sys-color-on-surface: #352821;
+  --md-sys-color-on-surface-variant: #7a675d;
+  --md-sys-color-outline: #c9b7aa;
+  --md-sys-color-outline-variant: #eadccd;
+  --md-sys-color-primary: #c85d33;
+  --md-sys-color-on-primary: #fff8f5;
+  --md-sys-color-secondary: #9a5c43;
+  --md-sys-color-tertiary: #b17a59;
+  --md-sys-color-error: #b3261e;
+
+  /* Category Colors */
+  --nai-category-general: #7aa7dd;
+  --nai-category-artist: #d98d78;
+  --nai-category-copyright: #8f90d6;
+  --nai-category-character: #6ca885;
+  --nai-category-meta: #c9a048;
+
+  /* Elevation */
+  --md-sys-elevation-2: 0 8px 20px rgba(172, 126, 89, 0.12);
+  --md-sys-elevation-3: 0 16px 34px rgba(172, 126, 89, 0.16), 0 4px 10px rgba(109, 77, 54, 0.08);
+}
+
+html[data-nai-theme="porcelain"] {
+  --md-sys-color-surface: #f8fbff;
+  --md-sys-color-surface-container: #f3f7ff;
+  --md-sys-color-surface-container-high: #ffffff;
+  --md-sys-color-on-surface: #233348;
+  --md-sys-color-on-surface-variant: #617186;
+  --md-sys-color-outline: #bdcad7;
+  --md-sys-color-outline-variant: #dde7f1;
+  --md-sys-color-primary: #3c6dcf;
+  --md-sys-color-on-primary: #f7faff;
+  --md-sys-color-secondary: #5b6f8f;
+  --md-sys-color-tertiary: #527db0;
+  --md-sys-color-error: #b3261e;
+}
+
+html[data-nai-theme="matcha"] {
+  --md-sys-color-surface: #f8fbf5;
+  --md-sys-color-surface-container: #f4f8ee;
+  --md-sys-color-surface-container-high: #fefffb;
+  --md-sys-color-on-surface: #2c3524;
+  --md-sys-color-on-surface-variant: #697560;
+  --md-sys-color-outline: #bcc8b5;
+  --md-sys-color-outline-variant: #dce6d6;
+  --md-sys-color-primary: #567a3f;
+  --md-sys-color-on-primary: #f7fff0;
+  --md-sys-color-secondary: #6b775a;
+  --md-sys-color-tertiary: #7c8c53;
+  --md-sys-color-error: #b3261e;
+}
+
+html[data-nai-theme="rose"] {
+  --md-sys-color-surface: #fff8f8;
+  --md-sys-color-surface-container: #fff4f2;
+  --md-sys-color-surface-container-high: #fffdfb;
+  --md-sys-color-on-surface: #412d31;
+  --md-sys-color-on-surface-variant: #80666c;
+  --md-sys-color-outline: #d3b9bf;
+  --md-sys-color-outline-variant: #efdbdf;
+  --md-sys-color-primary: #bc5b72;
+  --md-sys-color-on-primary: #fff8fb;
+  --md-sys-color-secondary: #93636e;
+  --md-sys-color-tertiary: #ba7d8f;
+  --md-sys-color-error: #b3261e;
+}
+
+html[data-nai-theme="ember"] {
+  --md-sys-color-surface: #181413;
+  --md-sys-color-surface-container: #231d1b;
+  --md-sys-color-surface-container-high: #2c2421;
+  --md-sys-color-on-surface: #f4e7e1;
+  --md-sys-color-on-surface-variant: #c8b5ad;
+  --md-sys-color-outline: #8d786f;
+  --md-sys-color-outline-variant: #5c4b44;
+  --md-sys-color-primary: #ffb68d;
+  --md-sys-color-on-primary: #3a1d10;
+  --md-sys-color-secondary: #e4b9a1;
+  --md-sys-color-tertiary: #f2c98d;
+  --md-sys-color-error: #ffb4ab;
+
+  --nai-category-general: #8dc2ff;
+  --nai-category-artist: #ffae88;
+  --nai-category-copyright: #b7a7ff;
+  --nai-category-character: #7cd9a6;
+}
+
+html[data-nai-theme="midnight"] {
+  --md-sys-color-surface: #0f1721;
+  --md-sys-color-surface-container: #16202c;
+  --md-sys-color-surface-container-high: #1c2937;
+  --md-sys-color-on-surface: #e7eef8;
+  --md-sys-color-on-surface-variant: #afc0d7;
+  --md-sys-color-outline: #73859d;
+  --md-sys-color-outline-variant: #33465b;
+  --md-sys-color-primary: #84b9ff;
+  --md-sys-color-on-primary: #0f2745;
+  --md-sys-color-secondary: #b2c6e6;
+  --md-sys-color-tertiary: #8cd5f1;
+  --md-sys-color-error: #ffb4ab;
+
+  --nai-category-general: #8fc0ff;
+  --nai-category-artist: #ff9e8f;
+  --nai-category-copyright: #c0a8ff;
+  --nai-category-character: #79d8b2;
+}
+
+html[data-nai-theme="moss"] {
+  --md-sys-color-surface: #121814;
+  --md-sys-color-surface-container: #19221c;
+  --md-sys-color-surface-container-high: #223028;
+  --md-sys-color-on-surface: #e6f0e7;
+  --md-sys-color-on-surface-variant: #b3c6b5;
+  --md-sys-color-outline: #728676;
+  --md-sys-color-outline-variant: #34463a;
+  --md-sys-color-primary: #8fcb89;
+  --md-sys-color-on-primary: #15321a;
+  --md-sys-color-secondary: #b7d3b1;
+  --md-sys-color-tertiary: #8ed9bc;
+  --md-sys-color-error: #ffb4ab;
+
+  --nai-category-general: #85bdff;
+  --nai-category-artist: #ffb07c;
+  --nai-category-copyright: #b8b1ff;
+  --nai-category-character: #89d59a;
+}
+

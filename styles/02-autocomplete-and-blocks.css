@@ -1,0 +1,697 @@
+/* Autocomplete Container */
+.nai-autocomplete-container {
+  position: fixed;
+  z-index: 999999;
+  min-width: 260px;
+  max-width: 360px;
+  max-height: 300px;
+  background: var(--md-sys-color-surface-container);
+  border-radius: 6px;
+  box-shadow: var(--md-sys-elevation-3);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  backdrop-filter: none;
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.08s linear;
+  pointer-events: none;
+}
+
+.nai-autocomplete-container.visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Header */
+.nai-autocomplete-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 6px 11px;
+  background: var(--md-sys-color-surface-container-high);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.nai-autocomplete-title {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface-variant);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Slash Toggle */
+.nai-slash-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 7px;
+  background: var(--md-sys-color-surface);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+}
+
+.nai-slash-toggle:hover {
+  background: rgba(208, 188, 255, 0.1);
+}
+
+.nai-slash-toggle input {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--md-sys-color-primary);
+  cursor: pointer;
+}
+
+.nai-autocomplete-hint {
+  font-size: 10px;
+  color: var(--md-sys-color-outline);
+}
+
+.nai-autocomplete-hint kbd {
+  display: inline-block;
+  padding: 1px 4px;
+  margin: 0 2px;
+  background: var(--md-sys-color-surface);
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: inherit;
+}
+
+/* Results List */
+.nai-autocomplete-list {
+  flex: 1 1 auto;
+  max-height: 236px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 7px 10px;
+}
+
+.nai-autocomplete-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nai-autocomplete-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nai-autocomplete-list::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: 3px;
+}
+
+.nai-autocomplete-list::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
+}
+
+/* Item */
+.nai-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: none;
+}
+
+.nai-autocomplete-item:hover,
+.nai-autocomplete-item.selected {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent);
+}
+
+.nai-autocomplete-item.selected {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent);
+}
+
+/* Category Indicator */
+.nai-autocomplete-category {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.nai-autocomplete-category[data-category="0"] {
+  background: var(--nai-category-general);
+}
+.nai-autocomplete-category[data-category="1"] {
+  background: var(--nai-category-artist);
+}
+.nai-autocomplete-category[data-category="3"] {
+  background: var(--nai-category-copyright);
+}
+.nai-autocomplete-category[data-category="4"] {
+  background: var(--nai-category-character);
+}
+.nai-autocomplete-category[data-category="5"] {
+  background: var(--nai-category-meta);
+}
+.nai-autocomplete-category[data-category="library"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+}
+
+/* Content */
+.nai-autocomplete-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  align-self: center;
+}
+
+.nai-autocomplete-tag {
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.nai-autocomplete-tag-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.nai-autocomplete-tag .highlight {
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+}
+
+.nai-autocomplete-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--md-sys-color-on-primary);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+}
+
+.nai-autocomplete-translation {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nai-autocomplete-meta {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 50px;
+}
+
+/* Post Count Badge */
+.nai-autocomplete-count {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--md-sys-color-outline);
+  background: var(--md-sys-color-surface);
+}
+
+/* Weight Controls */
+.nai-autocomplete-weight {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.nai-weight-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.nai-weight-btn:hover {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+.nai-weight-value {
+  min-width: 26px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--md-sys-color-primary);
+}
+
+/* Artist Toggle */
+.nai-artist-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 0 6px;
+  background: var(--md-sys-color-surface);
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--nai-category-artist);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nai-artist-toggle:hover {
+  background: rgba(252, 165, 165, 0.2);
+}
+
+.nai-artist-check {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--nai-category-artist);
+  cursor: pointer;
+}
+
+/* Empty State */
+.nai-autocomplete-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 13px;
+}
+
+.nai-autocomplete-empty-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+/* Loading State */
+.nai-autocomplete-loading {
+  padding: 16px;
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 12px;
+}
+
+.nai-autocomplete-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--md-sys-color-outline-variant);
+  border-top-color: var(--md-sys-color-primary);
+  border-radius: 50%;
+  animation: nai-spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes nai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Footer */
+.nai-autocomplete-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 7px 12px 8px;
+  background: var(--md-sys-color-surface-container-high);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--md-sys-color-outline);
+}
+
+.nai-autocomplete-count-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Toast Notification */
+.nai-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: var(--md-sys-elevation-3);
+  font-size: 13px;
+  z-index: 999999;
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nai-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.nai-prompt-block-panel,
+.nai-prompt-block-toolbar {
+  position: fixed;
+  font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.nai-prompt-block-panel {
+  z-index: 999998;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  width: auto;
+  backdrop-filter: none;
+}
+
+.nai-prompt-block-toolbar {
+  z-index: 1000000;
+  padding: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 94%, transparent);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-2);
+  backdrop-filter: none;
+}
+
+.nai-prompt-block-toolbar button,
+.nai-prompt-block-lock,
+.nai-prompt-block-remove,
+.nai-prompt-block-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  transition: none;
+}
+
+.nai-prompt-block-toolbar button:hover,
+.nai-prompt-block-lock:hover,
+.nai-prompt-block-remove:hover,
+.nai-prompt-block-save:hover {
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 40%, var(--md-sys-color-outline-variant));
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, var(--md-sys-color-surface-container-high));
+}
+
+.nai-prompt-block-toolbar svg,
+.nai-prompt-block-lock svg,
+.nai-prompt-block-remove svg,
+.nai-prompt-block-save svg {
+  width: 16px;
+  height: 16px;
+}
+
+.nai-prompt-block-highlight {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nai-block-accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 60%, transparent);
+  transition: none;
+}
+
+.nai-prompt-block-highlight:hover {
+  background: color-mix(in srgb, var(--nai-block-accent) 24%, transparent);
+}
+
+.nai-prompt-block-highlight.is-locked {
+  background: color-mix(in srgb, var(--nai-block-accent) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 78%, transparent);
+  cursor: default;
+}
+
+.nai-prompt-block-anchor {
+  position: fixed;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.nai-prompt-block-drag-hitbox {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 12px;
+  cursor: text;
+  background: transparent;
+}
+
+.nai-block-drag-mode .nai-prompt-block-drag-hitbox:not(.is-locked) {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.nai-prompt-block-drag-hitbox.is-locked,
+.nai-block-drag-mode .nai-prompt-block-drag-hitbox.is-locked {
+  cursor: default;
+}
+
+.nai-prompt-block-drag-hitbox.is-dragging {
+  opacity: 0.55;
+  transform: none;
+}
+
+.nai-prompt-block-lock,
+.nai-prompt-block-remove,
+.nai-prompt-block-save {
+  color: var(--nai-block-accent);
+  width: 24px;
+  height: 24px;
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.nai-prompt-block-remove {
+  color: color-mix(in srgb, var(--nai-block-accent) 78%, var(--md-sys-color-error));
+}
+
+.nai-prompt-block-save {
+  color: color-mix(in srgb, var(--nai-block-accent) 86%, var(--md-sys-color-primary));
+}
+
+.nai-prompt-library-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000002;
+}
+
+.nai-prompt-library-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(19, 17, 24, 0.26);
+  backdrop-filter: blur(8px);
+}
+
+.nai-prompt-library-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 24px));
+  transform: translate(-50%, -50%);
+  border-radius: 24px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 78%, white);
+  background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 92%, white);
+  box-shadow:
+    0 20px 44px rgba(18, 16, 24, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+
+.nai-prompt-library-head {
+  margin-bottom: 14px;
+}
+
+.nai-prompt-library-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-prompt-library-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.nai-prompt-library-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.nai-prompt-library-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nai-prompt-library-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.nai-prompt-library-field input,
+.nai-prompt-library-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--md-sys-color-surface) 90%, white);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+}
+
+.nai-prompt-library-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--md-sys-color-primary) 40%, var(--md-sys-color-outline-variant));
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+  color: var(--md-sys-color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.nai-prompt-library-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--md-sys-color-error);
+}
+
+.nai-prompt-library-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.nai-prompt-library-actions button {
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 16px;
+  background: var(--nai-md3-chip-bg);
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nai-prompt-library-actions button.is-primary {
+  color: var(--md-sys-color-on-primary);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+  border-color: transparent;
+}
+
+.nai-prompt-library-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.nai-prompt-block-drop-indicator {
+  position: fixed;
+  width: 5px;
+  min-height: 24px;
+  border-radius: 999px;
+  background: var(--md-sys-color-primary);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--md-sys-color-primary) 38%, transparent);
+  z-index: 999998;
+  pointer-events: none;
+  animation: none;
+}
+
+.nai-prompt-block-drop-indicator::before,
+.nai-prompt-block-drop-indicator::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent);
+}
+
+.nai-prompt-block-drop-indicator::before {
+  top: -6px;
+}
+
+.nai-prompt-block-drop-indicator::after {
+  bottom: -6px;
+}
+
+@keyframes nai-block-drop-pulse {
+  0%, 100% {
+    opacity: 0.92;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.04);
+  }
+}
+
