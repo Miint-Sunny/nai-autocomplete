@@ -133,7 +133,7 @@ html[data-nai-theme="moss"] {
   --nai-category-character: #89d59a;
 }
 
-/* NovelAI 夜 — sampled from the live novelai.net/image palette
+/* 星海鎏金 — sampled from the live novelai.net/image palette
    (deep navy #0e0f21 + signature cream-gold #f5f3c2). */
 html[data-nai-theme="novelai"] {
   --md-sys-color-surface: #0e0f21;
