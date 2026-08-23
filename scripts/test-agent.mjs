@@ -214,7 +214,94 @@ test('缺 skill 或缺需求时不发请求', async () => {
   assert.equal(calls.length, 0);
 });
 
-// ═══════════════════════════ 4. 工具查证回路 ═══════════════════════════
+// ═══════════════════════════ 4. 知识源 ═══════════════════════════
+
+group('知识源');
+
+test('没勾选就一个字都不发', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload(), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.equal(/【/.test(user), false, '不该出现任何知识源区块');
+});
+
+test('当前提示词进去后，本轮变成迭代而不是重写', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { currentPrompt: '1girl, solo, night, rain' },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.match(user, /当前提示词框里的内容/);
+  assert.match(user, /1girl, solo, night, rain/);
+  assert.match(user, /只改 2~3 处/, 'skill 的迭代规则必须点明，否则模型会整体重写');
+});
+
+test('上一轮结果支持多轮追加', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { previous: '1girl, solo, golden hour' },
+  }), FAST);
+
+  assert.match(calls[0].body.messages[1].content[0].text, /上一轮给出的版本[\s\S]*golden hour/);
+});
+
+test('词库角色直接给串，不让模型另编外貌', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { characters: [{ name: 'satsuki', prompt: 'blonde hair, red eyes, hair ribbon' }] },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.match(user, /satsuki：blonde hair, red eyes/);
+  assert.match(user, /不要自己另编外貌/);
+});
+
+test('画师库只作参考 —— skill 明说画师串不进输出', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { artists: [{ tag: 'artist:wlop', name: 'WLOP', rating: 5 }] },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.match(user, /artist:wlop（WLOP） ★5/);
+  assert.match(user, /默认不要写进输出/);
+});
+
+test('超长上下文会截断，不把请求撑爆', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { currentPrompt: 'x'.repeat(9000) },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.match(user, /已截断/);
+  assert.ok(user.length < 9000, `实际 ${user.length}`);
+});
+
+test('画师和角色都有条数上限', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: {
+      artists: Array.from({ length: 60 }, (_, i) => ({ tag: `artist_${i}` })),
+      characters: Array.from({ length: 40 }, (_, i) => ({ name: `char_${i}`, prompt: 'x' })),
+    },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.equal((user.match(/- artist_/g) || []).length, 24);
+  assert.equal((user.match(/- char_/g) || []).length, 16);
+});
+
+// ═══════════════════════════ 5. 工具查证回路 ═══════════════════════════
 
 group('工具查证回路');
 
@@ -276,7 +363,7 @@ test('工具用量按整轮累加，不是只报最后一次', async () => {
   deepEqual(result.usage, { inputTokens: 250, outputTokens: 50, totalTokens: 300 });
 });
 
-// ═══════════════════════════ 5. 与 LLM 服务的衔接 ═══════════════════════════
+// ═══════════════════════════ 6. 与 LLM 服务的衔接 ═══════════════════════════
 
 group('与 LLM 服务的衔接');
 
@@ -321,6 +408,73 @@ test('Agent 也能中途取消', async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.errorKind, 'aborted');
+});
+
+// ═══════════════════════════ 7. 图片预算 ═══════════════════════════
+
+group('图片预算');
+
+const KB = 1024;
+
+test('小图不动 —— 重编码只会掉画质', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget')({ width: 800, height: 1200, bytes: 180 * KB, mimeType: 'image/png' });
+  assert.equal(plan.needsWork, false);
+  assert.equal(plan.reason, 'within-budget');
+});
+
+test('超长边缩到 1536，短边等比', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget')({ width: 4096, height: 2048, bytes: 8_000_000, mimeType: 'image/png' });
+  assert.equal(plan.needsWork, true);
+  assert.equal(plan.reason, 'oversize-edge');
+  assert.equal(plan.targetWidth, 1536);
+  assert.equal(plan.targetHeight, 768);
+});
+
+test('缩完仍然超字节预算才换 JPEG', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget');
+
+  // 8000×8000 缩到 1536 后面积只剩 3.7%，PNG 够用
+  const stillPng = plan({ width: 8000, height: 8000, bytes: 20_000_000, mimeType: 'image/png' });
+  assert.equal(stillPng.outputType, 'image/png');
+
+  // 2000×2000 只缩到 1536（面积 59%），20MB 缩完还有 11MB，必须换 JPEG
+  const toJpeg = plan({ width: 2000, height: 2000, bytes: 20_000_000, mimeType: 'image/png' });
+  assert.equal(toJpeg.outputType, 'image/jpeg');
+  assert.equal(toJpeg.quality, 0.85);
+});
+
+test('尺寸没超但字节超了，也要重编码', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget')({ width: 1200, height: 1200, bytes: 6_000_000, mimeType: 'image/png' });
+  assert.equal(plan.needsWork, true);
+  assert.equal(plan.reason, 'oversize-bytes');
+  assert.equal(plan.scale, 1, '尺寸没超就不缩，只换格式');
+  assert.equal(plan.outputType, 'image/jpeg');
+});
+
+test('GIF 放过 —— 重编码只会拿到第一帧', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget')({ width: 4000, height: 4000, bytes: 9_000_000, mimeType: 'image/gif' });
+  assert.equal(plan.needsWork, false);
+  assert.equal(plan.reason, 'animated');
+});
+
+test('拿不到尺寸就不动它', () => {
+  const box = newSandbox();
+  const plan = box.get('planImageBudget')({ width: 0, height: 0, bytes: 9_000_000, mimeType: 'image/png' });
+  assert.equal(plan.needsWork, false);
+});
+
+test('base64 字节估算认得 padding', () => {
+  const box = newSandbox();
+  const estimate = box.get('estimateDataUrlBytes');
+  assert.equal(estimate('data:image/png;base64,AAAA'), 3);
+  assert.equal(estimate('data:image/png;base64,AAA='), 2);
+  assert.equal(estimate('data:image/png;base64,AA=='), 1);
+  assert.equal(estimate(''), 0);
 });
 
 await run('Agent 测试');

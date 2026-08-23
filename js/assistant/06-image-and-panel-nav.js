@@ -23,7 +23,9 @@ function updatePreview() {
 
   ui.preview.classList.remove('nai-hidden');
   ui.preview.src = state.selectedImage.dataUrl;
-  ui.previewHint.textContent = state.selectedImage.sourceUrl;
+  ui.previewHint.textContent = state.selectedImage.budget
+    ? `${state.selectedImage.sourceUrl} · ${state.selectedImage.budget}`
+    : state.selectedImage.sourceUrl;
 }
 
 function getBackgroundImageUrl(element) {

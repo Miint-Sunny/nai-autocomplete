@@ -60,7 +60,24 @@ skill 存在 `chrome.storage.local['nai-agent-skills']`，当前选择存 `['nai
 
 skill 原文是按「有 shell、能 grep 本地 CSV」写的。扩展里没有 shell，所以 `AGENT_RUNTIME_NOTE` 会追加在 system 末尾，把查证方式改成调 `search_tags`，并声明它优先级高于 skill 里的查证章节。**换自己的 skill 时不用管这段，它是自动加的。**
 
-## 4. 输出怎么用
+## 4. 知识源 —— 让它能「改」而不只是能「写」
+
+skill 第 1.4 节写着「迭代时每轮修改 2–3 处，说明修改内容及对应问题，不整体重写」。这条规则以前**永远触发不了** —— Agent 根本看不见上一版长什么样。
+
+现在请求可以带上四类上下文，逐项勾选，**没勾的一个字都不发**：
+
+| 知识源 | 内容 | 作用 |
+|---|---|---|
+| 当前提示词 | 网站输入框里的现值 | 本轮变成迭代：只改 2~3 处并说明改了什么 |
+| 上一轮结果 | Agent 上一次给的版本 | 多轮追加：「上一版不错，把光影再压一点」 |
+| 词库角色 | 词库里的 `char:` 条目 | 用户点名角色时直接用现成的串，不让模型另编外貌 |
+| 画师库 | 画师库当前页的画师（按星级排） | **默认不写进输出** —— skill 明说画师串由用户维护。只有用户问起才引用 |
+
+每类都有截断和条数上限（正文 4000 字、画师 24 条、角色 16 条），不会把请求撑爆。
+
+这套分法学自 Ultimate_Novelai_launcher 的 Agent 请求形状（images / caller history / knowledge-source selection / artist-OC context / current whole-per-character prompts），逻辑参考，代码是重写的。
+
+## 5. 输出怎么用
 
 模型按 skill 的规范返回 markdown。界面把其中的代码框抽出来单独成卡片：第一个是主提示词，第二个是角色外貌，每张卡片三个按钮：
 
@@ -72,7 +89,7 @@ skill 原文是按「有 shell、能 grep 本地 CSV」写的。扩展里没有 
 
 底下的「完整回复」保留原始 markdown —— 构图方向、不确定 tag 的标注都在那里。
 
-## 5. 文件
+## 6. 文件
 
 | 文件 | 职责 |
 |---|---|
@@ -84,7 +101,7 @@ skill 原文是按「有 shell、能 grep 本地 CSV」写的。扩展里没有 
 
 LLM 那一层的分工见 [LLM.md](./LLM.md)。Agent 不自己发 HTTP，主备切换、重试、取消全部走同一套。
 
-## 6. 测试
+## 7. 测试
 
 ```bash
 node scripts/test-agent.mjs

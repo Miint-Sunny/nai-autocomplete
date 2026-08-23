@@ -34,6 +34,15 @@ function agentMarkup() {
         <button type="button" data-agent-action="mode" data-mode="expanded">${T.agentModeExpanded}</button>
       </nav>
 
+      <div class="nai-agent-sources">
+        <span class="nai-agent-sources-label">${T.agentSourcesLabel}</span>
+        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="currentPrompt">${T.agentSourceCurrentPrompt}</button>
+        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="previous">${T.agentSourcePrevious}</button>
+        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="characters">${T.agentSourceCharacters}</button>
+        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="artists">${T.agentSourceArtists}</button>
+      </div>
+      <div class="nai-agent-note nai-agent-sources-hint">${T.agentSourcesHint}</div>
+
       <label class="nai-md3-label">${T.agentRequestLabel}</label>
       <textarea class="nai-md3-input nai-agent-request" data-agent-field="request" rows="4" placeholder="${T.agentRequestPlaceholder}"></textarea>
 
@@ -139,6 +148,10 @@ function renderAgentPanel() {
     const editorText = host.querySelector('[data-agent-field="editorText"]');
     if (editorText && editing && editorText.value !== state.agent.editing) editorText.value = state.agent.editing;
 
+    host.querySelectorAll('[data-agent-action="source"]').forEach((button) => {
+      button.classList.toggle('is-active', Boolean(state.agent.sources[button.dataset.source]));
+    });
+
     host.querySelectorAll('[data-agent-action="mode"]').forEach((button) => {
       button.classList.toggle('active', button.dataset.mode === state.agent.mode);
     });
@@ -195,10 +208,50 @@ function describeAgentRun(response) {
   if (response.prefiltered?.length) parts.push(`预检 ${response.prefiltered.length} 个 tag`);
   const queries = (response.toolSteps || []).reduce((total, step) => total + (step.queries?.length || 0), 0);
   if (queries) parts.push(`查证 ${queries} 个词`);
+  const used = Object.entries(state.agent.sources).filter(([, on]) => on).length;
+  if (used) parts.push(`${used} 个知识源`);
   if (response.usedModel) parts.push(response.usedModel + (response.usedFallback ? '（备用）' : ''));
   if (response.usage?.totalTokens) parts.push(`${response.usage.totalTokens} tokens`);
   if (response.durationMs) parts.push(`${(response.durationMs / 1000).toFixed(1)}s`);
   return parts.join(' · ');
+}
+
+// 只收集勾上的那几项 —— 没勾的一个字都不发出去
+async function collectAgentContext() {
+  const sources = state.agent.sources;
+  const context = {};
+
+  if (sources.currentPrompt) {
+    const current = readPromptFieldText();
+    if (current?.trim()) context.currentPrompt = current.trim();
+  }
+
+  if (sources.previous && String(state.agent.result || '').trim()) {
+    context.previous = state.agent.result.trim();
+  }
+
+  if (sources.characters) {
+    context.characters = state.promptLibrary
+      .filter((entry) => entry.category === ROLE_LIBRARY_CATEGORY)
+      .map((entry) => ({ name: entry.name || entry.alias, prompt: entry.promptText }))
+      .filter((entry) => entry.name && entry.prompt);
+  }
+
+  if (sources.artists) {
+    try {
+      await ensureArtistQuickLibrary();
+      const content = artistQuickPageContent();
+      context.artists = (content.artists || [])
+        .slice()
+        .sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))
+        .map((artist) => ({ tag: artist.tag, name: artist.name, rating: Number(artist.rating) || 0 }))
+        .filter((artist) => artist.tag);
+    } catch (error) {
+      // 画师库读不出来就当没勾，别把整轮写作卡住
+    }
+  }
+
+  return context;
 }
 
 async function runAgentWrite() {
@@ -224,6 +277,7 @@ async function runAgentWrite() {
   }
 
   const skill = getActiveAgentSkill();
+  const context = await collectAgentContext();
   const runId = createId('agent-run');
   setPending(true, T.agentRun, { runId, scope: 'agent' });
   setStatus(T.statusAgentRunning, false);
@@ -238,6 +292,7 @@ async function runAgentWrite() {
         request,
         characterPrompt: String(state.agent.characterPrompt || '').trim(),
         mode: state.agent.mode,
+        context,
         primary: primaryConfig,
         fallback: fallbackConfig,
       },
@@ -274,6 +329,13 @@ async function handleAgentAction(action, target, host) {
   if (action === 'manage') {
     state.agent.managerOpen = !state.agent.managerOpen;
     if (!state.agent.managerOpen) state.agent.editing = null;
+    renderAgentPanel();
+    return;
+  }
+
+  if (action === 'source') {
+    const key = target.dataset.source;
+    state.agent.sources[key] = !state.agent.sources[key];
     renderAgentPanel();
     return;
   }

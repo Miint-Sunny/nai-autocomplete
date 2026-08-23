@@ -61,6 +61,114 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+// ─────────────────────────── 图片预算 ───────────────────────────
+//
+// 反推是把整张图 base64 塞进请求里。一张 12MB 的 PNG 编码后约 16MB，
+// 慢、贵、而且不少服务商直接 400。视觉模型看 1536px 长边已经绰绰有余。
+//
+// 决策部分抽成纯函数，因为 OffscreenCanvas 在测试环境里没有，
+// 但「该缩到多大、该换什么格式」的判断必须能测。
+
+const IMAGE_BUDGET = {
+  maxEdge: 1536,
+  maxBytes: 1_400_000,
+  jpegQuality: 0.85,
+  // 已经很小的图别动 —— 重编码只会掉画质
+  skipBelowBytes: 220_000,
+};
+
+function estimateDataUrlBytes(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+function planImageBudget({ width, height, bytes, mimeType }, budget = IMAGE_BUDGET) {
+  const longestEdge = Math.max(width || 0, height || 0);
+  if (!longestEdge) return { needsWork: false, reason: 'unknown-size' };
+
+  // GIF 可能是动图，重编码只会拿到第一帧还丢了信息，直接放过
+  if (/gif/i.test(mimeType || '')) return { needsWork: false, reason: 'animated' };
+
+  const withinEdge = longestEdge <= budget.maxEdge;
+  const withinBytes = bytes <= budget.maxBytes;
+  if (withinEdge && withinBytes) return { needsWork: false, reason: 'within-budget' };
+  if (withinEdge && bytes <= budget.skipBelowBytes) return { needsWork: false, reason: 'too-small-to-bother' };
+
+  const scale = withinEdge ? 1 : budget.maxEdge / longestEdge;
+  const targetWidth = Math.max(1, Math.round((width || 0) * scale));
+  const targetHeight = Math.max(1, Math.round((height || 0) * scale));
+
+  // 缩过之后大概还有多少字节：像素数按比例缩，PNG 大致线性
+  const projected = bytes * scale * scale;
+  // 仍然超预算就换 JPEG。JPEG 会丢 alpha，所以底下垫白 —— 画作场景里这是合理默认
+  const outputType = projected > budget.maxBytes ? 'image/jpeg' : 'image/png';
+
+  return {
+    needsWork: true,
+    reason: withinEdge ? 'oversize-bytes' : 'oversize-edge',
+    scale,
+    targetWidth,
+    targetHeight,
+    outputType,
+    quality: outputType === 'image/jpeg' ? budget.jpegQuality : undefined,
+  };
+}
+
+async function applyImageBudget(dataUrl, budget = IMAGE_BUDGET) {
+  const bytes = estimateDataUrlBytes(dataUrl);
+  const mimeType = String(dataUrl || '').match(/^data:([^;]+)/)?.[1] || '';
+
+  let bitmap;
+  try {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    bitmap = await createImageBitmap(blob);
+  } catch (error) {
+    // 解不开就原样送出去，别因为压缩失败把整轮反推毁掉
+    return { dataUrl, changed: false, bytes, reason: 'decode-failed' };
+  }
+
+  const plan = planImageBudget({ width: bitmap.width, height: bitmap.height, bytes, mimeType }, budget);
+  if (!plan.needsWork) {
+    bitmap.close?.();
+    return { dataUrl, changed: false, bytes, width: bitmap.width, height: bitmap.height, reason: plan.reason };
+  }
+
+  try {
+    const canvas = new OffscreenCanvas(plan.targetWidth, plan.targetHeight);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('no 2d context');
+
+    if (plan.outputType === 'image/jpeg') {
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, plan.targetWidth, plan.targetHeight);
+    }
+    context.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, 0, 0, plan.targetWidth, plan.targetHeight);
+
+    const blob = await canvas.convertToBlob({ type: plan.outputType, quality: plan.quality });
+    const buffer = await blob.arrayBuffer();
+    const nextDataUrl = `data:${plan.outputType};base64,${arrayBufferToBase64(buffer)}`;
+
+    return {
+      dataUrl: nextDataUrl,
+      changed: true,
+      bytes: buffer.byteLength,
+      originalBytes: bytes,
+      width: plan.targetWidth,
+      height: plan.targetHeight,
+      originalWidth: bitmap.width,
+      originalHeight: bitmap.height,
+      outputType: plan.outputType,
+      reason: plan.reason,
+    };
+  } catch (error) {
+    return { dataUrl, changed: false, bytes, reason: 'encode-failed' };
+  } finally {
+    bitmap.close?.();
+  }
+}
+
 async function stitchCaptureTiles(width, height, tiles, dpr) {
   const canvasW = Math.max(1, Math.floor(width * dpr));
   const canvasH = Math.max(1, Math.floor(height * dpr));

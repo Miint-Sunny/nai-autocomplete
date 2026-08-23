@@ -157,6 +157,57 @@ function buildAgentSystemText(skill) {
   return parts.join('\n\n---\n\n');
 }
 
+const AGENT_CONTEXT_LIMITS = {
+  prompt: 4000,
+  previous: 4000,
+  artists: 24,
+  characters: 16,
+};
+
+function clipText(text, limit) {
+  const value = String(text || '').trim();
+  return value.length > limit ? `${value.slice(0, limit)}\n…（已截断）` : value;
+}
+
+// UNL 的 Agent 请求会带上画师/OC 上下文、调用方历史、以及当前的整体与分角色提示词。
+// 这里照同样的思路做：知识源由用户逐项勾选，没勾的一个字都不发。
+//
+// 最关键的是「当前提示词」和「上一轮结果」—— 有了它们 skill 第 1.4 节的迭代规则
+// （每轮只改 2~3 处、说明改了什么、不整体重写）才第一次真的能触发。
+function buildAgentContextBlocks(context) {
+  if (!context || typeof context !== 'object') return [];
+  const blocks = [];
+
+  const currentPrompt = clipText(context.currentPrompt, AGENT_CONTEXT_LIMITS.prompt);
+  if (currentPrompt) {
+    blocks.push(`【当前提示词框里的内容】本轮是**迭代**，不是重写。按 skill 的迭代规则：每轮只改 2~3 处，说明改了哪几处、针对什么问题，其余原样保留。\n\n${currentPrompt}`);
+  }
+
+  const previous = clipText(context.previous, AGENT_CONTEXT_LIMITS.previous);
+  if (previous) {
+    blocks.push(`【你上一轮给出的版本】用户在此基础上提要求，同样按迭代规则改。\n\n${previous}`);
+  }
+
+  const characters = Array.isArray(context.characters) ? context.characters.slice(0, AGENT_CONTEXT_LIMITS.characters) : [];
+  if (characters.length) {
+    const lines = characters
+      .map((item) => `- ${item.name}：${clipText(item.prompt, 300)}`)
+      .join('\n');
+    blocks.push(`【用户词库里的角色】用户点名某个角色时直接用这里的串，不要自己另编外貌。\n${lines}`);
+  }
+
+  const artists = Array.isArray(context.artists) ? context.artists.slice(0, AGENT_CONTEXT_LIMITS.artists) : [];
+  if (artists.length) {
+    const lines = artists
+      .map((item) => `- ${item.tag}${item.name ? `（${item.name}）` : ''}${item.rating ? ` ★${item.rating}` : ''}`)
+      .join('\n');
+    // skill 明说画师串由用户维护、输出中不包含，所以这里只能当参考资料，不能写进结果
+    blocks.push(`【用户画师库里有的画师】**默认不要写进输出** —— 画师串由用户自己维护。只有用户明确问「用我库里哪个画师」时才引用。\n${lines}`);
+  }
+
+  return blocks;
+}
+
 function buildAgentUserText(payload, prefiltered) {
   const parts = [`画面需求：\n${String(payload.request || '').trim()}`];
 
@@ -171,6 +222,8 @@ function buildAgentUserText(payload, prefiltered) {
 
   const notes = String(payload.notes || '').trim();
   if (notes) parts.push(`补充要求：\n${notes}`);
+
+  parts.push(...buildAgentContextBlocks(payload.context));
 
   if (prefiltered.length) {
     parts.push(`本地词典已确认存在的相关 tag（tag / post 量 / 中文）：\n${formatAgentTagList(prefiltered)}`);

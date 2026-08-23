@@ -59,6 +59,31 @@ test('内置 skill 正文没有被打包过程动过', () => {
   assert.match(chunk, /^## 1\. 用户约定/m, 'skill 正文应保留行首无缩进的小节标题');
 });
 
+// UNL 把 prompts.yaml 当成硬性的构建/运行期依赖，发版前跑 validator 卡住。
+// 我们的对应物是内置 skill：它决定 Agent 开箱即用的行为，坏了要在 CI 就红，不能等用户发现。
+test('内置 skill 满足最低形状要求', async () => {
+  const source = fs.readFileSync(path.join(ROOT, 'js/assistant/17-agent-skill-builtin.js'), 'utf8');
+  const skill = (0, eval)(`${source.replace('const BUILTIN_AGENT_SKILL', 'var BUILTIN_AGENT_SKILL')};BUILTIN_AGENT_SKILL`);
+
+  assert.equal(skill.builtin, true);
+  assert.ok(skill.id, '缺 id');
+  assert.ok(skill.name?.trim(), '缺 name');
+  assert.ok(skill.description?.trim(), '缺 description —— 决定用户什么时候该用它');
+  assert.ok(skill.body.length > 2000, `正文只有 ${skill.body.length} 字，多半是被截断了`);
+
+  // 这三节是 Agent 行为的支柱：输出格式、氛围串、以及排查表
+  for (const heading of ['## 1.', '## 3.', '## 12.']) {
+    assert.ok(skill.body.includes(heading), `正文缺少小节 ${heading}`);
+  }
+  assert.ok(/1\.\dX?::/.test(skill.body) || skill.body.includes('::'), '正文应说明 :: 权重语法');
+
+  assert.ok(Array.isArray(skill.references), 'references 必须是数组');
+  for (const reference of skill.references) {
+    assert.ok(reference.name?.trim(), '参考资料缺 name');
+    assert.ok(reference.content?.trim().length > 200, `参考资料 ${reference.name} 内容过短`);
+  }
+});
+
 test('manifest 版本不会被打包重置', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);

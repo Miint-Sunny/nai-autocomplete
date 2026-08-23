@@ -36,6 +36,34 @@
   margin-top: 0;
 }
 
+.nai-agent-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.nai-agent-sources-label {
+  flex: 0 0 auto;
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+}
+
+.nai-agent .nai-agent-source {
+  padding: 6px 11px;
+  font-size: 11px;
+}
+
+.nai-agent .nai-agent-source.is-active {
+  border-color: transparent;
+  background: var(--nai-md3-tab-active-bg, var(--nai-md3-primary-fill));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+}
+
+.nai-agent-sources-hint {
+  margin-top: -4px;
+}
+
 .nai-agent-manager {
   display: flex;
   flex-direction: column;

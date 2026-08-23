@@ -94,7 +94,22 @@
 
 带 `runId` 的请求登记在 `activeLlmRuns` 里，`nai-llm-cancel` 可掐掉。面板上主按钮在请求在途时变成「取消」，不再是禁用态。
 
-## 7. 给 Agent 用的两个原语
+## 7. 图片预算
+
+反推是把整张图 base64 塞进请求里。一张 12MB 的 PNG 编码后约 16MB —— 慢、贵，而且不少服务商直接 400。所以图片在回给前端之前先过一道预算（`js/background/02-image-tools.js`）：
+
+- 长边超过 1536px 就等比缩（视觉模型看这个分辨率绰绰有余）
+- 缩完仍超 1.4MB 才转 JPEG（q=0.85）；能留 PNG 就留 PNG
+- 已经小于 220KB 的不动 —— 重编码只会掉画质
+- GIF 直接放过：重编码只会拿到第一帧还丢了信息
+
+「缩到多大、转不转格式」抽成纯函数 `planImageBudget()`，因为 OffscreenCanvas 在测试环境里没有，但这个判断必须能测。
+
+**分块截图的每一块都不能单独压** —— 宽高会和 `tiles` 里声明的对不上，拼出来是错位的。所以 `nai-capture-visible-area` 带 `raw: true` 时跳过预算，压缩留到 `nai-stitch-capture-tiles` 拼完再做。
+
+页面里内嵌的 `data:` 图片不经过抓取环节，走 `nai-budget-image` 单独补一次。
+
+## 8. 给 Agent 用的两个原语
 
 ```js
 runLlmJson(config, options)      // → { value, text, repaired }
@@ -104,7 +119,7 @@ runLlmToolLoop({ config, tools, executeTool, maxSteps }, options)
 - `runLlmJson` 先按协议开 JSON 模式，用 `extractJsonBlock()` 宽松解析（剥代码框、括号配对扫描、跳过字符串内的括号）。失败**只修一次**：把原文和「这不是合法 JSON」回喂。两次给不出的模型，第三次通常也给不出。
 - `runLlmToolLoop` 里工具自身抛错会被包成 `{error}` 喂回模型而不是炸掉整轮 —— 模型往往能换个参数重试。`maxSteps` 是硬闸，防模型卡在反复调同一个工具上。
 
-## 8. 测试
+## 9. 测试
 
 ```bash
 node scripts/test-llm.mjs
@@ -119,7 +134,7 @@ node scripts/test-llm.mjs
 - 沙箱里造出来的对象属于另一个 realm，`assert.deepStrictEqual` 会因为原型不同判不等。测试里用 `deepEqual()` 包装（走一遍 JSON 再比）。
 - 测重试时传 `sleep: async (ms) => slept.push(ms)`，既跑得快又能断言真实等了多久。
 
-## 9. 加一家服务商 / 加一个协议
+## 10. 加一家服务商 / 加一个协议
 
 **加服务商**：只改 `PROVIDER_PRESETS`（[js/assistant/01-constants.js](./js/assistant/01-constants.js)）。如果它有独特脾气（像 DeepSeek 的 thinking），在协议适配器里按 `config.providerId` 分岔，并补一条测试。
 

@@ -5,6 +5,21 @@ const LLM_MESSAGE_TIMEOUT_MS = 90000;
 // Agent 一轮里可能要跑好几次请求（工具循环），单次给的额度也就更宽。
 const AGENT_MESSAGE_TIMEOUT_MS = 120000;
 
+// 图片一律先过预算再回给前端：反推、截图、拼接三条路都会走到模型请求里去
+async function respondWithBudgetedImage(sendResponse, payload) {
+  const budgeted = await applyImageBudget(payload.dataUrl);
+  sendResponse({
+    ...payload,
+    ok: true,
+    dataUrl: budgeted.dataUrl,
+    imageBytes: budgeted.bytes,
+    imageOriginalBytes: budgeted.originalBytes ?? budgeted.bytes,
+    imageResized: budgeted.changed,
+    imageWidth: budgeted.width,
+    imageHeight: budgeted.height,
+  });
+}
+
 function toMessageError(error) {
   const llmError = asLlmError(error);
   return {
@@ -103,10 +118,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const targetUrl of urls) {
           try {
             const result = await fetchImage(targetUrl);
-            sendResponse({
-              ok: true,
-              ...result,
-            });
+            await respondWithBudgetedImage(sendResponse, result);
             return;
           } catch (error) {
             lastError = error;
@@ -137,10 +149,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         const dataUrl = await stitchCaptureTiles(width, height, tiles, dpr);
-        sendResponse({
-          ok: true,
-          dataUrl,
-        });
+        await respondWithBudgetedImage(sendResponse, { dataUrl });
       } catch (error) {
         sendResponse({
           ok: false,
@@ -170,8 +179,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
 
         const croppedDataUrl = await cropCapturedArea(screenshotDataUrl, rect);
-        sendResponse({
-          ok: true,
+
+        // 分块截图的每一块都得保持原尺寸，压缩要等拼完再做 ——
+        // 单独压每一块会让宽高和 tiles 里声明的对不上，拼出来是错位的。
+        if (message.raw) {
+          sendResponse({ ok: true, dataUrl: croppedDataUrl, sourceUrl: sender?.tab?.url || '' });
+          return;
+        }
+
+        await respondWithBudgetedImage(sendResponse, {
           dataUrl: croppedDataUrl,
           sourceUrl: sender?.tab?.url || '',
         });
@@ -180,6 +196,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ok: false,
           error: error instanceof Error ? error.message : String(error),
         });
+      }
+    })();
+
+    return true;
+  }
+
+  // 页面上直接就是 data URL 的图片不经过抓取环节，得单独走一次预算
+  if (message.type === 'nai-budget-image') {
+    (async () => {
+      try {
+        await respondWithBudgetedImage(sendResponse, { dataUrl: message.dataUrl });
+      } catch (error) {
+        sendResponse({ ok: true, dataUrl: message.dataUrl, imageResized: false });
       }
     })();
 

@@ -141,6 +141,7 @@ async function captureVisibleElement(element) {
 
         const response = await sendRuntimeMessage({
           type: 'nai-capture-visible-area',
+          raw: true,
           rect: {
             left: cropLeft,
             top: cropTop,
@@ -179,6 +180,33 @@ async function captureVisibleElement(element) {
   });
 }
 
+function formatImageBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)}MB`;
+  return `${Math.round(bytes / 1024)}KB`;
+}
+
+// 压过才提示，没压就别多嘴
+function describeImageBudget(response) {
+  if (!response?.imageResized) return null;
+  const from = formatImageBytes(response.imageOriginalBytes);
+  const to = formatImageBytes(response.imageBytes);
+  if (!from || !to) return null;
+  const size = response.imageWidth && response.imageHeight
+    ? ` · ${response.imageWidth}×${response.imageHeight}`
+    : '';
+  return `已压缩 ${from} → ${to}${size}`;
+}
+
+async function budgetInlineImage(dataUrl) {
+  try {
+    const response = await sendRuntimeMessage({ type: 'nai-budget-image', dataUrl });
+    return response?.dataUrl ? response : { dataUrl };
+  } catch (error) {
+    return { dataUrl };
+  }
+}
+
 async function useImageElement(image, autoReverse) {
   const resolved = resolveImageSource(image);
   const sourceUrl = resolved.sourceUrl;
@@ -191,7 +219,9 @@ async function useImageElement(image, autoReverse) {
 
   try {
     if (resolved.dataUrl) {
-      state.selectedImage = { sourceUrl, dataUrl: resolved.dataUrl };
+      // 页面里内嵌的 data URL 没走抓取，得补一次预算，否则原图整个塞给模型
+      const budgeted = await budgetInlineImage(resolved.dataUrl);
+      state.selectedImage = { sourceUrl, dataUrl: budgeted.dataUrl, budget: describeImageBudget(budgeted) };
       updatePreview();
       openPanel('reverse');
       setStatus(T.statusImageLocked, false);
@@ -216,7 +246,7 @@ async function useImageElement(image, autoReverse) {
         throw new Error(response?.error || '\u56fe\u7247\u8bfb\u53d6\u5931\u8d25');
       }
 
-      state.selectedImage = { sourceUrl, dataUrl: capturedDataUrl };
+      state.selectedImage = { sourceUrl, dataUrl: capturedDataUrl, budget: null };
       updatePreview();
       openPanel('reverse');
       setStatus(T.statusImageLocked, false);
@@ -227,7 +257,7 @@ async function useImageElement(image, autoReverse) {
       return;
     }
 
-    state.selectedImage = { sourceUrl, dataUrl: response.dataUrl };
+    state.selectedImage = { sourceUrl, dataUrl: response.dataUrl, budget: describeImageBudget(response) };
     updatePreview();
     openPanel('reverse');
     setStatus(T.statusImageLocked, false);
