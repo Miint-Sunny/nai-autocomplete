@@ -1,11 +1,14 @@
 ﻿# NovelAI Prompt Autocomplete
 
-一个基于 Chrome Manifest V3 的 NovelAI 浏览器扩展，当前包含两部分能力：
+一个基于 Chrome Manifest V3 的 NovelAI 浏览器扩展：
 
 - `NovelAI 标签自动补全`
 - `基于 LLM 的图像反推助手`
+- `按 skill 写提示词的 Agent`
+- `TAG 流编辑器`
+- `画师库与画师串管理`
 
-项目仓库：<https://github.com/saltysalrua/nai-autocomplete>
+项目仓库：<https://github.com/Miint-Sunny/nai-autocomplete>（fork 自 <https://github.com/saltysalrua/nai-autocomplete>）
 
 ## 功能概览
 
@@ -116,39 +119,32 @@
 - Responses API
 - Anthropic Messages API
 
-### 5. 本轮重点改进
-
-- 修复共享词库在扩展重载后的持久化问题，并在词库更新后立即刷新图像反推里的 `char:` 角色列表
-- 修复自动补全在普通文本、`artist:` 与带权重格式下的替换边界问题，避免重复前缀、误删后续内容或漏补逗号
-- 修复区块操作后的 `Ctrl+Z` 回滚同步，撤销时区块框会跟随编辑器内容一起回退
-- 自动补全对带权重格式的替换更稳定，修复 `::, ::,`、`),),` 一类尾巴重复问题
-- 光标停在 `1.2::tag::` 的尾部也能触发补全
-- 补全框会尽量贴近当前光标位置，减少遮挡正在编辑的 tag
-- 新增提示词区块系统，可对一段 tag 分组、锁定、拖动排序并保留换行分隔
-- 新增共享词库系统，可将区块保存为 `分类:名称`，并在自动补全中整块插入
-- 图像反推助手现已支持从 `char:` 词库条目直接套用角色替换提示词
-- 新增 3 套暗色主题：
-  - `余烬暮棕`
-  - `深海夜蓝`
-  - `青苔幽夜`
-
 ## 安装方式
 
-### 方式一：从 Release 下载
+### 从 Release 下载（推荐）
 
-前往 Releases 页面下载 zip：
+1. 到 <https://github.com/Miint-Sunny/nai-autocomplete/releases> 下载 `nai-autocomplete-vX.Y.Z.zip`
+2. **解压到一个固定目录**，之后别删也别挪 —— 扩展是从这个目录加载的，不是导入后就可以丢
+3. Chrome / Edge 打开 `chrome://extensions`，右上角打开「开发者模式」
+4. 点「加载已解压的扩展程序」，选解压出来的 `nai-autocomplete` 文件夹
 
-- <https://github.com/saltysalrua/nai-autocomplete/releases>
+首次在 novelai.net 使用时会自动拉取 danbooru 标签词典并缓存到本地，**这一步需要能访问 GitHub**。词典拉下来之后自动补全、Agent 的 tag 查证、流编辑器的分类着色都靠它。
 
-解压后，在 Chrome / Edge 中打开扩展管理页，启用开发者模式，再选择“加载已解压的扩展程序”。
+### 从源码构建
 
-### 方式二：直接加载仓库目录
+仓库里**没有**打包产物（`js/bundle/` 和 `styles/bundle.css` 已 gitignore），克隆下来直接加载会失败，必须先构建：
 
-1. 克隆仓库
-2. 打开浏览器扩展管理页
-3. 启用开发者模式
-4. 选择“加载已解压的扩展程序”
-5. 选择项目目录 `nai-autocomplete`
+```bash
+git clone https://github.com/Miint-Sunny/nai-autocomplete.git
+cd nai-autocomplete
+node scripts/build-modular.mjs
+```
+
+然后按上面第 3、4 步加载仓库根目录。想验证发布包是否完整：
+
+```bash
+node scripts/package.mjs --zip
+```
 
 ## 使用说明
 
@@ -171,22 +167,30 @@
 5. 结果会写入面板并自动复制到剪切板
 6. 若启用角色替换模式，可在设置页从 `char:` 词库中直接套用角色提示词
 
+### 写词（提示词 Agent）
+
+1. 面板切到「写词」
+2. 在「画面需求」里用中文描述想要的画面
+3. 需要迭代时勾上知识源里的「当前提示词」或「上一轮结果」—— 这时它只改 2~3 处并说明改了什么，而不是整体重写
+4. 点「写提示词」，结果里的代码框可以直接复制、写入输入框、或送去「改词」
+
+### 改词（TAG 流编辑器）
+
+1. 面板切到「改词」，点「读取输入框」把当前提示词拉进来（或从反推 / 写词直接送过来）
+2. 每个 tag 是一个 chip，颜色是它的分类；**虚线加红边的是词典里查不到的**
+3. 左键拖排序，右键上下拖（或滚轮）调权重，点一下改词，Ctrl 点多选
+4. 多角色提示词会按 `|` 分成「基础 / 角色 1 / 角色 2」页签，跨页签拖就是换角色
+5. 改完点「写入输入框」
+
 ### 设置页可配置项
 
-- 服务商预设
-- 接口协议
-- Endpoint
-- Model
-- API Key
-- 系统提示词
-- 反推提示词
-- 角色替换模式
-- 备用模型
-- 默认代码框输出
-- 是否显示悬浮球
-- 颜色预设
-- 获取模型
-- 测试连接
+| 分组 | 项 |
+|---|---|
+| 外观 | 颜色预设（10 套，含流光玻璃浅/深）、毛玻璃开关、玻璃强度滑块、三处悬浮球开关 |
+| LLM 服务 | 服务商预设、接口协议、Endpoint、Model、API Key（带 ⓘ 获取指引）、思考模式、获取模型、测试连接 |
+| 提示词 | 系统提示词、反推指令、角色替换模式、目标角色提示词、词库角色套用 |
+| 生成选项 | 发送图片内容 / 原始 URL、附加网站标签上下文、默认代码框输出 |
+| 备用模型 | 独立的服务商 / 协议 / Endpoint / Model / Key / 思考模式，主模型失败时自动接管 |
 
 ## 默认工作流
 
@@ -198,57 +202,69 @@
 4. 点击“测试连接”确认主模型 / 备用模型配置有效
 5. 再开始图像反推
 
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [CLAUDE.md](./CLAUDE.md) | 给 AI 助手看的项目须知（Claude Code 读这个，不是 `AGENTS.md`） |
+| [STYLE.md](./STYLE.md) | 界面风格规范：两套 token、圆角、玻璃系统、控件规格 |
+| [LLM.md](./LLM.md) | LLM 服务：分层、错误分类、重试策略、各家服务商的坑、图片预算 |
+| [AGENT.md](./AGENT.md) | 提示词 Agent：skill 格式、知识源、tag 查证 |
+| [FLOW.md](./FLOW.md) | TAG 流编辑器：NAI 三层结构、两层分类、输入框覆盖层 |
+
+> `AGENT.md` 是「提示词 Agent」这个功能的文档，和 `AGENTS.md` 那套约定无关。
+
 ## 项目结构
 
 维护时改这些（**源码**）：
 
-- [js/content/](./js/content/)：自动补全分片
-- [js/assistant/](./js/assistant/)：图像反推助手分片
-- [js/background/](./js/background/)：后台 Service Worker 分片
-- [js/artist/](./js/artist/)：画师库独立页面分片
-- [pages/artist-library.html](./pages/artist-library.html)：画师库页面骨架
-- [styles/](./styles/)：`01-*.css` … `06-*.css` 样式分片
-- [styles/artist-library.css](./styles/artist-library.css)：画师库页面样式（不进 `bundle.css`）
+| 目录 | 说明 |
+|---|---|
+| [js/content/](./js/content/) | 自动补全、提示词区块覆盖层 |
+| [js/assistant/](./js/assistant/) | 反推面板、写词、改词、画师库快捷面板 |
+| [js/background/](./js/background/) | Service Worker：LLM 服务、Agent、图片处理 |
+| [js/artist/](./js/artist/) | 画师库独立页 |
+| [js/flow/](./js/flow/) | TAG 流编辑器组件（**同时**进 content 与 assistant 两个 bundle） |
+| [styles/](./styles/) | `01-*.css` … `08-*.css` 样式分片 |
+| [pages/artist-library.html](./pages/artist-library.html) | 画师库页面骨架 |
 
-构建后 Chrome 实际加载的是打包产物（**不要手改**）：
+构建产物（**不要手改**，已 gitignore）：`js/bundle/*.js`、`styles/bundle.css`。
 
-- [js/bundle/content.js](./js/bundle/content.js)
-- [js/bundle/image-assistant.js](./js/bundle/image-assistant.js)
-- [js/bundle/background.js](./js/bundle/background.js)
-- [js/bundle/artist-library.js](./js/bundle/artist-library.js)
-- [styles/bundle.css](./styles/bundle.css)
-- [manifest.json](./manifest.json)
-- [background.js](./background.js)：`importScripts` 入口
-
-[backup/](./backup/) 仅保留早期单文件归档，不是日常开发入口。
+同一个 bundle 内所有分片共用作用域，没有 import/export，新增顶层符号前先 `grep` 确认不撞名。
 
 ## 开发说明
 
-1. 编辑 `js/`、`styles/` 下的分片源码
-2. 在仓库根目录执行：
-
 ```bash
-node scripts/build-modular.mjs
+node scripts/build-modular.mjs   # 改完分片先构建
 ```
 
-3. 在浏览器扩展页重新加载扩展
+改完跑这一串（CI 跑的也是它）：
+
+```bash
+node scripts/check-theme-tokens.mjs   # 主题变量完整性 + CSS 变量自引用
+node scripts/test-llm.mjs             # LLM 服务
+node scripts/test-agent.mjs           # 提示词 Agent 与图片预算
+node scripts/test-flow.mjs            # TAG 流模型与分类
+node scripts/test-build.mjs           # 打包不改动源码
+node scripts/package.mjs              # 发布包完整性
+```
+
+测试用 `node:vm` 加载**真正上线的那份分片**，不是为测试另写的副本。样式改动光跑脚本不够，必须实际渲染出来截图看（见 [STYLE.md](./STYLE.md) 第 7 节）。
 
 ### 为什么要打包？
 
-Chrome 的 content script **不能**把多个独立 `.js` 文件当成一个 IIFE 作用域来共享 `const` / `let`。  
-所以维护用分片，运行时用构建脚本把分片**合并回单个 bundle**——这才是「拆分维护、整体运行」。
+Chrome 的 content script **不能**把多个独立 `.js` 文件当成一个 IIFE 作用域来共享 `const` / `let`。所以维护用分片，运行时用构建脚本把分片**合并回单个 bundle** —— 拆分维护、整体运行。
 
-常用本地校验：
-
-```bash
-node scripts/build-modular.mjs
-```
+打包只做拼接、不做任何变换（`scripts/test-build.mjs` 守着这条）。
 
 ## 已知说明
 
 - 图像反推依赖你自己配置的 LLM 服务，不内置 API Key
 - 某些站点会对图片直链做防盗链限制，扩展已内置兜底逻辑，但仍可能受站点策略影响
 - 不同服务商支持的模型、协议和视觉能力并不完全一致
+- 首次使用需要能访问 GitHub 拉取标签词典；拉不到时自动补全和 tag 查证会退化，但不影响其余功能
+- 发给模型的图片会先压到 1536px / 1.4MB 以内，太大的原图会被等比缩小
+- **不提供任何自动生成 / 批量出图功能**，扩展只写提示词和改提示词
 
 ## License
 

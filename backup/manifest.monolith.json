@@ -71,7 +71,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "data/danbooru_tags.json",
         "official-chunk-bridge.js"
       ],
       "matches": [

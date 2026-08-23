@@ -43,5 +43,8 @@ jobs:
       - name: Test build integrity
         run: node scripts/test-build.mjs
 
+      - name: Validate release package
+        run: node scripts/package.mjs
+
       - name: Validate manifest
         run: node -e "const manifest = require('./manifest.json'); if (!manifest.version) throw new Error('manifest.json is missing version');"

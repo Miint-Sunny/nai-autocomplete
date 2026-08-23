@@ -76,33 +76,7 @@ jobs:
       - name: Package extension
         if: steps.release_gate.outputs.skip != 'true'
         shell: bash
-        env:
-          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
-        run: |
-          set -euo pipefail
-
-          package_dir="dist/nai-autocomplete"
-          rm -rf dist
-          mkdir -p "$package_dir/js/bundle" "$package_dir/styles" "$package_dir/pages"
-
-          node scripts/build-modular.mjs
-
-          cp manifest.json "$package_dir/"
-          cp background.js "$package_dir/"
-          cp official-chunk-bridge.js "$package_dir/"
-          cp artist-studio-bridge.js "$package_dir/"
-          cp LICENSE "$package_dir/"
-          cp README.md "$package_dir/"
-          cp -r icons "$package_dir/"
-          cp js/bundle/content.js js/bundle/image-assistant.js js/bundle/background.js js/bundle/artist-library.js "$package_dir/js/bundle/"
-          cp styles/bundle.css styles/artist-library.css "$package_dir/styles/"
-          cp pages/artist-library.html "$package_dir/pages/"
-
-          if [[ -d data ]]; then
-            cp -r data "$package_dir/"
-          fi
-
-          (cd dist && zip -r "$ARCHIVE_NAME" nai-autocomplete)
+        run: node scripts/package.mjs --zip
 
       - name: Upload release
         if: steps.release_gate.outputs.skip != 'true'
@@ -119,12 +93,16 @@ jobs:
             gh release upload "$TAG" "$asset_path" --clobber
           else
             {
-              echo "## Summary"
-              echo "- Fix spurious closing parens after tag completion"
+              echo "## 安装"
+              echo "1. 下载 \`$ARCHIVE_NAME\`"
+              echo "2. 解压到一个固定目录（之后别删，扩展是从这里加载的）"
+              echo "3. Chrome / Edge 打开 \`chrome://extensions\`，右上角开「开发者模式」"
+              echo "4. 点「加载已解压的扩展程序」，选解压出来的 \`nai-autocomplete\` 文件夹"
               echo
-              echo "## Install"
-              echo "1. Download \`$ARCHIVE_NAME\`"
-              echo "2. Unzip and load the unpacked extension in Chrome/Edge"
+              echo "首次在 novelai.net 使用时会自动拉取 danbooru 标签词典并缓存，需要能访问 GitHub。"
+              echo
+              echo "## 变更"
+              echo "见提交记录与仓库内的 README / STYLE / LLM / AGENT / FLOW 文档。"
             } > release-notes.md
             gh release create "$TAG" "$asset_path" \
               --target "$GITHUB_SHA" \
