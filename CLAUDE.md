@@ -50,3 +50,5 @@ CI 跑的就是这一串。测试用 `node:vm` 加载**真正上线的那份 chu
 - 版本号在 `manifest.json`，release workflow 读它。功能改动记得 bump
 - 参考过 [HainTag](https://github.com/1756141021/HainTag)（GPL-3.0）与 Ultimate_Novelai_launcher 的**逻辑**，代码全部重写，不复制
 - 用中文写注释、提交信息和文档
+- **仓库是公开 fork**（origin `Miint-Sunny`，upstream `saltysalrua` 只取不推）。推 origin 就是公开发布
+- 迭代内置 skill 默认走「写词 → skill → 导入 .md」，**不要直接改 `17-agent-skill-builtin.js`** —— 改它等于把新版 skill 一起公开
