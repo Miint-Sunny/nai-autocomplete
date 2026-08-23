@@ -25,6 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 打包脚本用到 fs.readdirSync({recursive}) 和 fs.cpSync，别指望 runner 默认版本
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Read manifest version
         id: manifest
         shell: bash
