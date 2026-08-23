@@ -16,7 +16,7 @@ const CONFIG = {
   MIN_QUERY_LENGTH: 1,
   DEBOUNCE_DELAY: 150,
 };
-const CONTENT_SCRIPT_VERSION = '1.5.15';
+const CONTENT_SCRIPT_VERSION = '1.5.16';
 
 // 全局设置
 let settings = {
@@ -50,7 +50,6 @@ let pendingPromptBlockRenderEditor = null;
 let pendingPromptBlockToolbarUpdate = false;
 let autocompletePointerDownAt = 0;
 let autocompleteItemHandledAt = 0;
-const PROMPT_BLOCK_COLORS = ['#f08a5d', '#7aa7ff', '#76b89a', '#c68cff', '#f4b860', '#e97a9a'];
 const PROMPT_SEGMENT_SEPARATORS = new Set([',', '，', '\n', '|']);
 
 function isPromptSegmentSeparator(char) {

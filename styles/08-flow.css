@@ -1,0 +1,496 @@
+/* TAG 流编辑器。面板页、抽屉页、novelai.net 输入框覆盖层共用同一套外观。
+   控件套既有 class（.nai-md3-input / .nai-md3-inline-action），这里只定义流本身。
+
+   两层分类的视觉分工：
+     chip 底色  = 语义细分（主体/外貌/服饰/动作/…），九成 tag 靠它区分
+     chip 左竖条 = danbooru 来源（画师/角色/版权/元），general 走中性灰不抢戏
+   语义色只在基础块定义一次 —— 用低透明度做底、实色做竖条，深浅两种主题都成立。 */
+
+/* 面板挂在 .nai-md3-root 里，novelai.net 的输入框覆盖层却直接挂在 body 上 ——
+   所以这套色板必须在 :root 也有一份，否则覆盖层里的 var() 全部解析失败、高亮直接没了。
+   :root 那份用字面值兜底，.nai-md3-root 那份跟着面板的 token 走。 */
+:root,
+.nai-md3-root,
+.nai-flow {
+  --nai-flow-subject: #7c8cff;
+  --nai-flow-appearance: #45b3d4;
+  --nai-flow-outfit: #c37dd0;
+  --nai-flow-pose: #46b283;
+  --nai-flow-expression: #e0a03a;
+  --nai-flow-scene: #559fdd;
+  --nai-flow-light: #d8b93f;
+  --nai-flow-camera: #8a94a6;
+  --nai-flow-quality: #a89a86;
+  --nai-flow-other: #8a8f98;
+
+  /* 来源色跟着自动补全那套走；不在 NovelAI 站内时用兜底值 */
+  --nai-flow-src-general: rgba(138, 143, 152, 0.4);
+  --nai-flow-src-artist: var(--nai-category-artist, #d98d78);
+  --nai-flow-src-character: var(--nai-category-character, #6ca885);
+  --nai-flow-src-copyright: var(--nai-category-copyright, #8f90d6);
+  --nai-flow-src-meta: var(--nai-category-meta, #c9a048);
+  --nai-flow-src-unknown: #e5484d;
+}
+
+/* 面板里这三个跟着主题 token 走，比字面值贴合 */
+.nai-md3-root,
+.nai-flow {
+  --nai-flow-other: var(--md-sys-color-on-surface-variant);
+  --nai-flow-src-general: color-mix(in srgb, var(--md-sys-color-on-surface-variant) 32%, transparent);
+  --nai-flow-src-unknown: var(--md-sys-color-error);
+}
+
+.nai-flow-host {
+  min-width: 0;
+}
+
+.nai-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-flow-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.nai-flow-segments {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nai-flow-seg-add {
+  flex: 0 0 auto;
+}
+
+.nai-flow-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nai-flow button.nai-md3-inline-action {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.nai-flow .nai-flow-tools button,
+.nai-flow .nai-flow-seg,
+.nai-flow .nai-flow-seg-add,
+.nai-flow .nai-flow-bulk button {
+  padding: 6px 11px;
+  font-size: 11px;
+}
+
+.nai-flow-seg.is-active {
+  border-color: transparent;
+  background: var(--nai-md3-tab-active-bg, var(--nai-md3-primary-fill));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+}
+
+.nai-flow-seg-count {
+  margin-inline-start: 5px;
+  opacity: 0.62;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 滚动容器会把子元素的外阴影切成直边，两侧留出余量把裁切边界推出去 */
+.nai-flow-canvas {
+  display: flex;
+  min-height: 120px;
+  max-height: 340px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  border: 1px solid var(--nai-md3-section-border);
+  border-radius: var(--nai-md3-radius-md);
+  padding: 12px 10px;
+  background: var(--nai-md3-section-bg);
+  padding-inline: 20px;
+  margin-inline: -8px;
+}
+
+.nai-flow-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.nai-flow-line[data-blank] {
+  margin-top: 6px;
+}
+
+.nai-flow-empty {
+  padding: 18px 4px;
+  color: var(--nai-md3-ink-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ─────────────────────────── chip ─────────────────────────── */
+
+.nai-flow-chip {
+  --flow-color: var(--nai-flow-other);
+  --flow-src: var(--nai-flow-src-general);
+
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--flow-color) 42%, transparent);
+  border-left: 3px solid var(--flow-src);
+  border-radius: var(--nai-md3-radius-2xs);
+  padding: 5px 7px 5px 8px;
+  background: color-mix(in srgb, var(--flow-color) 18%, transparent);
+  /* 小字号下底色差别看不出来，把语义色也调进文字里才真的「一目了然」 */
+  color: color-mix(in srgb, var(--flow-color) 52%, var(--md-sys-color-on-surface));
+  cursor: grab;
+  font-size: 12px;
+  line-height: 1.3;
+  touch-action: none;
+  user-select: none;
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.nai-flow-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--flow-color) 72%, transparent);
+  background: color-mix(in srgb, var(--flow-color) 30%, transparent);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: var(--nai-md3-chip-shadow);
+}
+
+.nai-flow-chip[data-semantic="subject"] { --flow-color: var(--nai-flow-subject); }
+.nai-flow-chip[data-semantic="appearance"] { --flow-color: var(--nai-flow-appearance); }
+.nai-flow-chip[data-semantic="outfit"] { --flow-color: var(--nai-flow-outfit); }
+.nai-flow-chip[data-semantic="pose"] { --flow-color: var(--nai-flow-pose); }
+.nai-flow-chip[data-semantic="expression"] { --flow-color: var(--nai-flow-expression); }
+.nai-flow-chip[data-semantic="scene"] { --flow-color: var(--nai-flow-scene); }
+.nai-flow-chip[data-semantic="light"] { --flow-color: var(--nai-flow-light); }
+.nai-flow-chip[data-semantic="camera"] { --flow-color: var(--nai-flow-camera); }
+.nai-flow-chip[data-semantic="quality"] { --flow-color: var(--nai-flow-quality); }
+.nai-flow-chip[data-semantic="artist"] { --flow-color: var(--nai-flow-src-artist); }
+.nai-flow-chip[data-semantic="character"] { --flow-color: var(--nai-flow-src-character); }
+.nai-flow-chip[data-semantic="copyright"] { --flow-color: var(--nai-flow-src-copyright); }
+.nai-flow-chip[data-semantic="meta"] { --flow-color: var(--nai-flow-src-meta); }
+
+.nai-flow-chip[data-source="artist"] { --flow-src: var(--nai-flow-src-artist); }
+.nai-flow-chip[data-source="character"] { --flow-src: var(--nai-flow-src-character); }
+.nai-flow-chip[data-source="copyright"] { --flow-src: var(--nai-flow-src-copyright); }
+.nai-flow-chip[data-source="meta"] { --flow-src: var(--nai-flow-src-meta); }
+
+/* 词典查不到 —— 模型多半也不认识，这是最该看见的一类 */
+.nai-flow-chip[data-known="false"] {
+  border-style: dashed;
+  border-left-style: solid;
+  --flow-src: var(--nai-flow-src-unknown);
+}
+
+.nai-flow-chip[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--md-sys-color-primary);
+}
+
+.nai-flow-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nai-flow-chip-weight,
+.nai-flow-group-weight {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--md-sys-color-primary) 22%, transparent);
+  color: var(--md-sys-color-on-surface);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nai-flow-chip-unknown {
+  flex: 0 0 auto;
+  color: var(--md-sys-color-error);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 一直占位、只改透明度，避免 hover 时 chip 宽度跳动带着整行重排 */
+.nai-flow-chip-remove {
+  flex: 0 0 auto;
+  width: 11px;
+  opacity: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.nai-flow-chip:hover .nai-flow-chip-remove {
+  opacity: 0.7;
+}
+
+.nai-flow-chip .nai-flow-chip-remove:hover {
+  opacity: 1;
+  color: var(--md-sys-color-error);
+}
+
+.nai-flow-chip.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+  pointer-events: none;
+}
+
+.nai-flow-chip.is-weighting {
+  cursor: ns-resize;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 60%, transparent);
+}
+
+/* ─────────────────────────── 整句 / 组 / 落点 ─────────────────────────── */
+
+/* 自然语言段是一等公民：有职能、能加权、能就地改。
+   skill 要求「一段一个职能」，而且默认模式下动作段在前、场景段在后 ——
+   顺序有讲究，就得让人一眼看出哪段是哪段。 */
+.nai-flow-sentence {
+  --flow-role: var(--nai-flow-other);
+
+  position: relative;
+  display: flex;
+  flex: 1 0 100%;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px dashed color-mix(in srgb, var(--flow-role) 46%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--flow-role) 70%, transparent);
+  border-radius: var(--nai-md3-radius-2xs);
+  padding: 7px 9px;
+  background: color-mix(in srgb, var(--flow-role) 9%, transparent);
+  color: var(--md-sys-color-on-surface);
+  cursor: grab;
+  font-size: 12px;
+  line-height: 1.65;
+  touch-action: none;
+  user-select: none;
+}
+
+.nai-flow-sentence[data-role="camera"] { --flow-role: var(--nai-flow-camera); }
+.nai-flow-sentence[data-role="scene"] { --flow-role: var(--nai-flow-scene); }
+.nai-flow-sentence[data-role="action"] { --flow-role: var(--nai-flow-pose); }
+.nai-flow-sentence[data-role="light"] { --flow-role: var(--nai-flow-light); }
+
+.nai-flow-sentence-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.nai-flow-sentence-role {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 1px 7px;
+  background: color-mix(in srgb, var(--flow-role) 26%, transparent);
+  color: color-mix(in srgb, var(--flow-role) 60%, var(--md-sys-color-on-surface));
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.nai-flow-sentence-head .nai-flow-chip-remove {
+  margin-inline-start: auto;
+}
+
+.nai-flow-sentence:hover .nai-flow-chip-remove {
+  opacity: 0.7;
+}
+
+.nai-flow-sentence-text {
+  overflow-wrap: anywhere;
+}
+
+.nai-flow-sentence.is-dragging {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.nai-flow-sentence.is-weighting {
+  cursor: ns-resize;
+}
+
+.nai-flow-sentence[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--md-sys-color-primary);
+}
+
+.nai-flow-group {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-primary) 40%, transparent);
+  border-radius: var(--nai-md3-radius-xs);
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+  cursor: grab;
+  touch-action: none;
+}
+
+.nai-flow-group[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--md-sys-color-primary);
+}
+
+.nai-flow-drop {
+  width: 3px;
+  align-self: stretch;
+  min-height: 24px;
+  border-radius: 999px;
+  background: var(--md-sys-color-primary);
+}
+
+/* ─────────────────────────── 输入与候选 ─────────────────────────── */
+
+.nai-flow-add {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 改整句时输入框变多行 —— 二百字的段落塞进单行框里没法改 */
+.nai-flow-input {
+  min-height: 0;
+  resize: vertical;
+}
+
+.nai-flow-input.is-prose {
+  min-height: 92px;
+  line-height: 1.7;
+}
+
+.nai-flow-suggests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nai-flow-suggests:empty {
+  display: none;
+}
+
+.nai-flow-suggest {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--nai-md3-radius-2xs);
+  padding: 5px 9px;
+  background: var(--nai-md3-chip-bg);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.nai-flow-suggest:hover {
+  border-color: var(--md-sys-color-primary);
+  background: var(--nai-md3-accent-soft);
+}
+
+.nai-flow-suggest-zh,
+.nai-flow-suggest-posts {
+  color: var(--nai-md3-ink-muted);
+  font-size: 10px;
+}
+
+.nai-flow-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.nai-flow-bulk-count {
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+}
+
+.nai-flow-foot {
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+}
+
+/* 主按钮撑开、其余胶囊按钮跟在后面换行，比塞进两列网格更省竖向空间 */
+.nai-flow-actions.nai-md3-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.nai-flow-actions .nai-md3-primary {
+  flex: 1 1 140px;
+}
+
+.nai-flow-actions button.nai-md3-inline-action {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.nai-flow.is-dragging .nai-flow-chip,
+.nai-flow.is-dragging .nai-flow-sentence,
+.nai-flow.is-dragging .nai-flow-group {
+  cursor: grabbing;
+}
+
+/* 抽屉里的输入控件更紧，流跟随同一规格 */
+.nai-library-flow {
+  padding: 18px 20px;
+}
+
+.nai-library-flow .nai-md3-input {
+  border-radius: var(--nai-md3-radius-2xs);
+  border-color: var(--nai-lib-border);
+  padding: 10px 11px;
+  color: var(--nai-lib-ink);
+  box-shadow: none;
+}
+
+.nai-library-flow .nai-md3-input:focus {
+  border-color: var(--nai-lib-orange);
+  box-shadow: 0 0 0 3px var(--nai-lib-soft), inset 0 -1px 0 var(--nai-lib-orange);
+}
+
+.nai-library-flow .nai-flow button.nai-md3-inline-action {
+  border-color: color-mix(in srgb, var(--nai-lib-ink) 72%, var(--nai-lib-border));
+  color: var(--nai-lib-ink);
+  font-weight: 400;
+}
+
+.nai-library-flow .nai-flow button.nai-md3-inline-action:hover {
+  transform: none;
+  border-color: var(--nai-lib-orange);
+  background: var(--nai-lib-soft);
+  color: var(--nai-lib-orange);
+}
+
+.nai-library-flow .nai-flow .nai-md3-primary {
+  border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--nai-lib-orange) 88%, white), var(--nai-lib-orange));
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--nai-md3-fab-shadow);
+}
+
+.nai-library-flow .nai-flow-canvas {
+  max-height: none;
+}

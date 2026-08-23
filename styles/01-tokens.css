@@ -16,6 +16,9 @@ html[data-nai-theme="sunrise"] {
   --md-sys-color-tertiary: #b17a59;
   --md-sys-color-error: #b3261e;
 
+  /* 主按钮填充：主题可整体替换（Apple 主题用实色而非渐变） */
+  --nai-md3-primary-fill: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+
   /* Category Colors */
   --nai-category-general: #7aa7dd;
   --nai-category-artist: #d98d78;
@@ -168,3 +171,69 @@ html[data-nai-theme="novelai"] {
   --md-sys-elevation-3: 0 16px 34px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.36);
 }
 
+
+/* 流光玻璃 · 浅 — Apple 系统配色（systemBlue #007aff / secondarySystemBackground #f2f2f7）。 */
+html[data-nai-theme="liquid-light"] {
+  --md-sys-color-surface: #f2f2f7;
+  --md-sys-color-surface-container: #ffffff;
+  --md-sys-color-surface-container-high: #ffffff;
+  --md-sys-color-on-surface: #1c1c1e;
+  --md-sys-color-on-surface-variant: #6c6c70;
+  --md-sys-color-outline: rgba(0, 0, 0, 0.22);
+  --md-sys-color-outline-variant: rgba(0, 0, 0, 0.1);
+  --md-sys-color-primary: #007aff;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-secondary: #5856d6;
+  --md-sys-color-tertiary: #ff9500;
+  --md-sys-color-error: #ff3b30;
+
+  --nai-md3-primary-fill: #007aff;
+
+  --nai-category-general: #007aff;
+  --nai-category-artist: #ff9500;
+  --nai-category-copyright: #5856d6;
+  --nai-category-character: #34c759;
+  --nai-category-meta: #8e8e93;
+
+  --nai-ac-item-hover: rgba(0, 122, 255, 0.08);
+  --nai-ac-item-selected: rgba(0, 122, 255, 0.16);
+  --nai-ac-count-bg: rgba(120, 120, 128, 0.16);
+  --nai-ac-count-fg: #6c6c70;
+  --nai-ac-weight-btn-bg: rgba(120, 120, 128, 0.12);
+
+  --md-sys-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --md-sys-elevation-3: 0 20px 52px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 流光玻璃 · 深 — Apple 深色系统配色（systemBlue #0a84ff / systemBackground #000000）。 */
+html[data-nai-theme="liquid-dark"] {
+  --md-sys-color-surface: #000000;
+  --md-sys-color-surface-container: #1c1c1e;
+  --md-sys-color-surface-container-high: #2c2c2e;
+  --md-sys-color-on-surface: #ffffff;
+  --md-sys-color-on-surface-variant: #98989f;
+  --md-sys-color-outline: rgba(255, 255, 255, 0.24);
+  --md-sys-color-outline-variant: rgba(255, 255, 255, 0.14);
+  --md-sys-color-primary: #0a84ff;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-secondary: #5e5ce6;
+  --md-sys-color-tertiary: #ff9f0a;
+  --md-sys-color-error: #ff453a;
+
+  --nai-md3-primary-fill: #0a84ff;
+
+  --nai-category-general: #64d2ff;
+  --nai-category-artist: #ff9f0a;
+  --nai-category-copyright: #bf5af2;
+  --nai-category-character: #30d158;
+  --nai-category-meta: #98989f;
+
+  --nai-ac-item-hover: rgba(10, 132, 255, 0.16);
+  --nai-ac-item-selected: rgba(10, 132, 255, 0.28);
+  --nai-ac-count-bg: rgba(120, 120, 128, 0.32);
+  --nai-ac-count-fg: #d1d1d6;
+  --nai-ac-weight-btn-bg: rgba(120, 120, 128, 0.24);
+
+  --md-sys-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --md-sys-elevation-3: 0 20px 56px rgba(0, 0, 0, 0.66), 0 2px 8px rgba(0, 0, 0, 0.4);
+}

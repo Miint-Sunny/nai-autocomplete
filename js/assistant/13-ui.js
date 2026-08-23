@@ -4,6 +4,7 @@ function createUI() {
   root.innerHTML = `
     <button class="nai-md3-fab" type="button" title="${T.title}">${T.fab}</button>
     <input type="file" accept="application/json,.json" data-field="stPresetInput" class="nai-hidden" hidden />
+    <input type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple data-field="agentSkillInput" class="nai-hidden" hidden />
     <section class="nai-md3-panel nai-hidden">
       <header class="nai-md3-header">
         <div class="nai-md3-title">${T.title}</div>
@@ -13,6 +14,9 @@ function createUI() {
       <nav class="nai-md3-tabs">
         <button type="button" data-page="library">${T.tabLibrary}</button>
         <button type="button" class="active" data-page="reverse">${T.tabReverse}</button>
+        <button type="button" data-page="agent">${T.tabAgent}</button>
+        <button type="button" data-page="flow">${T.tabFlow}</button>
+        <button type="button" data-page="artists">${T.tabArtistsShort}</button>
         <button type="button" data-page="history">${T.tabHistory}</button>
         <button type="button" data-page="settings">${T.tabSettings}</button>
       </nav>
@@ -25,12 +29,25 @@ function createUI() {
           <button type="button" class="nai-md3-primary" data-action="reverse">${T.reverseCopy}</button>
           <button type="button" data-action="copy">${T.copyResult}</button>
           <button type="button" data-action="wrap-code">${T.wrapCodeButton}</button>
+          <button type="button" data-action="send-flow">${T.sendToFlow}</button>
         </div>
         <img class="nai-md3-preview nai-hidden" alt="preview" />
         <div class="nai-md3-preview-hint">${T.previewEmpty}</div>
         <div class="nai-md3-status"></div>
         <label class="nai-md3-label">${T.resultLabel}</label>
         <textarea class="nai-md3-result" rows="8" readonly placeholder="${T.resultPlaceholder}"></textarea>
+      </section>
+
+      <section class="nai-md3-page nai-hidden" data-page="agent">
+        ${agentMarkup()}
+      </section>
+
+      <section class="nai-md3-page nai-hidden" data-page="flow">
+        ${flowHostMarkup()}
+      </section>
+
+      <section class="nai-md3-page nai-hidden" data-page="artists">
+        ${artistQuickMarkup()}
       </section>
 
       <section class="nai-md3-page nai-hidden" data-page="history">
@@ -48,7 +65,16 @@ function createUI() {
           <div class="nai-md3-switch-stack">
             <label class="nai-md3-switch"><input data-field="showReverseFloatingBall" type="checkbox" /><span>${T.showReverseEntry}</span></label>
             <label class="nai-md3-switch"><input data-field="showWorkbenchFloatingBall" type="checkbox" /><span>${T.showWorkbenchEntry}</span></label>
+            <label class="nai-md3-switch"><input data-field="showExternalFloatingBall" type="checkbox" /><span>${T.showExternalEntry}</span></label>
+            <label class="nai-md3-switch"><input data-field="glassEffect" type="checkbox" /><span>${T.glassEffect}</span></label>
           </div>
+          <div class="nai-md3-slider-row">
+            <span class="nai-md3-slider-label">${T.glassStrength}</span>
+            <input class="nai-md3-slider" data-field="glassStrength" type="range" min="0" max="100" step="5" />
+            <span class="nai-md3-slider-value" data-field="glassStrengthValue">100%</span>
+          </div>
+          <div class="nai-md3-section-note">${T.showExternalEntryHint}</div>
+          <div class="nai-md3-section-note">${T.glassEffectHint}</div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -70,8 +96,12 @@ function createUI() {
               </div>
               <datalist id="nai-primary-model-list"></datalist>
             </div>
-            <div><label class="nai-md3-label">API Key</label><input class="nai-md3-input" data-field="apiKey" type="password" /></div>
+            <div>
+              <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="\u5982\u4f55\u83b7\u53d6">i</button></label>
+              <input class="nai-md3-input" data-field="apiKey" type="password" />
+            </div>
           </div>
+          <div class="nai-md3-help-note nai-hidden" data-field="keyHelp"></div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -108,6 +138,11 @@ function createUI() {
             <div><label class="nai-md3-label">Temperature</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
             <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="4096" step="1" /></div>
           </div>
+          <div class="nai-md3-grid-2">
+            <div><label class="nai-md3-label">${T.reasoningEffort}</label><select class="nai-md3-input" data-field="reasoningEffort"></select></div>
+            <div><label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select></div>
+          </div>
+          <div class="nai-md3-section-note">${T.reasoningHint}</div>
           <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
           <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
           <div class="nai-booru-tag-types nai-hidden" data-booru-tag-types>
@@ -172,6 +207,18 @@ function createUI() {
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="presets" data-action="workbench-open-presets" title="预设">
                 <span class="nai-workbench-nav-icon" aria-hidden="true">≡</span>
                 <span class="nai-workbench-nav-text">预设</span>
+              </button>
+              <button type="button" class="nai-workbench-nav-item" data-workbench-page="agent" data-action="workbench-open-agent" title="写词">
+                <span class="nai-workbench-nav-icon" aria-hidden="true">~</span>
+                <span class="nai-workbench-nav-text">${T.tabAgent}</span>
+              </button>
+              <button type="button" class="nai-workbench-nav-item" data-workbench-page="flow" data-action="workbench-open-flow" title="改词">
+                <span class="nai-workbench-nav-icon" aria-hidden="true">≈</span>
+                <span class="nai-workbench-nav-text">${T.tabFlow}</span>
+              </button>
+              <button type="button" class="nai-workbench-nav-item" data-workbench-page="artists" data-action="workbench-open-artists" title="画师库">
+                <span class="nai-workbench-nav-icon" aria-hidden="true">&amp;</span>
+                <span class="nai-workbench-nav-text">${T.tabArtists}</span>
               </button>
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="settings" data-action="workbench-open-settings" title="设置">
                 <span class="nai-workbench-nav-icon" aria-hidden="true">*</span>
@@ -274,6 +321,18 @@ function createUI() {
               </div>
             </section>
 
+            <section class="nai-library-agent" data-workbench-panel="agent">
+              ${agentMarkup()}
+            </section>
+
+            <section class="nai-library-flow" data-workbench-panel="flow">
+              ${flowHostMarkup()}
+            </section>
+
+            <section class="nai-library-artists" data-workbench-panel="artists">
+              ${artistQuickMarkup()}
+            </section>
+
             <section class="nai-library-settings" data-workbench-panel="settings">
               <div class="nai-library-page-head">
                 <div>
@@ -298,6 +357,18 @@ function createUI() {
                         <input data-field="libraryShowWorkbenchFloatingBall" type="checkbox" />
                         <span>${T.showWorkbenchEntry}</span>
                       </label>
+                      <label class="nai-library-check">
+                        <input data-field="libraryShowExternalFloatingBall" type="checkbox" />
+                        <span>${T.showExternalEntry}</span>
+                      </label>
+                      <label class="nai-library-check">
+                        <input data-field="libraryGlassEffect" type="checkbox" />
+                        <span>${T.glassEffect}</span>
+                      </label>
+                      <div class="nai-md3-slider-row">
+                        <span class="nai-md3-slider-label">${T.glassStrength}</span>
+                        <input class="nai-md3-slider" data-field="libraryGlassStrength" type="range" min="0" max="100" step="5" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -441,6 +512,8 @@ function createUI() {
   ui.library.sidebarToggle = root.querySelector('[data-action="workbench-toggle-sidebar"]');
   ui.library.settingsPanel = root.querySelector('[data-workbench-panel="settings"]');
   ui.library.presetsPanel = root.querySelector('[data-workbench-panel="presets"]');
+  ui.library.artistsPanel = root.querySelector('[data-workbench-panel="artists"]');
+  bindArtistQuickEvents(root);
   ui.wb = {
     presetId: root.querySelector('[data-field="wbPresetId"]'),
     presetName: root.querySelector('[data-field="wbPresetName"]'),
@@ -484,6 +557,9 @@ function createUI() {
   ui.settings.booruTagTypesSection = root.querySelector('[data-booru-tag-types]');
   ui.settings.temperature = root.querySelector('[data-field="temperature"]');
   ui.settings.maxTokens = root.querySelector('[data-field="maxTokens"]');
+  ui.settings.reasoningEffort = root.querySelector('[data-field="reasoningEffort"]');
+  ui.settings.fallbackReasoningEffort = root.querySelector('[data-field="fallbackReasoningEffort"]');
+  ui.settings.keyHelp = root.querySelector('[data-field="keyHelp"]');
   ui.settings.enableFallbackModel = root.querySelector('[data-field="enableFallbackModel"]');
   ui.settings.fallbackProviderPreset = root.querySelector('[data-field="fallbackProviderPreset"]');
   ui.settings.fallbackProtocol = root.querySelector('[data-field="fallbackProtocol"]');
@@ -497,12 +573,19 @@ function createUI() {
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
   ui.settings.showReverseFloatingBall = root.querySelector('[data-field="showReverseFloatingBall"]');
   ui.settings.showWorkbenchFloatingBall = root.querySelector('[data-field="showWorkbenchFloatingBall"]');
+  ui.settings.showExternalFloatingBall = root.querySelector('[data-field="showExternalFloatingBall"]');
+  ui.settings.glassEffect = root.querySelector('[data-field="glassEffect"]');
+  ui.settings.glassStrength = root.querySelector('[data-field="glassStrength"]');
+  ui.settings.glassStrengthValue = root.querySelector('[data-field="glassStrengthValue"]');
   ui.library.category = ui.library.drawer?.querySelector('[data-field="libraryCategory"]');
   ui.library.name = ui.library.drawer?.querySelector('[data-field="libraryName"]');
   ui.library.prompt = ui.library.drawer?.querySelector('[data-field="libraryPrompt"]');
   ui.library.themePreset = ui.library.drawer?.querySelector('[data-field="libraryThemePreset"]');
   ui.library.showReverseFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowReverseFloatingBall"]');
   ui.library.showWorkbenchFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowWorkbenchFloatingBall"]');
+  ui.library.showExternalFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowExternalFloatingBall"]');
+  ui.library.glassEffect = ui.library.drawer?.querySelector('[data-field="libraryGlassEffect"]');
+  ui.library.glassStrength = ui.library.drawer?.querySelector('[data-field="libraryGlassStrength"]');
   ui.library.providerPreset = ui.library.drawer?.querySelector('[data-field="libraryProviderPreset"]');
   ui.library.protocol = ui.library.drawer?.querySelector('[data-field="libraryProtocol"]');
   ui.library.endpoint = ui.library.drawer?.querySelector('[data-field="libraryEndpoint"]');
@@ -529,6 +612,8 @@ function createUI() {
 
   fillSelectOptions(ui.settings.providerPreset, PROVIDER_PRESETS);
   fillSelectOptions(ui.settings.protocol, PROTOCOL_OPTIONS);
+  fillSelectOptions(ui.settings.reasoningEffort, REASONING_EFFORTS);
+  fillSelectOptions(ui.settings.fallbackReasoningEffort, REASONING_EFFORTS);
   fillSelectOptions(ui.settings.themePreset, THEME_PRESETS);
   fillSelectOptions(ui.library.themePreset, THEME_PRESETS);
   fillSelectOptions(ui.settings.fallbackProviderPreset, PROVIDER_PRESETS);
@@ -574,9 +659,31 @@ function createUI() {
     updateFabVisibility();
     applyLibrarySettingsToInputs();
   });
+  ui.settings.showExternalFloatingBall?.addEventListener('change', () => {
+    state.settings.showExternalFloatingBall = Boolean(ui.settings.showExternalFloatingBall.checked);
+    updateFabVisibility();
+    applyLibrarySettingsToInputs();
+  });
+  ui.settings.glassEffect?.addEventListener('change', () => {
+    state.settings.glassEffect = Boolean(ui.settings.glassEffect.checked);
+    applyThemePreset();
+    applyLibrarySettingsToInputs();
+  });
+  ui.settings.glassStrength?.addEventListener('input', () => {
+    state.settings.glassStrength = Number(ui.settings.glassStrength.value);
+    applyThemePreset();
+  });
+  ui.settings.glassStrength?.addEventListener('change', () => applyLibrarySettingsToInputs());
+  ui.library.glassStrength?.addEventListener('input', () => {
+    state.settings.glassStrength = Number(ui.library.glassStrength.value);
+    applyThemePreset();
+  });
+  ui.library.glassStrength?.addEventListener('change', () => saveLibrarySettings());
   ui.library.themePreset?.addEventListener('change', () => saveLibrarySettings());
   ui.library.showReverseFloatingBall?.addEventListener('change', () => saveLibrarySettings());
   ui.library.showWorkbenchFloatingBall?.addEventListener('change', () => saveLibrarySettings());
+  ui.library.showExternalFloatingBall?.addEventListener('change', () => saveLibrarySettings());
+  ui.library.glassEffect?.addEventListener('change', () => saveLibrarySettings());
   ui.library.providerPreset?.addEventListener('change', () => syncLibraryProviderFields('primary'));
   ui.library.fallbackProviderPreset?.addEventListener('change', () => syncLibraryProviderFields('fallback'));
   ui.wb.presetId?.addEventListener('change', () => {
@@ -624,7 +731,13 @@ function createUI() {
 
     if (action === 'close') closePanel();
     else if (action === 'pick') startPickMode();
-    else if (action === 'reverse') await reverseAndCopy();
+    else if (action === 'workbench-open-agent') openAgentWorkbenchPanel();
+    else if (action === 'workbench-open-flow') openFlowWorkbenchPanel();
+    else if (action === 'send-flow') sendToFlowEditor(state.lastResult);
+    else if (action === 'reverse') {
+      if (state.pending) await cancelCurrentRun();
+      else await reverseAndCopy();
+    }
     else if (action === 'copy') {
       const copied = await copyText(state.lastResult);
       setStatus(copied ? T.statusCopied : T.statusCopyFailed, !copied);
@@ -636,6 +749,8 @@ function createUI() {
     else if (action === 'workbench-toggle-sidebar') toggleWorkbenchSidebar();
     else if (action === 'workbench-open-settings') openLibrarySettingsPanel();
     else if (action === 'workbench-open-presets') openPresetsPanel();
+    else if (action === 'workbench-open-artists') openArtistWorkbenchPanel();
+    else if (action === 'toggle-key-help') toggleApiKeyHelp();
     else if (actionTarget.dataset.workbenchPage === 'library') openLibraryIndexPanel();
     else if (action === 'library-close-editor') closeLibraryEditor();
     else if (action === 'library-new') {

@@ -28,6 +28,8 @@ function applySettingsToInputs() {
   updateRoleSectionVisibility();
   ui.settings.temperature.value = String(state.settings.temperature);
   ui.settings.maxTokens.value = String(state.settings.maxTokens);
+  if (ui.settings.reasoningEffort) ui.settings.reasoningEffort.value = state.settings.reasoningEffort || 'off';
+  if (ui.settings.fallbackReasoningEffort) ui.settings.fallbackReasoningEffort.value = state.settings.fallbackReasoningEffort || 'off';
   ui.settings.enableFallbackModel.checked = Boolean(state.settings.enableFallbackModel);
   ui.settings.fallbackProviderPreset.value = state.settings.fallbackProviderPreset;
   ui.settings.fallbackProviderPreset.dataset.currentProvider = state.settings.fallbackProviderPreset;
@@ -43,6 +45,9 @@ function applySettingsToInputs() {
   ui.settings.defaultCodeFence.checked = Boolean(state.settings.defaultCodeFence);
   ui.settings.showReverseFloatingBall.checked = Boolean(state.settings.showReverseFloatingBall);
   ui.settings.showWorkbenchFloatingBall.checked = Boolean(state.settings.showWorkbenchFloatingBall);
+  if (ui.settings.showExternalFloatingBall) ui.settings.showExternalFloatingBall.checked = Boolean(state.settings.showExternalFloatingBall);
+  if (ui.settings.glassEffect) ui.settings.glassEffect.checked = state.settings.glassEffect !== false;
+  if (ui.settings.glassStrength) ui.settings.glassStrength.value = String(state.settings.glassStrength ?? DEFAULT_SETTINGS.glassStrength);
   applyLibrarySettingsToInputs();
   updateFallbackSettingsVisibility();
   requestAnimationFrame(() => autoResizeAllTextareas());
@@ -92,7 +97,12 @@ function applyLibrarySettingsToInputs() {
     defaultCodeFence: 'defaultCodeFence',
     showReverseFloatingBall: 'showReverseFloatingBall',
     showWorkbenchFloatingBall: 'showWorkbenchFloatingBall',
+    showExternalFloatingBall: 'showExternalFloatingBall',
+    glassEffect: 'glassEffect',
   };
+  if (ui.library.glassStrength) {
+    ui.library.glassStrength.value = String(state.settings.glassStrength ?? DEFAULT_SETTINGS.glassStrength);
+  }
   Object.entries(checks).forEach(([key, settingKey]) => {
     if (!ui.library[key]) return;
     ui.library[key].checked = Boolean(state.settings[settingKey]);
@@ -132,6 +142,9 @@ function readLibrarySettingsFromInputs() {
     enableBooruTagContext: Boolean(ui.library.enableBooruTagContext?.checked),
     showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
     showWorkbenchFloatingBall: Boolean(ui.library.showWorkbenchFloatingBall?.checked),
+    showExternalFloatingBall: Boolean(ui.library.showExternalFloatingBall?.checked),
+    glassEffect: Boolean(ui.library.glassEffect?.checked),
+    glassStrength: Number(ui.library.glassStrength?.value ?? state.settings.glassStrength ?? DEFAULT_SETTINGS.glassStrength),
   };
 }
 
@@ -154,6 +167,8 @@ function readSettingsFromInputs() {
     defaultCodeFence: Boolean(ui.settings.defaultCodeFence.checked),
     temperature: Number(ui.settings.temperature.value) || DEFAULT_SETTINGS.temperature,
     maxTokens: Number(ui.settings.maxTokens.value) || DEFAULT_SETTINGS.maxTokens,
+    reasoningEffort: ui.settings.reasoningEffort?.value || DEFAULT_SETTINGS.reasoningEffort,
+    fallbackReasoningEffort: ui.settings.fallbackReasoningEffort?.value || DEFAULT_SETTINGS.fallbackReasoningEffort,
     enableFallbackModel: Boolean(ui.settings.enableFallbackModel.checked),
     fallbackProviderPreset,
     fallbackProtocol: fallbackConnection.protocol || DEFAULT_SETTINGS.fallbackProtocol,
@@ -166,6 +181,9 @@ function readSettingsFromInputs() {
     enableBooruTagContext: Boolean(ui.settings.enableBooruTagContext.checked),
     showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),
     showWorkbenchFloatingBall: Boolean(ui.settings.showWorkbenchFloatingBall.checked),
+    showExternalFloatingBall: Boolean(ui.settings.showExternalFloatingBall?.checked),
+    glassEffect: Boolean(ui.settings.glassEffect?.checked),
+    glassStrength: Number(ui.settings.glassStrength?.value ?? state.settings.glassStrength ?? DEFAULT_SETTINGS.glassStrength),
   };
 }
 
@@ -227,6 +245,11 @@ function bindStorageListener() {
         applyThemePreset();
         updateFabVisibility();
         applyLibrarySettingsToInputs();
+      }
+
+      if (changes[ARTIST_LIBRARY_KEY] && state.artistQuick.loaded) {
+        applyArtistQuickLibrary(changes[ARTIST_LIBRARY_KEY].newValue);
+        renderArtistQuickPanel();
       }
 
       if (changes[HISTORY_KEY]?.newValue) {

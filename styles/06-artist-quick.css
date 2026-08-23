@@ -1,0 +1,280 @@
+/* 画师库快速入口：反推面板的「画师库」页与工作台抽屉的「画师库」窗口共用。
+   控件外观一律沿用既有的 .nai-md3-input / .nai-md3-tabs / .nai-md3-inline-action，
+   这里只负责布局，以及抽屉上下文里改回 .nai-library-* 的尺寸规格。 */
+
+.nai-artist-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-library-artists {
+  padding: 18px 20px;
+}
+
+.nai-artist-quick-bar {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.nai-artist-quick-page {
+  flex: 1;
+  min-width: 0;
+}
+
+.nai-artist-quick-manage {
+  flex: 0 0 auto;
+}
+
+/* .nai-md3-tabs 默认三列且自带上间距，这里只调布局，胶囊/渐变/阴影保持原样 */
+.nai-artist-quick-modes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.nai-artist-quick-filters {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.nai-artist-quick-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.nai-artist-quick-rating {
+  flex: 0 0 auto;
+  width: 122px;
+}
+
+.nai-artist-quick-categories {
+  display: flex;
+  max-height: 84px;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow: auto;
+}
+
+.nai-artist-quick-categories:empty {
+  display: none;
+}
+
+/* .nai-md3-root button 的 `font: inherit` 权重是 (0,1,1)，
+   单类规则压不住，胶囊按钮的字号字重必须在这一层重申 */
+.nai-artist-quick button.nai-md3-inline-action {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.nai-artist-quick .nai-artist-quick-chip {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+.nai-artist-quick-chip.is-active {
+  background: var(--nai-md3-tab-active-bg, var(--nai-md3-primary-fill));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+  border-color: transparent;
+  box-shadow: var(--nai-md3-tab-active-shadow, 0 12px 24px color-mix(in srgb, var(--md-sys-color-primary) 34%, transparent));
+}
+
+.nai-artist-quick-summary {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+}
+
+/* 列表容器与 .nai-history-list 同规格 */
+.nai-artist-quick-list {
+  display: flex;
+  min-height: 90px;
+  max-height: 460px;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  min-width: 0;
+}
+
+/* 卡片逐项照搬 .nai-history-item */
+.nai-artist-quick-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--nai-md3-history-item-border);
+  border-radius: var(--nai-md3-radius-lg);
+  padding: 12px;
+  background: var(--nai-md3-history-item-bg);
+  box-shadow: var(--nai-md3-soft-shadow);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.nai-artist-quick-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--nai-md3-history-hover-border);
+  box-shadow: 0 16px 28px rgba(146, 108, 86, 0.14);
+}
+
+.nai-artist-quick-thumb {
+  width: 54px;
+  height: 64px;
+  flex: 0 0 54px;
+  overflow: hidden;
+  border: 1px solid var(--nai-md3-history-item-border);
+  border-radius: var(--nai-md3-radius-2xs);
+  background: var(--nai-md3-input-bg);
+  object-fit: cover;
+}
+
+.nai-artist-quick-thumb.is-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.nai-artist-quick-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.nai-artist-quick-name {
+  overflow: hidden;
+  color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nai-artist-quick-tag,
+.nai-artist-quick-snippet {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 12px;
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.nai-artist-quick-snippet {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+
+.nai-artist-quick-stars {
+  margin-top: 3px;
+  color: var(--md-sys-color-tertiary);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.nai-artist-quick-labels {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nai-artist-quick-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nai-artist-quick .nai-artist-quick-add,
+.nai-artist-quick .nai-artist-quick-copy {
+  min-width: 40px;
+  padding: 7px 10px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.nai-artist-quick .nai-artist-quick-more {
+  width: 100%;
+  padding: 10px 14px;
+}
+
+.nai-artist-quick-empty {
+  border: 1px dashed var(--md-sys-color-outline);
+  border-radius: var(--nai-md3-radius-md);
+  padding: 16px;
+  background: var(--nai-md3-history-empty-bg);
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: center;
+}
+
+.nai-artist-quick-foot {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+}
+
+/* 抽屉里的输入控件是 10px 圆角 / 更紧的内边距，画师面板跟随同一规格 */
+.nai-library-artists .nai-md3-input {
+  border-radius: var(--nai-md3-radius-2xs);
+  border-color: var(--nai-lib-border);
+  padding: 10px 11px;
+  color: var(--nai-lib-ink);
+  box-shadow: none;
+}
+
+.nai-library-artists .nai-md3-input:hover {
+  background: var(--nai-md3-input-bg);
+}
+
+.nai-library-artists .nai-md3-input:focus {
+  border-color: var(--nai-lib-orange);
+  box-shadow: 0 0 0 3px var(--nai-lib-soft), inset 0 -1px 0 var(--nai-lib-orange);
+}
+
+.nai-library-artists .nai-artist-quick button.nai-md3-inline-action {
+  min-height: 34px;
+  border-color: color-mix(in srgb, var(--nai-lib-ink) 72%, var(--nai-lib-border));
+  color: var(--nai-lib-ink);
+  font-weight: 400;
+}
+
+.nai-library-artists .nai-artist-quick button.nai-md3-inline-action:hover {
+  transform: none;
+  border-color: var(--nai-lib-orange);
+  background: var(--nai-lib-soft);
+  color: var(--nai-lib-orange);
+  box-shadow: var(--nai-md3-chip-shadow);
+}
+
+.nai-library-artists .nai-artist-quick button.nai-artist-quick-chip.is-active:hover,
+.nai-library-artists .nai-artist-quick button.nai-artist-quick-chip.is-active {
+  border-color: transparent;
+  background: var(--nai-md3-tab-active-bg, var(--nai-md3-primary-fill));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+}
+
+.nai-library-artists .nai-artist-quick-list {
+  max-height: none;
+}
+
+/* 抽屉里的列表行是 14px 圆角，画师卡片跟随 .nai-library-row */
+.nai-library-artists .nai-artist-quick-card {
+  border-radius: var(--nai-md3-radius-sm);
+}
+
+.nai-library-artists .nai-artist-quick-card:hover {
+  transform: none;
+  border-color: var(--nai-lib-orange);
+  box-shadow: var(--nai-md3-soft-shadow);
+}

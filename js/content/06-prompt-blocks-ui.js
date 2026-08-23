@@ -481,11 +481,59 @@ function positionPromptBlockPanel(editor) {
   promptBlockPanel.style.left = '0px';
 }
 
+// 单个 tag 的分类与权重，用的是流编辑器那套两层分类（js/flow/02-classify.js）。
+// 原来的着色是六色轮换、按组序号取，颜色不带任何含义。
+//
+// 必须走 flowParseItem 而不是只剥括号：`1.3::soft lighting::` 是 NAI 的数值权重语法，
+// 不解开的话查词典必然落空，整个 tag 会被误标成「词典查不到」。
+function describePromptBlockTag(rawTag) {
+  const parsed = flowParseItem(String(rawTag || '').trim());
+  if (!parsed) return { name: '', weight: 1, semantic: 'other', known: true, zh: '', posts: 0 };
+
+  // 自然语言被逗号切出来的碎片不是 tag，别拿去查词典，更不能标红
+  if (parsed.kind === 'sentence') {
+    return { name: parsed.raw, weight: parsed.weight ?? 1, semantic: 'other', known: true, zh: '', posts: 0 };
+  }
+
+  const item = parsed.kind === 'group' ? parsed.items[0] : parsed;
+  const name = String(item?.name || '').replace(/[.。]$/, '').trim();
+  const info = flowClassify(name, flowLookupTag(name));
+  return {
+    name,
+    weight: parsed.kind === 'group' ? parsed.weight : (item?.weight ?? 1),
+    semantic: info.semantic,
+    known: info.known,
+    zh: info.zh,
+    posts: info.posts,
+  };
+}
+
+// 来源类（画师/角色/版权/元）用的是 --nai-flow-src-* 那组变量，名字对不上就整条变量失效
+const PROMPT_BLOCK_ACCENT_VARS = {
+  artist: '--nai-flow-src-artist',
+  character: '--nai-flow-src-character',
+  copyright: '--nai-flow-src-copyright',
+  meta: '--nai-flow-src-meta',
+};
+
+function promptBlockAccent(semantic) {
+  return `var(${PROMPT_BLOCK_ACCENT_VARS[semantic] || `--nai-flow-${semantic}`})`;
+}
+
 function getPromptBlockVisuals(editor) {
   const tokens = parsePromptTokens(getEditorText(editor));
 
-  return promptBlocks.filter(block => block.isGroup).map((block, index) => {
+  // 以前只有成组的才画高亮，单个 tag 一律不管。现在每个 tag 都上色，
+  // 词典里查不到的单独标出来 —— 那是最该被看见的一类。
+  return promptBlocks.map((block, index) => {
     const label = block.tags.join(', ');
+    const described = block.tags.map(describePromptBlockTag);
+    const lead = described[0] || { semantic: 'other', known: true, weight: 1 };
+    const unknown = described.some(item => !item.known);
+    const weight = described.length === 1 ? lead.weight : 1;
+    const hint = described.length === 1 && lead.known
+      ? `${lead.name}${lead.zh ? ` · ${lead.zh}` : ''} · ${flowFormatPosts(lead.posts)} post`
+      : label;
     const startTokenIndex = promptBlocks
       .slice(0, promptBlocks.findIndex(entry => entry.id === block.id))
       .reduce((sum, entry) => sum + entry.tags.length, 0);
@@ -535,8 +583,14 @@ function getPromptBlockVisuals(editor) {
     return {
       id: block.id,
       label,
+      hint,
       locked: block.locked,
-      accent: PROMPT_BLOCK_COLORS[index % PROMPT_BLOCK_COLORS.length],
+      isGroup: Boolean(block.isGroup),
+      libraryAlias: block.libraryAlias,
+      semantic: lead.semantic,
+      unknown,
+      weight,
+      accent: promptBlockAccent(lead.semantic),
       rects,
       unionRect: {
         left: unionRect.left,
@@ -577,7 +631,7 @@ function renderPromptBlockPanel(editor) {
   panel.innerHTML = visuals.map(block => `
     ${block.rects.map(rect => `
       <div
-        class="nai-prompt-block-highlight ${block.locked ? 'is-locked' : ''}"
+        class="nai-prompt-block-highlight ${block.locked ? 'is-locked' : ''} ${block.isGroup ? 'is-group' : ''} ${block.unknown ? 'is-unknown' : ''}"
         style="--nai-block-accent: ${block.accent}; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px;"
       ></div>
     `).join('')}
@@ -585,9 +639,15 @@ function renderPromptBlockPanel(editor) {
       class="nai-prompt-block-drag-hitbox ${block.locked ? 'is-locked' : ''}"
       data-block-id="${block.id}"
       draggable="${block.locked ? 'false' : 'true'}"
-      title="${escapeHtml(block.label)}"
+      title="${escapeHtml(block.hint)}"
       style="--nai-block-accent: ${block.accent}; left: ${block.unionRect.left}px; top: ${block.unionRect.top}px; width: ${block.unionRect.width}px; height: ${block.unionRect.height}px;"
     ></div>
+    ${block.weight !== 1 ? `
+    <div
+      class="nai-prompt-block-weight"
+      style="--nai-block-accent: ${block.accent}; left: ${Math.min(window.innerWidth - 40, block.unionRect.left + block.unionRect.width - 6)}px; top: ${Math.max(2, block.unionRect.top - 7)}px; zoom: ${uiScale};"
+    >${escapeHtml(flowFormatWeight(block.weight))}</div>` : ''}
+    ${block.isGroup ? `
     <div
       class="nai-prompt-block-anchor"
       data-block-id="${block.id}"
@@ -614,7 +674,7 @@ function renderPromptBlockPanel(editor) {
         title="${block.locked ? '解锁区块' : '锁定区块'}"
         aria-label="${block.locked ? '解锁区块' : '锁定区块'}"
       >${getPromptBlockIcon(block.locked ? 'unlock' : 'lock')}</button>
-    </div>
+    </div>` : ''}
   `).join('');
 
   panel.classList.remove('nai-hidden');

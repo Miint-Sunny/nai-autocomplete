@@ -114,11 +114,26 @@ async function copyText(text) {
   }
 }
 
-function setPending(isPending, label) {
+// 带 runId 的请求可以中途掐掉，这时按钮不该禁用 —— 它变成「取消」。
+// 没有 runId 的（比如连接测试）保持原来的禁用行为。
+//
+// scope 决定「取消」长在哪个按钮上。面板里同一时间只跑一个任务，
+// 不是自己发起的那个按钮只置灰、不改文案，否则两个按钮会互相抢文案。
+function setPending(isPending, label, options = {}) {
   state.pending = isPending;
-  if (!ui.sendButton) return;
-  ui.sendButton.disabled = isPending;
-  ui.sendButton.textContent = isPending ? (label || '\u53cd\u63a8\u4e2d...') : T.reverseCopy;
+  state.cancellableRunId = isPending ? (options.runId || null) : null;
+  state.pendingScope = isPending ? (options.scope || 'reverse') : '';
+
+  if (ui.sendButton) {
+    const owns = state.pendingScope === 'reverse';
+    const cancellable = Boolean(isPending && owns && state.cancellableRunId);
+    ui.sendButton.disabled = isPending && !cancellable;
+    if (!isPending) ui.sendButton.textContent = T.reverseCopy;
+    else if (cancellable) ui.sendButton.textContent = T.cancelRun;
+    else if (owns) ui.sendButton.textContent = label || '\u53cd\u63a8\u4e2d...';
+  }
+
+  renderAgentRunState();
 }
 
 function setResult(text) {

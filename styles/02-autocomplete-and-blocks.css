@@ -160,7 +160,7 @@
   background: var(--nai-category-meta);
 }
 .nai-autocomplete-category[data-category="library"] {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+  background: var(--nai-md3-primary-fill);
 }
 
 /* Content */
@@ -209,7 +209,7 @@
   font-weight: 700;
   letter-spacing: 0;
   color: var(--md-sys-color-on-primary);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+  background: var(--nai-md3-primary-fill);
 }
 
 .nai-autocomplete-translation {
@@ -457,23 +457,48 @@
   height: 16px;
 }
 
+/* 三层视觉，别混：
+     底部色条 = 单个 tag 的分类（每个 tag 都有，所以必须轻）
+     填充块   = 成组（词库条目，稀疏，可以重）
+     红虚线   = 词典里查不到，最该被看见的一类 */
 .nai-prompt-block-highlight {
   position: fixed;
   pointer-events: none;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--nai-block-accent) 18%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 60%, transparent);
+  border-radius: 4px;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--nai-block-accent) 68%, transparent);
   transition: none;
 }
 
-.nai-prompt-block-highlight:hover {
-  background: color-mix(in srgb, var(--nai-block-accent) 24%, transparent);
+.nai-prompt-block-highlight.is-group {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nai-block-accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 60%, transparent);
+}
+
+.nai-prompt-block-highlight.is-unknown {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--nai-flow-src-unknown, #e5484d);
 }
 
 .nai-prompt-block-highlight.is-locked {
   background: color-mix(in srgb, var(--nai-block-accent) 10%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 78%, transparent);
   cursor: default;
+}
+
+/* 权重只在 ≠1 时出现，所以实际上很稀疏 */
+.nai-prompt-block-weight {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: color-mix(in srgb, var(--nai-block-accent) 82%, transparent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 .nai-prompt-block-anchor {
@@ -638,7 +663,7 @@
 
 .nai-prompt-library-actions button.is-primary {
   color: var(--md-sys-color-on-primary);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 88%, white), var(--md-sys-color-primary));
+  background: var(--nai-md3-primary-fill);
   border-color: transparent;
 }
 

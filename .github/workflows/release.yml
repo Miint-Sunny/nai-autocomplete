@@ -83,18 +83,20 @@ jobs:
 
           package_dir="dist/nai-autocomplete"
           rm -rf dist
-          mkdir -p "$package_dir/js/bundle" "$package_dir/styles"
+          mkdir -p "$package_dir/js/bundle" "$package_dir/styles" "$package_dir/pages"
 
           node scripts/build-modular.mjs
 
           cp manifest.json "$package_dir/"
           cp background.js "$package_dir/"
           cp official-chunk-bridge.js "$package_dir/"
+          cp artist-studio-bridge.js "$package_dir/"
           cp LICENSE "$package_dir/"
           cp README.md "$package_dir/"
           cp -r icons "$package_dir/"
-          cp js/bundle/content.js js/bundle/image-assistant.js js/bundle/background.js "$package_dir/js/bundle/"
-          cp styles/bundle.css "$package_dir/styles/"
+          cp js/bundle/content.js js/bundle/image-assistant.js js/bundle/background.js js/bundle/artist-library.js "$package_dir/js/bundle/"
+          cp styles/bundle.css styles/artist-library.css "$package_dir/styles/"
+          cp pages/artist-library.html "$package_dir/pages/"
 
           if [[ -d data ]]; then
             cp -r data "$package_dir/"

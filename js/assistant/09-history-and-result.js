@@ -57,6 +57,21 @@ async function pushHistory(record) {
   await saveHistory();
 }
 
+// 面板上只有一个主按钮：空闲时是「反推」，请求在途时是「取消」。
+async function cancelCurrentRun() {
+  const runId = state.cancellableRunId;
+  if (!runId) return;
+
+  state.cancellableRunId = null;
+  setStatus(T.statusCancelling, false);
+
+  try {
+    await sendRuntimeMessage({ type: 'nai-llm-cancel', runId });
+  } catch (error) {
+    // 后台已经不在了也无所谓，请求本来就结束了。
+  }
+}
+
 async function reverseAndCopy() {
   if (state.pending) return;
 
@@ -105,23 +120,30 @@ async function reverseAndCopy() {
     }
   }
 
-  setPending(true, '\u53cd\u63a8\u4e2d...');
+  const runId = createId('llm-run');
+  setPending(true, '\u53cd\u63a8\u4e2d...', { runId });
   setStatus(T.statusRunning, false);
 
   try {
     const response = await sendRuntimeMessage({
       type: 'nai-llm-chat',
+      runId,
       payload: {
         primary: primaryConfig,
         fallback: fallbackConfig,
       },
     });
 
-    const usedFallback = Array.isArray(response?.attempts) && response.attempts.length > 0;
+    if (response?.errorKind === 'aborted') {
+      setStatus(T.statusCancelled, false);
+      return;
+    }
 
     if (!response?.ok) {
       throw new Error(response?.error || '\u53cd\u63a8\u5931\u8d25');
     }
+
+    const usedFallback = Boolean(response.usedFallback);
 
     const modelResult = (response.text || '').trim() || '\u6a21\u578b\u6ca1\u6709\u8fd4\u56de\u6587\u672c\u7ed3\u679c\u3002';
     const resultText = formatResultBySettings(modelResult);

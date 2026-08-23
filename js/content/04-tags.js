@@ -141,9 +141,12 @@ async function writeTagCache(tags) {
 }
 
 function notifyTagsReady() {
+  // 覆盖层的分类着色用的是同一份词典，直接把内存里这份交给流，不再从 storage 读第二份
+  flowSetDictionary(allTags);
   if (activeEditor?.isConnected) {
     refreshAutocomplete(activeEditor);
   }
+  if (activeEditor?.isConnected) renderPromptBlockPanelSoon(activeEditor);
 }
 
 // 加载标签

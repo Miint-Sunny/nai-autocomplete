@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAI 画师风格记录本</title>
+<link rel="stylesheet" href="../styles/bundle.css">
+<link rel="stylesheet" href="../styles/artist-library.css">
+</head>
+<body class="nai-md3-root" data-standalone="true" data-theme="novelai" data-glass="on">
+
+<!-- 左侧：画师列表 -->
+<div id="sidebar">
+  <header>
+    <h1>🎨 NAI 画师记录本</h1>
+    <div class="library-page-row"><select id="libraryPageSelect" title="切换画师库页面"></select><button class="btn-ghost" data-action="renameLibraryPage" title="修改当前页面名称">✏️ 改名</button><button class="btn-blue" data-action="newLibraryPage" title="新建独立的画师和画师串页面">＋ 新页</button><button class="btn-ghost" id="deleteLibraryPageBtn" data-action="deleteLibraryPage" title="删除当前页面" style="color:var(--red)">🗑 删除</button></div>
+    <input id="searchBox" type="text" placeholder="🔍 搜索画师、NAI tag、分类...">
+  </header>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title"><span>🏷️ 分类标签</span><button class="btn-ghost btn-sm" data-action="openLabelManager">管理 / 新建</button></div>
+    <div id="labelFilterList" class="label-filter-list"></div>
+    <div class="filter-row">
+      <select id="labelMatchMode" class="filter-select" title="多个标签的匹配方式"><option value="any">任一标签</option><option value="all">全部标签</option></select>
+      <select id="ratingFilter" class="filter-select" title="按画师星级筛选"><option value="">全部星级</option><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option><option value="4+">四星及以上</option><option value="3+">三星及以上</option><option value="0">未评分</option></select>
+    </div>
+    <div class="sidebar-section-title" style="margin:8px 0 0"><span id="artistFilterSummary" class="filter-summary">全部画师</span><button class="btn-ghost btn-sm" data-action="clearArtistFilters">清除筛选</button></div>
+  </div>
+  <div id="artistList"></div>
+  <footer>
+    <button class="btn-primary" style="flex:1" data-action="openArtistModal">＋ 添加画师</button>
+    <button class="btn-blue btn-sm" data-action="openArtistStrings" title="收藏画师串，并无损保存可由 NAI 直接读取的原始 PNG">🧬 画师串收藏</button>
+    <button class="btn-ghost btn-sm" data-action="exportData" title="导出画师、分类标签、星级、笔记、对比记录和全部图片">💾 完整备份</button>
+    <button class="btn-ghost btn-sm" data-action="exportMobile" title="生成包含全部图片的离线网页，发到手机即可浏览和筛选">📱 导出手机版</button>
+    <button class="btn-ghost btn-sm" data-action="importClick" title="导入 JSON / HTML 后，可选择合并当前页或新开一页">📂 导入 / 新页</button>
+    <button class="btn-blue btn-sm" data-action="openBatchModal" title="给列表里所有画师自动抓取D站原图">🤖 批量抓原图</button>
+    <button class="btn-ghost btn-sm" data-action="openLogModal" title="查看运行日志，出问题时复制给作者">📋 日志</button>
+    <input type="file" id="importFile" accept=".json,.html,.htm" style="display:none">
+    <input type="file" id="entryImgFile" accept="image/*" style="display:none">
+    <div id="storageText"></div>
+  </footer>
+</div>
+
+<!-- 右侧：主内容 -->
+<div id="main">
+  <div id="emptyState">
+    <div class="big">🖼️</div>
+    <p>点击左下角「＋ 添加画师」开始记录吧！</p>
+    <p style="margin-top:8px;font-size:13px">记录每个画师在 NAI 里的 tag、出图效果，并和原图对比</p>
+    <p style="margin-top:16px;font-size:13px;color:var(--yellow)">⚠️ 网吧电脑重启后数据会清空！<br>离开前务必点左下角「💾 完整备份」，把文件存到U盘或发给自己</p>
+  </div>
+  <div id="artistView" style="display:none"></div>
+</div>
+
+<!-- 添加/编辑画师弹窗 -->
+<div class="modal-mask" id="artistModal">
+  <div class="modal">
+    <h3 id="artistModalTitle">添加画师</h3>
+    <div class="form-row">
+      <label>画师名字（你自己认得就行）</label>
+      <input type="text" id="fName" placeholder="例如：米山舞">
+    </div>
+    <div class="form-row">
+      <label>NAI 里的 tag（复制 Danbooru 上的写法）</label>
+      <input type="text" id="fTag" placeholder="例如：yoneyama mai">
+    </div>
+    <div class="form-row">
+      <label>分类标签（可同时选择多个）</label>
+      <div id="artistCategoryPicker" class="category-picker"></div>
+      <div class="quick-label-row"><input type="text" id="quickLabelName" placeholder="新建标签，例如：平涂、厚涂、极简"><button type="button" class="btn-blue btn-sm" data-action="createQuickLabel">＋ 新建</button></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" data-action="closeModal" data-target="artistModal">取消</button>
+      <button class="btn-primary" data-action="saveArtist">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 分类标签管理 -->
+<div class="modal-mask" id="labelManagerModal">
+  <div class="modal">
+    <h3>🏷️ 管理画师与画师串分类标签</h3>
+    <div class="form-row"><label>新建标签</label><div class="quick-label-row"><input type="text" id="newLabelName" placeholder="例如：平涂、厚涂、日系、柔光"><button type="button" class="btn-primary" data-action="createManagedLabel">＋ 添加</button></div></div>
+    <div id="labelManagerList" class="label-manager-list"></div>
+    <p style="font-size:12px;color:var(--fg2);line-height:1.7">画师和画师串共用分类标签，都可以同时放入多个分类；改名或删除时会同步更新。</p>
+    <div class="modal-btns"><button class="btn-ghost" data-action="closeModal" data-target="labelManagerModal">完成</button></div>
+  </div>
+</div>
+
+<!-- 画师串收藏库 -->
+<div class="modal-mask" id="artistStringsModal">
+  <div class="modal string-library-modal">
+    <div class="string-library-top"><h3>🧬 画师串收藏与原图资料库</h3><div class="string-library-actions"><button class="btn-ghost btn-sm" data-action="exportArtistStrings" title="单独导出当前页全部画师串、标签和无损原图">💾 导出画师串</button><button class="btn-blue btn-sm" data-action="importArtistStringsClick" title="把画师串 JSON 追加到当前页面，重复记录自动跳过">📂 导入画师串</button><button class="btn-primary" data-action="newArtistString">＋ 新建画师串</button></div></div>
+    <div class="string-search-row"><input id="artistStringSearch" type="search" placeholder="搜索标题、画师串、分类、备注或图片原始 Prompt"><span id="artistStringCount"></span></div>
+    <div class="string-filter-bar"><strong>🏷️ 分类标签</strong><div class="string-filter-controls"><select id="stringLabelMatchMode" title="多个分类的匹配方式"><option value="any">任一标签</option><option value="all">全部标签</option></select><button class="btn-ghost btn-sm" data-action="clearArtistStringFilters">清除筛选</button></div></div>
+    <div id="artistStringLabelFilters"></div>
+    <div id="artistStringList" class="string-library-list"></div>
+    <p style="margin-top:11px;color:var(--fg2);font-size:12px;line-height:1.7">关联原图不会压缩或重新编码；下载后仍保留 NovelAI 的 Prompt、Seed、角色等原始生成信息。</p>
+    <div id="artistStringStorageText"></div>
+    <input type="file" id="artistStringImportFile" accept=".json,application/json" style="display:none">
+    <div class="modal-btns"><button class="btn-ghost" data-action="closeModal" data-target="artistStringsModal">关闭</button></div>
+  </div>
+</div>
+
+<!-- 画师库导入方式 -->
+<div class="modal-mask" id="importModeModal">
+  <div class="modal" style="width:560px">
+    <h3>📂 选择画师库导入方式</h3>
+    <p id="importSummary" style="margin-bottom:16px;color:var(--fg2);font-size:13px;line-height:1.7"></p>
+    <div class="form-row"><label>如果新开一页，页面名称</label><input id="importPageName" type="text" maxlength="40" placeholder="例如：NAI5 新画师库、平涂收藏"></div>
+    <p style="margin-bottom:14px;color:var(--fg2);font-size:12px;line-height:1.8">合并当前页：保留已有内容，重复画师和画师串自动跳过。<br>新开一页：原来的画师、分类和画师串保持不变，新内容放到独立页面。</p>
+    <div class="modal-btns"><button class="btn-ghost" data-action="cancelLibraryImport">取消</button><button class="btn-blue" data-action="mergeLibraryImport">合并当前页</button><button class="btn-primary" data-action="newPageLibraryImport">新开一页</button></div>
+  </div>
+</div>
+
+<!-- 新建 / 编辑画师串 -->
+<div class="modal-mask" id="artistStringEditorModal">
+  <div class="modal" style="width:620px">
+    <h3 id="stringEditorTitle">新建画师串收藏</h3>
+    <div class="form-row"><label>标题 / 画风名称</label><input id="stringTitle" type="text" placeholder="例如：梦幻平涂 · 今汐专用"></div>
+    <div class="form-row"><label>画师串 / 可直接粘贴到 NAI 的提示词</label><textarea id="stringPrompt" style="min-height:105px" placeholder="例如：1.2::artist_a::, 0.8::artist_b::, artist_c"></textarea></div>
+    <div class="form-row"><label>分类标签：可以同时添加多个，也可随时移动</label><div id="artistStringCategoryPicker" class="category-picker"></div><div class="quick-label-row"><input id="stringQuickLabelName" type="text" placeholder="新建标签，例如：平涂、厚涂、透明感"><button type="button" class="btn-blue btn-sm" data-action="createStringQuickLabel">＋ 新建</button></div></div>
+    <div class="form-row"><label>关联原始图片：保留 PNG 内全部生成信息，不压缩</label><div class="string-image-preview" id="stringImagePreview" data-action="pickArtistStringImage"></div><div class="string-image-meta" id="stringImageMetadata"></div><div class="string-image-prompt" id="stringImagePrompt"></div><div style="margin-top:7px"><button type="button" class="btn-ghost btn-sm" data-action="removeArtistStringImage">移除关联图片</button></div><input type="file" id="stringImageFile" accept="image/png,image/jpeg,image/webp" style="display:none"></div>
+    <div class="form-row"><label>备注，可选</label><textarea id="stringNotes" placeholder="例如：适合白色背景、柔光和清透的角色设计"></textarea></div>
+    <div class="modal-btns"><button class="btn-ghost" data-action="closeModal" data-target="artistStringEditorModal">取消</button><button class="btn-primary" data-action="saveArtistString">保存画师串与原图</button></div>
+  </div>
+</div>
+
+<!-- 添加对比记录弹窗 -->
+<div class="modal-mask" id="entryModal">
+  <div class="modal">
+    <h3>添加对比记录</h3>
+    <div class="form-row">
+      <label>上传图片（点击方框选择，会自动压缩）</label>
+      <div class="upload-row">
+        <div class="upload-box" data-action="pickOriginal">
+          <span>📷 画师原图</span><div id="prevOriginal"></div>
+        </div>
+        <div class="upload-box" data-action="pickNai">
+          <span>🤖 NAI 生成图</span><div id="prevNai"></div>
+        </div>
+      </div>
+      <input type="file" id="fOriginal" accept="image/*" style="display:none">
+      <input type="file" id="fNai" accept="image/*" style="display:none">
+    </div>
+    <div class="form-row">
+      <label>这次用的 prompt / 参数（方便以后复现）</label>
+      <textarea id="fPrompt" placeholder="例如：masterpiece, best quality, yoneyama mai, 1girl...&#10;steps: 28, scale: 5, seed: 12345"></textarea>
+    </div>
+    <div class="form-row">
+      <label>相似度评分</label>
+      <select id="fScore">
+        <option value="5">⭐⭐⭐⭐⭐ 非常像</option>
+        <option value="4">⭐⭐⭐⭐ 挺像的</option>
+        <option value="3" selected>⭐⭐⭐ 一般般</option>
+        <option value="2">⭐⭐ 不太像</option>
+        <option value="1">⭐ 完全不像</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>备注（可选）</label>
+      <textarea id="fComment" placeholder="例如：光影很像但线条差了点 / 加 watercolor 效果更好"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" data-action="closeModal" data-target="entryModal">取消</button>
+      <button class="btn-primary" data-action="saveEntry">保存记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自动抓原图弹窗（单个画师） -->
+<div class="modal-mask" id="grabModal">
+  <div class="modal">
+    <h3>🤖 自动抓取 D 站原图</h3>
+    <div class="form-row">
+      <label>抓取张数</label>
+      <select id="gCount"><option value="1">1 张</option><option value="2">2 张</option><option value="3" selected>3 张</option><option value="5">5 张</option><option value="8">8 张</option></select>
+    </div>
+    <div class="form-row">
+      <label>排序方式</label>
+      <select id="gOrder">
+        <option value="" selected>最新发布</option>
+        <option value="order:score">点赞最高</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>内容分级</label>
+      <select id="gRating">
+        <option value="rating:s" selected>仅全年龄</option>
+        <option value="rating:q">仅一般向</option>
+        <option value="">全部</option>
+      </select>
+    </div>
+    <p style="font-size:12px;color:var(--fg2);line-height:1.7">提示：API 直连正常时无需打开额外标签页；遇到拦截才会借用 D 站标签页。原图失败时会依次尝试样图和缩略图；全部失败也会保留作品标签与原帖入口。<br>搜索条件超限时会自动取消排序、保留分级重试。<br>⚠️ 图片仅供个人学习对比用，请不要二次发布画师原图。</p>
+    <div id="grabProgress" style="font-size:13px;color:var(--green);min-height:20px;margin:8px 0;white-space:pre-line"></div>
+    <div class="modal-btns">
+      <button class="btn-ghost" data-action="openDanbooru" title="在浏览器里打开D站，通过人机验证">🌐 打开D站</button>
+      <button class="btn-ghost" data-action="runDiagnosis" title="测试所有网络通道，生成诊断日志">🩺 诊断</button>
+      <button class="btn-red" data-action="stopGrab" id="btnStopGrab" style="display:none">停止</button>
+      <button class="btn-ghost" data-action="closeModal" data-target="grabModal">关闭</button>
+      <button class="btn-primary" data-action="startGrab" id="btnStartGrab">开始抓取</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量抓取弹窗（全部画师） -->
+<div class="modal-mask" id="batchModal">
+  <div class="modal">
+    <h3>🤖 批量抓取（所有画师）</h3>
+    <div class="form-row">
+      <label>每个画师抓几张</label>
+      <select id="bCount"><option value="1">1 张</option><option value="2" selected>2 张</option><option value="3">3 张</option></select>
+    </div>
+    <div class="form-row">
+      <label>排序方式</label>
+      <select id="bOrder">
+        <option value="" selected>最新发布</option>
+        <option value="order:score">点赞最高</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>内容分级</label>
+      <select id="bRating">
+        <option value="rating:s" selected>仅全年龄</option>
+        <option value="rating:q">仅一般向</option>
+        <option value="">全部</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" id="bSkip" checked> 跳过已经抓取过作品的画师</label>
+    </div>
+    <p style="font-size:12px;color:var(--fg2);line-height:1.7">画师多的话会抓比较久，可以随时点「停止」。图片遇到 403 时会尝试其他图片尺寸；仍失败会保存作品标签与原帖入口，继续处理后面的画师。<br>搜索条件超限时自动取消排序、保留分级；重复作品自动跳过。<br>⚠️ 图片仅供个人学习对比用，请不要二次发布画师原图。</p>
+    <div id="batchProgress" style="font-size:13px;color:var(--green);min-height:20px;margin:8px 0;white-space:pre-line"></div>
+    <div class="modal-btns">
+      <button class="btn-ghost" data-action="openDanbooru" title="在浏览器里打开D站，通过人机验证">🌐 打开D站</button>
+      <button class="btn-ghost" data-action="runDiagnosis" title="测试所有网络通道，生成诊断日志">🩺 诊断</button>
+      <button class="btn-red" data-action="stopGrab" id="btnStopBatch" style="display:none">停止</button>
+      <button class="btn-ghost" data-action="closeModal" data-target="batchModal">关闭</button>
+      <button class="btn-primary" data-action="startBatch" id="btnStartBatch">开始批量抓取</button>
+    </div>
+  </div>
+</div>
+
+<!-- 运行日志弹窗 -->
+<div class="modal-mask" id="logModal">
+  <div class="modal" style="width:560px">
+    <h3>📋 运行日志</h3>
+    <p style="font-size:12px;color:var(--fg2);margin-bottom:8px">抓取失败时点「🩺 诊断」，然后把日志复制发给作者就能快速定位问题</p>
+    <div id="logContent" style="background:var(--bg);border-radius:8px;padding:10px;height:300px;overflow-y:auto;font-family:Consolas,monospace;font-size:12px;color:var(--fg2);white-space:pre-wrap;word-break:break-all;line-height:1.7">（还没有日志）</div>
+    <div class="modal-btns">
+      <button class="btn-ghost" data-action="runDiagnosis">🩺 诊断</button>
+      <button class="btn-ghost" data-action="clearLogs">清空</button>
+      <button class="btn-blue" data-action="copyLogs">📋 复制日志</button>
+      <button class="btn-ghost" data-action="closeModal" data-target="logModal">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox" data-action="closeLightbox"><img id="lightboxImg"></div>
+<div class="toast" id="toast"></div>
+
+<script src="../js/bundle/artist-library.js"></script>
+</body>
+</html>

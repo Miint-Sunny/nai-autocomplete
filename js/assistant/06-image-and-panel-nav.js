@@ -1,8 +1,14 @@
 function updateFabVisibility() {
   if (!ui.fab) return;
-  const visible = state.isNovelAIImagePage
-    ? state.settings.showWorkbenchFloatingBall
-    : state.settings.showReverseFloatingBall;
+  let visible;
+  if (state.isNovelAIImagePage) {
+    visible = state.settings.showWorkbenchFloatingBall;
+  } else if (state.isNovelAISite) {
+    visible = state.settings.showReverseFloatingBall;
+  } else {
+    // Non-NovelAI sites stay clean by default: the browser action opens the panel.
+    visible = state.settings.showExternalFloatingBall;
+  }
   ui.fab.classList.toggle('nai-hidden', !visible);
 }
 
@@ -362,6 +368,9 @@ function setPage(page) {
     el.classList.toggle('nai-hidden', name !== targetPage);
   });
   if (targetPage === 'library') renderLibraryManager();
+  if (targetPage === 'artists') openArtistQuickPanel();
+  if (targetPage === 'agent') renderAgentPanel();
+  if (targetPage === 'flow') openFlowSurface('panel');
   requestAnimationFrame(() => autoResizeAllTextareas());
 }
 
@@ -428,6 +437,26 @@ function openPresetsPanel() {
 function openLibraryIndexPanel() {
   state.workbenchPage = 'library';
   closeLibraryEditor();
+}
+
+function openFlowWorkbenchPanel() {
+  state.workbenchPage = 'flow';
+  closeLibraryEditor();
+  openFlowSurface('drawer');
+  requestAnimationFrame(() => autoResizeAllTextareas());
+}
+
+function openAgentWorkbenchPanel() {
+  state.workbenchPage = 'agent';
+  closeLibraryEditor();
+  renderAgentPanel();
+  requestAnimationFrame(() => autoResizeAllTextareas());
+}
+
+function openArtistWorkbenchPanel() {
+  state.workbenchPage = 'artists';
+  closeLibraryEditor();
+  openArtistQuickPanel();
 }
 
 function toggleWorkbenchSidebar() {

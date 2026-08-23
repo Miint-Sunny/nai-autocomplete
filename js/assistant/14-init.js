@@ -70,6 +70,9 @@ async function init() {
   setPage(state.isNovelAIImagePage ? 'library' : 'reverse');
   setStatus(state.isNovelAIImagePage ? T.statusLibraryReady : T.statusReady, false);
 
+  initFlowPage(ui.root);
+  initAgentPanel(ui.root).catch(() => {});
+
   bindStorageListener();
   bindMessageListener();
   document.addEventListener('click', onShortcutClick, true);

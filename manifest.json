@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "NovelAI Prompt Autocomplete",
-  "version": "1.5.12",
+  "version": "1.5.21",
   "description": "NovelAI autocomplete with MD3 image reverse assistant",
   "permissions": [
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "scripting",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://novelai.net/*",
@@ -48,6 +50,16 @@
         "styles/bundle.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "artist-studio-bridge.js"
+      ],
+      "run_at": "document_start"
     }
   ],
   "background": {

@@ -308,14 +308,56 @@ async function deleteLibraryEntry(entryId) {
   setStatus(T.statusLibraryDeleted, false);
 }
 
+// 各家取密钥的位置差别很大，Vertex 尤其特殊：它要的是会过期的 OAuth
+// access token，不是长期 API key。
+const API_KEY_HELP = {
+  'vertex-openai': 'Vertex AI 用的是 OAuth access token，不是长期 API Key。\n本机装好 gcloud 后执行：gcloud auth print-access-token\n把输出整段粘进来。token 约 1 小时过期，过期后重新执行再粘一次。\n同时把 Endpoint 里的 PROJECT_ID 换成你的项目 ID，两处 us-central1 换成模型所在区域。',
+  'gemini-openai': '在 Google AI Studio（aistudio.google.com/apikey）创建 API Key。',
+  openai: '在 platform.openai.com/api-keys 创建。',
+  openrouter: '在 openrouter.ai/keys 创建。',
+  deepseek: '在 platform.deepseek.com/api_keys 创建。',
+  anthropic: '在 console.anthropic.com/settings/keys 创建。',
+  'xai-chat': '在 console.x.ai 创建。',
+  'xai-responses': '在 console.x.ai 创建。',
+};
+
+function toggleApiKeyHelp() {
+  const note = ui.settings.keyHelp;
+  if (!note) return;
+  const providerId = ui.settings.providerPreset?.value || state.settings.providerPreset;
+  note.textContent = API_KEY_HELP[providerId] || '在所选服务商的控制台创建 API Key。';
+  note.classList.toggle('nai-hidden');
+}
+
 function updateFallbackSettingsVisibility() {
   if (!ui.settings.fallbackSection) return;
   ui.settings.fallbackSection.classList.toggle('nai-hidden', !ui.settings.enableFallbackModel.checked);
 }
 
+function resolveGlassAmount() {
+  if (state.settings.glassEffect === false) return 0;
+  const strength = Number(state.settings.glassStrength);
+  const clamped = Number.isFinite(strength) ? Math.min(100, Math.max(0, strength)) : DEFAULT_SETTINGS.glassStrength;
+  return clamped / 100;
+}
+
 function applyThemePreset() {
   if (!ui.root) return;
   ui.root.dataset.theme = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
+
+  // amount 走 inline 变量，CSS 里的表达式据此在「实心 <-> 全玻璃」之间连续插值。
+  const amount = resolveGlassAmount();
+  ui.root.dataset.glass = amount > 0 ? 'on' : 'off';
+  ui.root.style.setProperty('--nai-md3-glass-amount', String(amount));
+
+  const percent = `${Math.round(amount * 100)}%`;
+  ui.settings.glassStrength?.style.setProperty('--nai-md3-slider-pct', percent);
+  ui.library.glassStrength?.style.setProperty('--nai-md3-slider-pct', percent);
+  if (ui.settings.glassStrengthValue) ui.settings.glassStrengthValue.textContent = percent;
+}
+
+function isNovelAISiteLocation() {
+  return /(^|\.)novelai\.net$/i.test(window.location.hostname);
 }
 
 function isNovelAIImageLocation() {
@@ -324,6 +366,7 @@ function isNovelAIImageLocation() {
 
 function applyPageMode() {
   state.isNovelAIImagePage = isNovelAIImageLocation();
+  state.isNovelAISite = isNovelAISiteLocation();
   if (!ui.root) return;
 
   ui.root.dataset.novelaiImagePage = state.isNovelAIImagePage ? 'true' : 'false';
@@ -469,6 +512,7 @@ function buildRequestConfig(target, messages) {
     model: target.model.trim(),
     temperature: Number(state.settings.temperature) || DEFAULT_SETTINGS.temperature,
     maxTokens: Number(state.settings.maxTokens) || DEFAULT_SETTINGS.maxTokens,
+    reasoningEffort: target.reasoningEffort || 'off',
     messages,
   };
 }
@@ -484,6 +528,7 @@ function buildPrimaryConfig(messages) {
     endpoint: state.settings.endpoint,
     apiKey: state.settings.apiKey,
     model: state.settings.model,
+    reasoningEffort: state.settings.reasoningEffort,
   }, messages);
 }
 
@@ -495,6 +540,7 @@ function buildFallbackConfig(messages) {
     endpoint: state.settings.fallbackEndpoint,
     apiKey: state.settings.fallbackApiKey,
     model: state.settings.fallbackModel,
+    reasoningEffort: state.settings.fallbackReasoningEffort,
   }, messages);
 }
 

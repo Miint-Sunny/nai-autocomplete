@@ -1,4 +1,4 @@
-﻿{
+{
   "manifest_version": 3,
   "name": "NovelAI Prompt Autocomplete",
   "version": "1.5.12",
@@ -6,7 +6,9 @@
   "permissions": [
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "scripting",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://novelai.net/*",
@@ -48,6 +50,16 @@
         "styles.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "artist-studio-bridge.js"
+      ],
+      "run_at": "document_start"
     }
   ],
   "background": {
@@ -73,4 +85,3 @@
     "128": "icons/128.png"
   }
 }
-

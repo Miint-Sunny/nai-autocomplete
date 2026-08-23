@@ -1,0 +1,240 @@
+/* 提示词 Agent：反推面板的「写词」页与工作台抽屉的「写词」窗口共用。
+   外观一律沿用既有的 .nai-md3-input / .nai-md3-tabs / .nai-md3-inline-action /
+   .nai-history-item 规格，这里只负责布局，以及抽屉上下文里改回 .nai-library-* 的尺寸。 */
+
+.nai-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-library-agent {
+  padding: 18px 20px;
+}
+
+.nai-agent-bar {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.nai-agent-skill {
+  flex: 1;
+  min-width: 0;
+}
+
+.nai-agent-manage {
+  flex: 0 0 auto;
+}
+
+/* .nai-md3-tabs 默认五列且自带上间距，这里只调布局，胶囊/渐变/阴影保持原样 */
+.nai-agent-modes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.nai-agent-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--nai-md3-section-border);
+  border-radius: var(--nai-md3-radius-md);
+  padding: 12px;
+  background: var(--nai-md3-section-bg);
+}
+
+.nai-agent-manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nai-agent-skill-name {
+  color: var(--md-sys-color-on-surface);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.nai-agent-skill-desc,
+.nai-agent-skill-refs,
+.nai-agent-note,
+.nai-agent-meta,
+.nai-agent-foot {
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.nai-agent-skill-desc,
+.nai-agent-skill-refs {
+  margin-top: 4px;
+}
+
+/* skill 的 description 常常是一大段触发条件，全展开会把整页顶下去 */
+.nai-agent-skill-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.nai-agent-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nai-agent-editor-text,
+.nai-agent-block-body {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.nai-agent-editor-text {
+  min-height: 180px;
+  font-size: 11px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.nai-agent-request,
+.nai-agent-character {
+  resize: vertical;
+}
+
+.nai-agent-request {
+  min-height: 86px;
+}
+
+.nai-agent-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nai-agent-blocks:empty {
+  display: none;
+}
+
+/* 卡片逐项照搬 .nai-history-item */
+.nai-agent-block {
+  min-width: 0;
+  border: 1px solid var(--nai-md3-history-item-border);
+  border-radius: var(--nai-md3-radius-lg);
+  padding: 12px;
+  background: var(--nai-md3-history-item-bg);
+  box-shadow: var(--nai-md3-soft-shadow);
+}
+
+.nai-agent-block-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nai-agent-block-title {
+  color: var(--md-sys-color-on-surface);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nai-agent-block-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.nai-agent-block-body {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  color: var(--md-sys-color-on-surface);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nai-agent-result {
+  min-height: 140px;
+}
+
+.nai-agent-meta:empty {
+  display: none;
+}
+
+/* .nai-md3-root button 的 `font: inherit` 权重是 (0,1,1)，
+   单类规则压不住，胶囊按钮的字号字重必须在这一层重申 */
+.nai-agent button.nai-md3-inline-action {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.nai-agent .nai-agent-block-actions button {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.nai-agent button.nai-md3-inline-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 抽屉里的输入控件是 10px 圆角 / 更紧的内边距，写词面板跟随同一规格 */
+.nai-library-agent .nai-md3-input {
+  border-radius: var(--nai-md3-radius-2xs);
+  border-color: var(--nai-lib-border);
+  padding: 10px 11px;
+  color: var(--nai-lib-ink);
+  box-shadow: none;
+}
+
+.nai-library-agent .nai-md3-input:hover {
+  background: var(--nai-md3-input-bg);
+}
+
+.nai-library-agent .nai-md3-input:focus {
+  border-color: var(--nai-lib-orange);
+  box-shadow: 0 0 0 3px var(--nai-lib-soft), inset 0 -1px 0 var(--nai-lib-orange);
+}
+
+.nai-library-agent .nai-agent button.nai-md3-inline-action {
+  min-height: 34px;
+  border-color: color-mix(in srgb, var(--nai-lib-ink) 72%, var(--nai-lib-border));
+  color: var(--nai-lib-ink);
+  font-weight: 400;
+}
+
+.nai-library-agent .nai-agent button.nai-md3-inline-action:hover {
+  transform: none;
+  border-color: var(--nai-lib-orange);
+  background: var(--nai-lib-soft);
+  color: var(--nai-lib-orange);
+  box-shadow: var(--nai-md3-chip-shadow);
+}
+
+/* 抽屉里的列表行是 14px 圆角，结果卡片跟随 .nai-library-row */
+.nai-library-agent .nai-agent-block {
+  border-radius: var(--nai-md3-radius-sm);
+}
+
+/* 抽屉的主按钮走 --nai-lib-orange（和保存预设/保存词条同一套），
+   不要用面板的主色渐变 —— 两者在部分主题下并不是同一个颜色 */
+.nai-library-agent .nai-agent .nai-md3-primary {
+  border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--nai-lib-orange) 88%, white), var(--nai-lib-orange));
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--nai-md3-fab-shadow);
+}
+
+.nai-library-agent .nai-agent .nai-md3-primary:hover {
+  border-color: var(--nai-lib-orange);
+  background: var(--nai-lib-orange);
+  color: var(--nai-lib-paper);
+}

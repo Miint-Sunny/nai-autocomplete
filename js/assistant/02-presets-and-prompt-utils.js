@@ -16,6 +16,23 @@ function upgradePromptSettings(settings) {
       : DEFAULT_SETTINGS.showWorkbenchFloatingBall;
   }
 
+  if (typeof next.showExternalFloatingBall !== 'boolean') {
+    next.showExternalFloatingBall = DEFAULT_SETTINGS.showExternalFloatingBall;
+  }
+
+  if (typeof next.glassEffect !== 'boolean') {
+    next.glassEffect = DEFAULT_SETTINGS.glassEffect;
+  }
+
+  const efforts = ['off', 'low', 'medium', 'high'];
+  if (!efforts.includes(next.reasoningEffort)) next.reasoningEffort = DEFAULT_SETTINGS.reasoningEffort;
+  if (!efforts.includes(next.fallbackReasoningEffort)) next.fallbackReasoningEffort = DEFAULT_SETTINGS.fallbackReasoningEffort;
+
+  const glassStrength = Number(next.glassStrength);
+  next.glassStrength = Number.isFinite(glassStrength)
+    ? Math.min(100, Math.max(0, Math.round(glassStrength)))
+    : DEFAULT_SETTINGS.glassStrength;
+
   if (!next.systemPrompt || LEGACY_DEFAULT_PROMPTS.systemPrompt.includes(next.systemPrompt)) {
     next.systemPrompt = DEFAULT_SETTINGS.systemPrompt;
   }

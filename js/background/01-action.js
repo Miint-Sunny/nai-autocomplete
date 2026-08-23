@@ -32,6 +32,28 @@ chrome.action.onClicked.addListener((tab) => {
   });
 });
 
+const ARTIST_LIBRARY_PAGE = 'pages/artist-library.html';
+
+function focusOrOpenArtistLibrary() {
+  const url = chrome.runtime.getURL(ARTIST_LIBRARY_PAGE);
+  chrome.tabs.query({ url }, (tabs) => {
+    const existing = !chrome.runtime.lastError && tabs?.[0];
+    if (existing?.id) {
+      chrome.tabs.update(existing.id, { active: true });
+      if (existing.windowId != null) chrome.windows.update(existing.windowId, { focused: true });
+      return;
+    }
+    chrome.tabs.create({ url });
+  });
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== 'nai-open-artist-library') return false;
+  focusOrOpenArtistLibrary();
+  sendResponse({ ok: true });
+  return true;
+});
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url || tab.url) {
     updateActionTitle(tabId, changeInfo.url || tab.url);

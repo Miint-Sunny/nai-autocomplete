@@ -8,6 +8,8 @@ function buildTestMessages() {
 async function runConnectionCheck(config) {
   const response = await sendRuntimeMessage({
     type: 'nai-llm-chat',
+    // 连接测试不该等满默认的 90 秒 —— 通不通 25 秒内一定有答案。
+    timeoutMs: 25000,
     payload: { primary: config },
   });
 
@@ -120,11 +122,11 @@ function populateLibraryModelSuggestions(kind, models) {
 async function fetchModelsFor(kind) {
   const config = getModelListConfig(kind);
   if (!config.endpoint || !config.apiKey) {
-    setStatus('\\u8bf7\\u5148\\u586b\\u5199\\u5bf9\\u5e94\\u7684 Endpoint \\u548c API Key\\uff0c\\u518d\\u83b7\\u53d6\\u6a21\\u578b\\u5217\\u8868\\u3002', true);
+    setStatus('请先填写对应的 Endpoint 和 API Key，再获取模型列表。', true);
     return;
   }
 
-  setStatus('\\u6b63\\u5728\\u83b7\\u53d6\\u6a21\\u578b\\u5217\\u8868...', false);
+  setStatus('正在获取模型列表...', false);
   try {
     const response = await sendRuntimeMessage({
       type: 'nai-list-models',
@@ -132,7 +134,7 @@ async function fetchModelsFor(kind) {
     });
 
     if (!response?.ok) {
-      throw new Error(response?.error || '\\u83b7\\u53d6\\u6a21\\u578b\\u5217\\u8868\\u5931\\u8d25');
+      throw new Error(response?.error || '获取模型列表失败');
     }
 
     const models = Array.isArray(response.models) ? response.models : [];

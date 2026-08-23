@@ -28,5 +28,20 @@ jobs:
       - name: Build modular bundles
         run: node scripts/build-modular.mjs
 
+      - name: Check theme tokens
+        run: node scripts/check-theme-tokens.mjs
+
+      - name: Test LLM service
+        run: node scripts/test-llm.mjs
+
+      - name: Test prompt agent
+        run: node scripts/test-agent.mjs
+
+      - name: Test tag flow model
+        run: node scripts/test-flow.mjs
+
+      - name: Test build integrity
+        run: node scripts/test-build.mjs
+
       - name: Validate manifest
         run: node -e "const manifest = require('./manifest.json'); if (!manifest.version) throw new Error('manifest.json is missing version');"
