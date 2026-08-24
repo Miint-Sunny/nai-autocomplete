@@ -9,6 +9,8 @@ const AGENT_PREFILTER_LIMIT = 40;
 const AGENT_PREFILTER_MIN_POSTS = 400;
 const AGENT_TOOL_RESULT_LIMIT = 8;
 const AGENT_MAX_STEPS = 4;
+// 快捷填入栏位的数量，不是 NovelAI 的模型上限 —— 这条得反复跟模型说清楚
+const AGENT_MAX_CHARACTER_SLOTS = 6;
 
 let agentTagIndex = null;
 
@@ -143,7 +145,21 @@ const AGENT_RUNTIME_NOTE = `【运行环境补充（优先级高于 skill 里的
 - 下面会先给出一批本地词典已确认存在的相关 tag，可以直接用；不够再调工具补查。
 - 最终回复直接给结果，不要复述流程或解释你调了什么工具。`;
 
-function buildAgentSystemText(skill) {
+// NovelAI Diffusion V5 的官方公开规则。放在这里、不写进内置 skill，理由有两条：
+//   · 换成自己的 skill 时它照样生效 —— 用户手上的 skill 多半是按 V4 写的
+//   · 它是官方文档里的事实，不属于任何一份 skill 的私有内容
+// 冲突时以这里为准：skill 管写作风格，这里管模型的能力边界。
+// 出了新版本模型这段就会过时，所以设置里留了开关（默认开）。
+const AGENT_NAI5_NOTE = `【NovelAI Diffusion V5 规则核对（与 skill 冲突时以这里为准）】
+- 加权只用分段语法：\`1.2::tag::\` 加强、\`0.8::tag::\` 减弱，V4.5 及更新的模型支持负权重 \`-1::tag::\`。不要用大括号或方括号。每个数字权重都必须闭合 —— 禁止裸写 \`tag::\`，也禁止不闭合的 \`1.2::tag\`。
+- V5 同时吃 danbooru tag 和自然语言，可以混写。官方支持英文和日文；中文只用来理解需求、或指定要画进画面的文字，输出主体一律英文。
+- 分工：主提示词管统一画面、构图、环境和人物互动；独立角色栏只管外观，作用是减少角色特征串色。
+- 角色数量：V5 改进了自由角色定位，能放的角色比旧版多。**不要沿用 V4 文档里「最多六人」和 5×5 网格那套旧限制**，也不要把官方演示里出现过的人数说成硬上限。
+- 画面文字：V5 能把文字画进画面。要显示的文字用双引号原样标出，并说明字体、位置和载体（招牌、书页、屏幕……）。不要自己造 \`Text:\` 区块。
+- 透明是两件事，别混：整张图要透明背景 → \`transparent background\` + \`has alpha\`，需要更强时可以写 \`2.1::transparent background::\`；伞、火焰、玻璃、魔法这类**物体本身半透明、但背景要留着** → \`alpha transparency\` + \`has alpha\`。
+- V5 新增的 tag：\`depthness\`、\`attractive male\`、\`low complexity\` / \`medium complexity\` / \`high complexity\` / \`ultra complexity\`、\`has alpha\`。只在跟画面直接相关时用，不要当成固定的质量尾词挂在末尾。`;
+
+function buildAgentSystemText(skill, options = {}) {
   const parts = [];
   const body = String(skill?.body || '').trim();
   if (body) parts.push(body);
@@ -155,7 +171,26 @@ function buildAgentSystemText(skill) {
   }
 
   parts.push(AGENT_RUNTIME_NOTE);
+  if (options.nai5Rules !== false) parts.push(AGENT_NAI5_NOTE);
   return parts.join('\n\n---\n\n');
+}
+
+// 生成方式分档。措辞放在后台、前端只传档位名 —— 要改说法时不用动 UI，
+// 也不会出现「按钮上写的」和「发出去的」两套文案。
+const AGENT_MODES = {
+  default: '按 skill 的默认方式写：tag 骨架 + 精确的自然语言；有多个角色时另外给出各自的外观栏。',
+  expanded: '展开写。主提示词要讲清动作、左右站位、前后层次和角色之间的互动，另外严格输出 Character 1、Character 2… 独立角色栏。角色栏只放外貌、发型、眼睛、身体特征、服装和配饰；动作、表情、镜头、场景、背景一律留在主提示词里，不要漏进角色栏。',
+  refine: '改写用户已有的提示词：整理、纠错、补齐、理顺顺序。用户已经写下的内容和数字权重要原样保留，不要擅自加画师串、质量尾词或 UC。结果之外用一两句说明你改了哪几处、各针对什么问题。',
+  tags: '优先给准确、精炼的 danbooru tag，能用 tag 表达的就不要写成句子；只有人物互动或空间关系用 tag 说不清时，才补一两句自然语言。',
+};
+
+function agentModeInstruction(mode) {
+  return AGENT_MODES[mode] || AGENT_MODES.default;
+}
+
+function normalizeAgentCharacterCount(value) {
+  const count = Math.trunc(Number(value) || 0);
+  return Math.max(0, Math.min(AGENT_MAX_CHARACTER_SLOTS, count));
 }
 
 const AGENT_CONTEXT_LIMITS = {
@@ -170,12 +205,54 @@ function clipText(text, limit) {
   return value.length > limit ? `${value.slice(0, limit)}\n…（已截断）` : value;
 }
 
+// 「用户在描述里写到名字或别名 = 点名了这个角色」。
+// 返回第一次出现的位置，-1 表示没提到 —— 位置后面还要拿来排 slot。
+function agentNameMentionIndex(text, candidate) {
+  const name = String(candidate || '').trim().toLowerCase();
+  if (!name) return -1;
+  const haystack = String(text || '').toLowerCase();
+
+  // 纯 ASCII 的名字必须卡词边界，否则 ray 会命中 array、x-ray。
+  // 中日文没有词边界这回事，只能直接子串。
+  if (/^[a-z0-9_'-]+$/.test(name)) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`(^|[^a-z0-9_'-])${escaped}([^a-z0-9_'-]|$)`).exec(haystack);
+    return match ? match.index : -1;
+  }
+
+  return haystack.indexOf(name);
+}
+
+// 参考实现把 OC 单独存了一份库；我们已经有词库的 char: 分类，
+// 所以只在它上面加「别名」和「被点到才发」这两条逻辑，不另起一套数据。
+// slot 按名字在描述里出现的先后排 —— 用户写「A 和 B」，A 就是 Character 1。
+function findMentionedAgentCharacters(characters, text) {
+  const source = String(text || '');
+  if (!source.trim()) return [];
+
+  return (Array.isArray(characters) ? characters : [])
+    .map((entry) => {
+      const names = [entry?.name, ...(Array.isArray(entry?.aliases) ? entry.aliases : [])];
+      const positions = names.map((name) => agentNameMentionIndex(source, name)).filter((at) => at >= 0);
+      return positions.length ? { entry, at: Math.min(...positions) } : null;
+    })
+    .filter((hit) => hit && String(hit.entry?.prompt || '').trim())
+    .sort((a, b) => a.at - b.at)
+    .slice(0, AGENT_MAX_CHARACTER_SLOTS)
+    .map((hit, index) => ({ ...hit.entry, slot: index + 1 }));
+}
+
+function formatAgentCharacterAliases(entry) {
+  const aliases = (Array.isArray(entry?.aliases) ? entry.aliases : []).filter(Boolean);
+  return aliases.length ? `（又叫 ${aliases.join('、')}）` : '';
+}
+
 // UNL 的 Agent 请求会带上画师/OC 上下文、调用方历史、以及当前的整体与分角色提示词。
 // 这里照同样的思路做：知识源由用户逐项勾选，没勾的一个字都不发。
 //
 // 最关键的是「当前提示词」和「上一轮结果」—— 有了它们 skill 第 1.4 节的迭代规则
 // （每轮只改 2~3 处、说明改了什么、不整体重写）才第一次真的能触发。
-function buildAgentContextBlocks(context) {
+function buildAgentContextBlocks(context, mentionText) {
   if (!context || typeof context !== 'object') return [];
   const blocks = [];
 
@@ -189,10 +266,20 @@ function buildAgentContextBlocks(context) {
     blocks.push(`【你上一轮给出的版本】用户在此基础上提要求，同样按迭代规则改。\n\n${previous}`);
   }
 
-  const characters = Array.isArray(context.characters) ? context.characters.slice(0, AGENT_CONTEXT_LIMITS.characters) : [];
-  if (characters.length) {
+  const characters = Array.isArray(context.characters) ? context.characters : [];
+  const mentioned = findMentionedAgentCharacters(characters, mentionText);
+
+  if (mentioned.length) {
+    // 点到名的直接指派栏位。全库都发过去只会让模型在没提到的角色之间摇摆，
+    // 也白烧 token —— 这个知识源本来就是为「点名调用」准备的。
+    const lines = mentioned
+      .map((item) => `- Character ${item.slot} = ${item.name}${formatAgentCharacterAliases(item)}：${clipText(item.prompt, 400)}`)
+      .join('\n');
+    blocks.push(`【用户点名的角色（词库里已有的设定）】描述里写到了这几个名字，就是要用这几个角色。外观串原样放进对应的角色栏，除非用户明确要求换装或改造，否则不要替换角色设计。动作、互动和背景照常留在主提示词。\n${lines}`);
+  } else if (characters.length) {
     const lines = characters
-      .map((item) => `- ${item.name}：${clipText(item.prompt, 300)}`)
+      .slice(0, AGENT_CONTEXT_LIMITS.characters)
+      .map((item) => `- ${item.name}${formatAgentCharacterAliases(item)}：${clipText(item.prompt, 300)}`)
       .join('\n');
     blocks.push(`【用户词库里的角色】用户点名某个角色时直接用这里的串，不要自己另编外貌。\n${lines}`);
   }
@@ -212,8 +299,11 @@ function buildAgentContextBlocks(context) {
 function buildAgentUserText(payload, prefiltered) {
   const parts = [`画面需求：\n${String(payload.request || '').trim()}`];
 
-  if (payload.mode === 'expanded') {
-    parts.push('本轮使用展开模式。');
+  parts.push(`本轮的生成方式：${agentModeInstruction(payload.mode)}`);
+
+  const characterCount = normalizeAgentCharacterCount(payload.characterCount);
+  if (characterCount) {
+    parts.push(`角色栏数量：正好 ${characterCount} 个。请输出 ${characterCount} 个独立角色栏，按 Character 1 到 Character ${characterCount} 顺序排列，不多不少。（1~6 是本扩展快捷填入栏位的数量，不是 NovelAI 的模型上限。）`);
   }
 
   const characterPrompt = String(payload.characterPrompt || '').trim();
@@ -224,7 +314,9 @@ function buildAgentUserText(payload, prefiltered) {
   const notes = String(payload.notes || '').trim();
   if (notes) parts.push(`补充要求：\n${notes}`);
 
-  parts.push(...buildAgentContextBlocks(payload.context));
+  // 点名匹配只看用户自己写的字，不看知识源 —— 否则「上一轮结果」里出现过的
+  // 名字会把角色一直粘着带下去，用户换了人也甩不掉。
+  parts.push(...buildAgentContextBlocks(payload.context, `${payload.request || ''}\n${payload.characterPrompt || ''}\n${payload.notes || ''}`));
 
   if (prefiltered.length) {
     parts.push(`本地词典已确认存在的相关 tag（tag / post 量 / 中文）：\n${formatAgentTagList(prefiltered)}`);
@@ -235,7 +327,7 @@ function buildAgentUserText(payload, prefiltered) {
 
 function buildAgentMessages(payload, prefiltered) {
   return [
-    { role: 'system', content: buildAgentSystemText(payload.skill) },
+    { role: 'system', content: buildAgentSystemText(payload.skill, { nai5Rules: payload.nai5Rules !== false }) },
     { role: 'user', content: [{ type: 'text', text: buildAgentUserText(payload, prefiltered) }] },
   ];
 }

@@ -40,6 +40,7 @@ function applySettingsToInputs() {
   ui.settings.themePreset.value = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
   ui.settings.preferNaiMetadata.checked = state.settings.preferNaiMetadata !== false;
   ui.settings.allowDanbooruLookup.checked = state.settings.allowDanbooruLookup !== false;
+  if (ui.settings.agentNai5Rules) ui.settings.agentNai5Rules.checked = state.settings.agentNai5Rules !== false;
   ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
   ui.settings.enableBooruTagContext.checked = Boolean(state.settings.enableBooruTagContext);
   updateBooruTagTypesVisibility();
@@ -96,6 +97,7 @@ function applyLibrarySettingsToInputs() {
     enableFallbackModel: 'enableFallbackModel',
     preferNaiMetadata: 'preferNaiMetadata',
     allowDanbooruLookup: 'allowDanbooruLookup',
+    agentNai5Rules: 'agentNai5Rules',
     sendImageAsDataUrl: 'sendImageAsDataUrl',
     enableBooruTagContext: 'enableBooruTagContext',
     defaultCodeFence: 'defaultCodeFence',
@@ -144,6 +146,7 @@ function readLibrarySettingsFromInputs() {
     themePreset: ui.library.themePreset?.value || DEFAULT_SETTINGS.themePreset,
     preferNaiMetadata: Boolean(ui.library.preferNaiMetadata?.checked),
     allowDanbooruLookup: Boolean(ui.library.allowDanbooruLookup?.checked),
+    agentNai5Rules: Boolean(ui.library.agentNai5Rules?.checked),
     sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
     enableBooruTagContext: Boolean(ui.library.enableBooruTagContext?.checked),
     showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
@@ -185,6 +188,7 @@ function readSettingsFromInputs() {
     themePreset: ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset,
     preferNaiMetadata: Boolean(ui.settings.preferNaiMetadata.checked),
     allowDanbooruLookup: Boolean(ui.settings.allowDanbooruLookup.checked),
+    agentNai5Rules: Boolean(ui.settings.agentNai5Rules?.checked ?? DEFAULT_SETTINGS.agentNai5Rules),
     sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),
     enableBooruTagContext: Boolean(ui.settings.enableBooruTagContext.checked),
     showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),

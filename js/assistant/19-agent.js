@@ -3,6 +3,21 @@
 //
 // 这里只负责「写提示词」：复制、写入输入框。不做任何触发生成的动作。
 
+// 四档生成方式。前端只管标签和提示，发出去的任务说明在后台的 AGENT_MODES 里 ——
+// 一句话两处写会立刻不一致。
+const AGENT_MODE_OPTIONS = [
+  { id: 'default', label: T.agentModeDefault, hint: T.agentModeHintDefault },
+  { id: 'expanded', label: T.agentModeExpanded, hint: T.agentModeHintExpanded },
+  { id: 'refine', label: T.agentModeRefine, hint: T.agentModeHintRefine },
+  { id: 'tags', label: T.agentModeTags, hint: T.agentModeHintTags },
+];
+
+// 0 = 自动（不限定）。1~6 是快捷填入栏位的数量，不是 NovelAI 的模型上限。
+const AGENT_CHARACTER_COUNTS = [0, 1, 2, 3, 4, 5, 6];
+
+// 词库角色整份发给后台再筛，不是发给模型 —— 这个上限只是别把消息撑爆。
+const AGENT_CHARACTER_SOURCE_LIMIT = 120;
+
 function agentMarkup() {
   return `
     <div class="nai-agent">
@@ -29,17 +44,29 @@ function agentMarkup() {
         </div>
       </div>
 
-      <nav class="nai-md3-tabs nai-agent-modes">
-        <button type="button" class="active" data-agent-action="mode" data-mode="default">${T.agentModeDefault}</button>
-        <button type="button" data-agent-action="mode" data-mode="expanded">${T.agentModeExpanded}</button>
-      </nav>
+      <div class="nai-agent-row">
+        <span class="nai-agent-row-label">${T.agentModeLabel}</span>
+        <nav class="nai-md3-tabs nai-agent-track nai-agent-modes" aria-label="${T.agentModeLabel}">
+          ${AGENT_MODE_OPTIONS.map((option) => `<button type="button" data-agent-action="mode" data-mode="${option.id}">${option.label}</button>`).join('')}
+        </nav>
+      </div>
+      <div class="nai-agent-note nai-agent-mode-hint" data-agent-field="modeHint"></div>
 
-      <div class="nai-agent-sources">
-        <span class="nai-agent-sources-label">${T.agentSourcesLabel}</span>
-        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="currentPrompt">${T.agentSourceCurrentPrompt}</button>
-        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="previous">${T.agentSourcePrevious}</button>
-        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="characters">${T.agentSourceCharacters}</button>
-        <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="artists">${T.agentSourceArtists}</button>
+      <div class="nai-agent-row">
+        <span class="nai-agent-row-label">${T.agentCountLabel}</span>
+        <div class="nai-md3-tabs nai-agent-track nai-agent-counts-track" role="group" aria-label="${T.agentCountLabel}">
+          ${AGENT_CHARACTER_COUNTS.map((count) => `<button type="button" data-agent-action="count" data-count="${count}">${count === 0 ? T.agentCountAuto : count}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="nai-agent-row nai-agent-sources">
+        <span class="nai-agent-row-label">${T.agentSourcesLabel}</span>
+        <div class="nai-agent-row-controls">
+          <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="currentPrompt">${T.agentSourceCurrentPrompt}</button>
+          <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="previous">${T.agentSourcePrevious}</button>
+          <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="characters">${T.agentSourceCharacters}</button>
+          <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="artists">${T.agentSourceArtists}</button>
+        </div>
       </div>
       <div class="nai-agent-note nai-agent-sources-hint">${T.agentSourcesHint}</div>
 
@@ -61,6 +88,24 @@ function agentMarkup() {
       <textarea class="nai-md3-result nai-agent-result" data-agent-field="result" rows="8" readonly placeholder="${T.agentResultPlaceholder}"></textarea>
       <div class="nai-agent-foot">${T.agentHint}</div>
     </div>`;
+}
+
+function activeAgentMode() {
+  return AGENT_MODE_OPTIONS.find((option) => option.id === state.agent.mode) || AGENT_MODE_OPTIONS[0];
+}
+
+// 改写档改的是「已经存在的那份提示词」。一样都没带就没东西可改 ——
+// 与其让模型凭空重写一版，不如顺手把「当前提示词」勾上，并且说一声。
+// 自动勾上是看得见的：那颗 chip 会亮起来。
+function setAgentMode(mode) {
+  state.agent.mode = AGENT_MODE_OPTIONS.some((option) => option.id === mode) ? mode : 'default';
+
+  if (state.agent.mode === 'refine' && !state.agent.sources.currentPrompt && !state.agent.sources.previous) {
+    state.agent.sources.currentPrompt = true;
+    setStatus(T.statusAgentRefineNeedsPrompt, false);
+  }
+
+  renderAgentPanel();
 }
 
 function agentHosts() {
@@ -162,6 +207,13 @@ function renderAgentPanel() {
       button.classList.toggle('active', button.dataset.mode === state.agent.mode);
     });
 
+    host.querySelectorAll('[data-agent-action="count"]').forEach((button) => {
+      button.classList.toggle('active', Number(button.dataset.count) === state.agent.characterCount);
+    });
+
+    const modeHint = host.querySelector('[data-agent-field="modeHint"]');
+    if (modeHint) modeHint.textContent = activeAgentMode().hint;
+
     const request = host.querySelector('[data-agent-field="request"]');
     if (request && request.value !== state.agent.request) request.value = state.agent.request;
     const character = host.querySelector('[data-agent-field="characterPrompt"]');
@@ -210,7 +262,8 @@ function setAgentResult(text) {
 }
 
 function describeAgentRun(response) {
-  const parts = [`skill：${getActiveAgentSkill().name}`];
+  const parts = [`skill：${getActiveAgentSkill().name}`, activeAgentMode().label];
+  if (state.agent.characterCount) parts.push(`${state.agent.characterCount} 个角色栏`);
   if (response.prefiltered?.length) parts.push(`预检 ${response.prefiltered.length} 个 tag`);
   const queries = (response.toolSteps || []).reduce((total, step) => total + (step.queries?.length || 0), 0);
   if (queries) parts.push(`查证 ${queries} 个词`);
@@ -237,9 +290,16 @@ async function collectAgentContext() {
   }
 
   if (sources.characters) {
+    // 这里不按条数截断：点名匹配在后台做，先截断会把用户正好点到的那个截掉。
+    // 后台匹配不到名字时才退回列表，那一步自己有上限。
     context.characters = state.promptLibrary
       .filter((entry) => entry.category === ROLE_LIBRARY_CATEGORY)
-      .map((entry) => ({ name: entry.name || entry.alias, prompt: entry.promptText }))
+      .slice(0, AGENT_CHARACTER_SOURCE_LIMIT)
+      .map((entry) => ({
+        name: entry.name || entry.alias,
+        aliases: Array.isArray(entry.aliases) ? entry.aliases : [],
+        prompt: entry.promptText,
+      }))
       .filter((entry) => entry.name && entry.prompt);
   }
 
@@ -298,10 +358,12 @@ async function runAgentWrite() {
         request,
         characterPrompt: String(state.agent.characterPrompt || '').trim(),
         mode: state.agent.mode,
+        characterCount: state.agent.characterCount,
         context,
         primary: primaryConfig,
         fallback: fallbackConfig,
         allowDanbooruLookup: state.settings.allowDanbooruLookup !== false,
+        nai5Rules: state.settings.agentNai5Rules !== false,
       },
     });
 
@@ -348,7 +410,13 @@ async function handleAgentAction(action, target, host) {
   }
 
   if (action === 'mode') {
-    state.agent.mode = target.dataset.mode === 'expanded' ? 'expanded' : 'default';
+    setAgentMode(target.dataset.mode);
+    return;
+  }
+
+  if (action === 'count') {
+    const count = Number(target.dataset.count) || 0;
+    state.agent.characterCount = AGENT_CHARACTER_COUNTS.includes(count) ? count : 0;
     renderAgentPanel();
     return;
   }

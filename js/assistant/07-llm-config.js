@@ -152,10 +152,20 @@ function applyPromptLibraryToLibraryRolePrompt() {
   setStatus(T.statusRoleLibraryApplied, false);
 }
 
+// 别名只对角色有意义 —— 写词时「描述里提到名字 = 点名这个角色」只查 char: 条目。
+// 挂在 artist: 或 style: 上是一行永远用不到的空输入。
+function updateLibraryAliasVisibility() {
+  if (!ui.library.aliasesField) return;
+  const isRole = (ui.library.category?.value || 'char') === ROLE_LIBRARY_CATEGORY;
+  ui.library.aliasesField.classList.toggle('nai-hidden', !isRole);
+}
+
 function resetLibraryEditor() {
   state.libraryEditingId = '';
   if (ui.library.category) ui.library.category.value = 'char';
   if (ui.library.name) ui.library.name.value = '';
+  if (ui.library.aliases) ui.library.aliases.value = '';
+  updateLibraryAliasVisibility();
   if (ui.library.prompt) {
     ui.library.prompt.value = '';
     autoResizeTextarea(ui.library.prompt);
@@ -163,6 +173,9 @@ function resetLibraryEditor() {
 }
 
 function renderLibraryManager() {
+  // 编辑区的别名栏跟着分类显示/隐藏，初次渲染也得算一次 ——
+  // 只在 change 事件里算的话，刚打开时它是按 markup 里的初始状态（隐藏）待着的
+  updateLibraryAliasVisibility();
   if (!ui.libraryList) return;
   const entries = [...state.promptLibrary].sort((a, b) => {
     const categoryCompare = a.category.localeCompare(b.category);
@@ -213,6 +226,8 @@ function editLibraryEntry(entryId) {
     ? entry.category
     : 'char';
   if (ui.library.name) ui.library.name.value = entry.name || entry.shortAlias || '';
+  if (ui.library.aliases) ui.library.aliases.value = (entry.aliases || []).join('、');
+  updateLibraryAliasVisibility();
   if (ui.library.prompt) {
     ui.library.prompt.value = entry.promptText || serializePromptTags(entry.tags, entry.delimiters);
     autoResizeTextarea(ui.library.prompt);
@@ -243,6 +258,7 @@ async function saveLibraryEditorAndSync() {
     alias,
     category,
     name,
+    aliases: category === ROLE_LIBRARY_CATEGORY ? (ui.library.aliases?.value || '') : [],
     tags: parsed.tags,
     delimiters: parsed.delimiters,
     createdAt: baseEntry.createdAt || Date.now(),

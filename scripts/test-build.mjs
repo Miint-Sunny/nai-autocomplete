@@ -89,4 +89,26 @@ test('manifest 版本不会被打包重置', () => {
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
 });
 
+// content 和 assistant 是两个互相看不见的 IIFE，词库归一化各有一份。
+// 两份都会往 storage 里写回同一份词库 —— 哪一份少认一个字段，
+// 用户在那一侧存一次词条，字段就静悄悄没了。别名就是这么一个字段。
+group('两份词库归一化不能走散');
+
+const LIBRARY_NORMALIZERS = [
+  'js/content/02-prompt-library.js',
+  'js/assistant/03-prompt-library-and-storage.js',
+];
+
+test('两边都带别名归一化，而且是同一份实现', () => {
+  const bodies = LIBRARY_NORMALIZERS.map((file) => {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.match(source, /aliases: normalizePromptLibraryAliasList\(entry\?\.aliases\)/, `${file} 没把别名写进条目`);
+    const start = source.indexOf('function normalizePromptLibraryAliasList');
+    assert.ok(start >= 0, `${file} 没有别名归一化`);
+    return source.slice(start, source.indexOf('\n}', start));
+  });
+
+  assert.equal(bodies[0], bodies[1], '两份别名归一化的实现已经走散');
+});
+
 await run('打包测试');

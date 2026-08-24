@@ -1,3 +1,22 @@
+// 角色别名。用户在中文描述里写「小夏」「Natsuki」都该点到同一个角色，
+// 所以除了条目名之外再存一串别名，逗号/顿号/换行都能分隔。
+function normalizePromptLibraryAliasList(value) {
+  const raw = Array.isArray(value) ? value : String(value || '').split(/[,，;；、\n]+/);
+  const seen = new Set();
+  const list = [];
+
+  for (const item of raw) {
+    const name = String(item || '').trim().replace(/\s+/g, ' ');
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    list.push(name.slice(0, 40));
+    if (list.length >= 8) break;
+  }
+
+  return list;
+}
+
 function normalizePromptLibraryEntry(entry) {
   const alias = String(entry?.alias || '').trim().toLowerCase();
   const tags = Array.isArray(entry?.tags) ? entry.tags.map((tag) => String(tag || '').trim()).filter(Boolean) : [];
@@ -19,6 +38,7 @@ function normalizePromptLibraryEntry(entry) {
     shortAlias: name || (alias.includes(':') ? alias.split(':').slice(1).join(':') : alias),
     category: category || 'char',
     name: name || (alias.includes(':') ? alias.split(':').slice(1).join(':') : alias),
+    aliases: normalizePromptLibraryAliasList(entry?.aliases),
     tags,
     delimiters: delimiters.slice(0, tags.length),
     promptText: serializePromptTags(tags, delimiters.slice(0, tags.length)),

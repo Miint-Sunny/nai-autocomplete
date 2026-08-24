@@ -34,6 +34,10 @@ function upgradePromptSettings(settings) {
     next.allowDanbooruLookup = DEFAULT_SETTINGS.allowDanbooruLookup;
   }
 
+  if (typeof next.agentNai5Rules !== 'boolean') {
+    next.agentNai5Rules = DEFAULT_SETTINGS.agentNai5Rules;
+  }
+
   const efforts = ['off', 'low', 'medium', 'high'];
   if (!efforts.includes(next.reasoningEffort)) next.reasoningEffort = DEFAULT_SETTINGS.reasoningEffort;
   if (!efforts.includes(next.fallbackReasoningEffort)) next.fallbackReasoningEffort = DEFAULT_SETTINGS.fallbackReasoningEffort;

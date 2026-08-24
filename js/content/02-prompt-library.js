@@ -39,6 +39,25 @@ function normalizePromptLibraryAlias(alias, fallbackCategory = 'char') {
   return name ? `${category}:${name}` : '';
 }
 
+// 角色别名。用户在中文描述里写「小夏」「Natsuki」都该点到同一个角色，
+// 所以除了条目名之外再存一串别名，逗号/顿号/换行都能分隔。
+function normalizePromptLibraryAliasList(value) {
+  const raw = Array.isArray(value) ? value : String(value || '').split(/[,，;；、\n]+/);
+  const seen = new Set();
+  const list = [];
+
+  for (const item of raw) {
+    const name = String(item || '').trim().replace(/\s+/g, ' ');
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    list.push(name.slice(0, 40));
+    if (list.length >= 8) break;
+  }
+
+  return list;
+}
+
 function normalizePromptLibraryEntry(entry) {
   const category = normalizePromptLibraryCategory(entry?.category || splitPromptLibraryAlias(entry?.alias || '').category || 'char') || 'char';
   const name = normalizePromptLibraryName(entry?.name || splitPromptLibraryAlias(entry?.alias || '').name || entry?.shortAlias || '');
@@ -62,6 +81,7 @@ function normalizePromptLibraryEntry(entry) {
     prefix: parts.category,
     category: parts.category,
     name: parts.name,
+    aliases: normalizePromptLibraryAliasList(entry?.aliases),
     tags,
     delimiters: delimiters.slice(0, tags.length),
     promptText: serializePromptBlocks([{ tags, delimiters }]),

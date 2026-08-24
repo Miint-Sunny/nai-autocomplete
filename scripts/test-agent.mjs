@@ -178,7 +178,7 @@ test('user 带上需求和预检结果', async () => {
 
   const user = calls[0].body.messages[1].content[0].text;
   assert.match(user, /透明伞/, '原始需求');
-  assert.match(user, /展开模式/);
+  assert.match(user, /展开写/, '档位说明整段发出去，不是只发一个档位名');
   assert.match(user, /竖图/);
   assert.match(user, /blonde hair/);
   assert.match(user, /school_uniform \(900000\) — 校服/, '预检 tag 要带 post 量和中文');
@@ -301,7 +301,184 @@ test('画师和角色都有条数上限', async () => {
   assert.equal((user.match(/- char_/g) || []).length, 16);
 });
 
-// ═══════════════════════════ 5. 工具查证回路 ═══════════════════════════
+// ═══════════════════════════ 5. 生成方式与角色栏 ═══════════════════════════
+
+group('生成方式分档');
+
+async function userTextFor(payload) {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload(payload), FAST);
+  return calls[0].body.messages[1].content[0].text;
+}
+
+async function systemTextFor(payload) {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload(payload), FAST);
+  return calls[0].body.messages[0].content;
+}
+
+test('四档各自把任务说明整段发出去', async () => {
+  assert.match(await userTextFor({ mode: 'default' }), /tag 骨架/);
+  assert.match(await userTextFor({ mode: 'expanded' }), /不要漏进角色栏/);
+  assert.match(await userTextFor({ mode: 'refine' }), /原样保留/);
+  assert.match(await userTextFor({ mode: 'tags' }), /能用 tag 表达的就不要写成句子/);
+});
+
+test('默认档也会发说明 —— 不是「非默认才说」', async () => {
+  assert.match(await userTextFor({}), /本轮的生成方式/);
+});
+
+test('认不出来的档位退回默认，不是发一句空话', async () => {
+  const text = await userTextFor({ mode: 'nonsense' });
+  assert.match(text, /tag 骨架/);
+});
+
+test('改写档要求保留用户已有的权重', async () => {
+  const text = await userTextFor({ mode: 'refine' });
+  assert.match(text, /数字权重/);
+  assert.match(text, /不要擅自加画师串/);
+});
+
+group('角色栏数量');
+
+test('指定数量时说死「正好 N 个」并点名栏位', async () => {
+  const text = await userTextFor({ characterCount: 3 });
+  assert.match(text, /正好 3 个/);
+  assert.match(text, /Character 1 到 Character 3/);
+  assert.match(text, /不是 NovelAI 的模型上限/, '1~6 是我们的快捷栏位，得跟模型说清楚');
+});
+
+test('自动（0）就不提角色栏数量', async () => {
+  const text = await userTextFor({ characterCount: 0 });
+  assert.equal(/角色栏数量/.test(text), false);
+});
+
+test('超范围会夹回 0~6', async () => {
+  assert.match(await userTextFor({ characterCount: 99 }), /正好 6 个/);
+  assert.equal(/角色栏数量/.test(await userTextFor({ characterCount: -3 })), false);
+  assert.equal(/角色栏数量/.test(await userTextFor({ characterCount: 'abc' })), false);
+});
+
+group('V5 规则核对');
+
+test('默认附在 system 末尾，排在运行环境补充后面', async () => {
+  const system = await systemTextFor({});
+  assert.match(system, /NovelAI Diffusion V5 规则核对/);
+  assert.ok(
+    system.indexOf('运行环境补充') < system.indexOf('V5 规则核对'),
+    '运行环境补充要先于 V5 规则',
+  );
+});
+
+test('几条容易写错的规则都在', async () => {
+  const system = await systemTextFor({});
+  assert.match(system, /1\.2::tag::/, '分段加权语法');
+  assert.match(system, /transparent background/);
+  assert.match(system, /alpha transparency/);
+  assert.match(system, /depthness/);
+  assert.match(system, /ultra complexity/);
+  assert.match(system, /最多六人/, '要明确否掉 V4 的旧限制，不是绕开不提');
+  assert.match(system, /双引号/, '画面文字');
+});
+
+test('关掉开关就一个字都不附', async () => {
+  const system = await systemTextFor({ nai5Rules: false });
+  assert.equal(/V5 规则核对/.test(system), false);
+  assert.match(system, /运行环境补充/, '关的只是 V5 那段，别把运行环境也带走');
+});
+
+test('换成自己的 skill 也照样附上 —— 用户的 skill 多半是按 V4 写的', async () => {
+  const system = await systemTextFor({ skill: { name: '我的', body: '随便写点什么' } });
+  assert.match(system, /随便写点什么/);
+  assert.match(system, /V5 规则核对/);
+});
+
+group('OC 点名');
+
+const OC_LIBRARY = [
+  { name: '小夏', aliases: ['Natsuki', '夏夏'], prompt: 'blonde hair, red eyes, hair ribbon' },
+  { name: '小秋', aliases: [], prompt: 'black hair, green eyes, glasses' },
+  { name: 'ray', aliases: [], prompt: 'white hair, grey eyes' },
+];
+
+test('描述里写到名字就只发那几个，并直接指派栏位', async () => {
+  const text = await userTextFor({ request: '小夏和小秋在天台上看烟花', context: { characters: OC_LIBRARY } });
+  assert.match(text, /Character 1 = 小夏/);
+  assert.match(text, /Character 2 = 小秋/);
+  assert.equal(/ray/.test(text), false, '没点到的角色一个字都不该发');
+  assert.match(text, /不要替换角色设计/);
+});
+
+test('slot 按名字在描述里出现的先后排', async () => {
+  const text = await userTextFor({ request: '小秋先出场，然后是小夏', context: { characters: OC_LIBRARY } });
+  assert.match(text, /Character 1 = 小秋/);
+  assert.match(text, /Character 2 = 小夏/);
+});
+
+test('别名也算点名，并把别名一起告诉模型', async () => {
+  const text = await userTextFor({ request: 'Natsuki 站在雨里', context: { characters: OC_LIBRARY } });
+  assert.match(text, /Character 1 = 小夏（又叫 Natsuki、夏夏）/);
+  assert.match(text, /blonde hair, red eyes/);
+});
+
+test('英文名卡词边界 —— ray 不能被 array、x-ray 带出来', async () => {
+  const missed = await userTextFor({ request: 'an array of x-ray photos', context: { characters: OC_LIBRARY } });
+  assert.equal(/Character 1 = ray/.test(missed), false);
+
+  const hit = await userTextFor({ request: 'Ray stands in the rain', context: { characters: OC_LIBRARY } });
+  assert.match(hit, /Character 1 = ray/);
+});
+
+test('一个都没点到就退回原来的列表', async () => {
+  const text = await userTextFor({ request: '一个女孩站在雨里', context: { characters: OC_LIBRARY } });
+  assert.match(text, /用户词库里的角色/);
+  assert.match(text, /- 小夏（又叫 Natsuki、夏夏）：blonde hair/);
+  assert.equal(/Character 1 =/.test(text), false);
+});
+
+test('点到再多也只取前 6 个 —— 快捷栏位就这么多', async () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({ name: `角色${i}`, prompt: `prompt ${i}` }));
+  const text = await userTextFor({
+    request: many.map((item) => item.name).join('、'),
+    context: { characters: many },
+  });
+  assert.equal((text.match(/Character \d = /g) || []).length, 6);
+});
+
+test('只出现在知识源里的名字不算点名 —— 换了人得能甩掉', async () => {
+  const text = await userTextFor({
+    request: '一个女孩站在雨里',
+    context: { characters: OC_LIBRARY, previous: '小夏 blonde hair' },
+  });
+  assert.equal(/Character 1 = 小夏/.test(text), false);
+});
+
+test('中文句子里夹一个英文名也认得出来', async () => {
+  const text = await userTextFor({
+    request: '小夏和 aki 在雨夜的天台上',
+    characterCount: 2,
+    context: { characters: [
+      { name: 'natsuki', aliases: ['小夏', 'Natsuki'], prompt: 'blonde hair, red eyes' },
+      { name: 'aki', aliases: ['小秋'], prompt: 'black hair, green eyes' },
+    ] },
+  });
+  assert.match(text, /Character 1 = natsuki/);
+  assert.match(text, /Character 2 = aki/);
+  assert.match(text, /正好 2 个/);
+});
+
+test('没有外观串的条目不占栏位', async () => {
+  const text = await userTextFor({
+    request: '小夏和小秋',
+    context: { characters: [{ name: '小夏', prompt: '   ' }, { name: '小秋', prompt: 'black hair' }] },
+  });
+  assert.match(text, /Character 1 = 小秋/);
+  assert.equal(/小夏/.test(text.split('【用户点名的角色')[1] || ''), false);
+});
+
+// ═══════════════════════════ 6. 工具查证回路 ═══════════════════════════
 
 group('工具查证回路');
 
@@ -363,7 +540,7 @@ test('工具用量按整轮累加，不是只报最后一次', async () => {
   deepEqual(result.usage, { inputTokens: 250, outputTokens: 50, totalTokens: 300 });
 });
 
-// ═══════════════════════════ 6. 与 LLM 服务的衔接 ═══════════════════════════
+// ═══════════════════════════ 7. 与 LLM 服务的衔接 ═══════════════════════════
 
 group('与 LLM 服务的衔接');
 
@@ -410,7 +587,7 @@ test('Agent 也能中途取消', async () => {
   assert.equal(result.errorKind, 'aborted');
 });
 
-// ═══════════════════════════ 7. 图片预算 ═══════════════════════════
+// ═══════════════════════════ 8. 图片预算 ═══════════════════════════
 
 group('图片预算');
 

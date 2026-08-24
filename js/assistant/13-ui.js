@@ -114,6 +114,7 @@ function createUI() {
           <div class="nai-md3-switch-stack">
             <label class="nai-md3-switch"><input data-field="preferNaiMetadata" type="checkbox" /><span>${T.preferNaiMetadata}</span></label>
             <label class="nai-md3-switch"><input data-field="allowDanbooruLookup" type="checkbox" /><span>${T.allowDanbooruLookup}</span></label>
+            <label class="nai-md3-switch"><input data-field="agentNai5Rules" type="checkbox" /><span>${T.agentNai5Rules}</span></label>
             <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
             <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
           </div>
@@ -127,6 +128,7 @@ function createUI() {
           <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
           <div class="nai-md3-section-note">${T.preferNaiMetadataHint}</div>
           <div class="nai-md3-section-note">${T.allowDanbooruLookupHint}</div>
+          <div class="nai-md3-section-note">${T.agentNai5RulesHint}</div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -277,6 +279,10 @@ function createUI() {
                 <input data-field="libraryName" type="text" placeholder="yuukarin" />
               </label>
             </div>
+            <label class="nai-library-field nai-hidden" data-field="libraryAliasesField">
+              <span>别名（写词时点名用，逗号分隔）</span>
+              <input data-field="libraryAliases" type="text" placeholder="小夏, Natsuki" />
+            </label>
             <label class="nai-library-field">
               <span>Prompt Chunk 内容</span>
               <textarea data-field="libraryPrompt" rows="8" placeholder="hair, eyes, outfit"></textarea>
@@ -424,6 +430,10 @@ function createUI() {
                   <label class="nai-library-check">
                     <input data-field="libraryAllowDanbooruLookup" type="checkbox" />
                     <span>${T.allowDanbooruLookup}</span>
+                  </label>
+                  <label class="nai-library-check">
+                    <input data-field="libraryAgentNai5Rules" type="checkbox" />
+                    <span>${T.agentNai5Rules}</span>
                   </label>
                   <label class="nai-library-check">
                     <input data-field="librarySendImageAsDataUrl" type="checkbox" />
@@ -609,6 +619,7 @@ function createUI() {
   ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
   ui.settings.preferNaiMetadata = root.querySelector('[data-field="preferNaiMetadata"]');
   ui.settings.allowDanbooruLookup = root.querySelector('[data-field="allowDanbooruLookup"]');
+  ui.settings.agentNai5Rules = root.querySelector('[data-field="agentNai5Rules"]');
   ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
   ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
@@ -620,6 +631,8 @@ function createUI() {
   ui.settings.glassStrengthValue = root.querySelector('[data-field="glassStrengthValue"]');
   ui.library.category = ui.library.drawer?.querySelector('[data-field="libraryCategory"]');
   ui.library.name = ui.library.drawer?.querySelector('[data-field="libraryName"]');
+  ui.library.aliases = ui.library.drawer?.querySelector('[data-field="libraryAliases"]');
+  ui.library.aliasesField = ui.library.drawer?.querySelector('[data-field="libraryAliasesField"]');
   ui.library.prompt = ui.library.drawer?.querySelector('[data-field="libraryPrompt"]');
   ui.library.themePreset = ui.library.drawer?.querySelector('[data-field="libraryThemePreset"]');
   ui.library.showReverseFloatingBall = ui.library.drawer?.querySelector('[data-field="libraryShowReverseFloatingBall"]');
@@ -640,6 +653,7 @@ function createUI() {
   ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
   ui.library.preferNaiMetadata = ui.library.drawer?.querySelector('[data-field="libraryPreferNaiMetadata"]');
   ui.library.allowDanbooruLookup = ui.library.drawer?.querySelector('[data-field="libraryAllowDanbooruLookup"]');
+  ui.library.agentNai5Rules = ui.library.drawer?.querySelector('[data-field="libraryAgentNai5Rules"]');
   ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
   ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
   ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');
@@ -721,6 +735,7 @@ function createUI() {
     state.settings.glassStrength = Number(ui.library.glassStrength.value);
     applyThemePreset();
   });
+  ui.library.category?.addEventListener('change', () => updateLibraryAliasVisibility());
   ui.library.glassStrength?.addEventListener('change', () => saveLibrarySettings());
   ui.library.themePreset?.addEventListener('change', () => saveLibrarySettings());
   ui.library.showReverseFloatingBall?.addEventListener('change', () => saveLibrarySettings());

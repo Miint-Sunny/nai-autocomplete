@@ -30,28 +30,79 @@
   flex: 0 0 auto;
 }
 
-/* .nai-md3-tabs 默认五列且自带上间距，这里只调布局，胶囊/渐变/阴影保持原样 */
-.nai-agent-modes {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 0;
+/* 生成方式 / 角色栏 / 知识源是同一种行：一句 label + 一组控件。
+   label 固定宽，三行的控件才落在同一条竖线上（和「卡片左内边距统一 12px」同一个道理）。
+   全幅胶囊轨只留给页面导航 —— 面板正文里再来一条一模一样的，就是两个导航。 */
+.nai-agent-row {
+  /* 这一行控件的高度。label 靠它对齐，抽屉里控件更高，所以在那边重设一次。 */
+  --nai-agent-row-height: 34px;
+
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  min-width: 0;
 }
 
 .nai-agent-sources {
+  --nai-agent-row-height: 28px;
+}
+
+/* 换行也得留在控件那一列里 —— 直接把胶囊摊在行上，第二行会退回到 label 的位置，
+   那条好不容易对齐的竖线就断了 */
+.nai-agent-row-controls {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 6px;
-  align-items: center;
+  min-width: 0;
 }
 
-.nai-agent-sources-label {
-  flex: 0 0 auto;
+/* label 用行高对齐，不用 align-items: center —— 知识源那行会换行，
+   居中的话 label 会飘到两行中间去。 */
+.nai-agent-row-label {
+  flex: 0 0 48px;
   color: var(--nai-md3-ink-muted);
   font-size: 11px;
+  line-height: var(--nai-agent-row-height);
 }
 
+/* 单选控件是「一颗胶囊分成几段」，不是几颗独立胶囊 —— 和权重那个 stepper 同一种结构。
+   胶囊、填充、阴影全部沿用 .nai-md3-tabs，这里只把轨道收进行里、收紧到和胶囊同高。 */
+.nai-agent-track {
+  flex: 1;
+  gap: 3px;
+  margin-top: 0;
+  padding: 3px;
+  min-width: 0;
+}
+
+.nai-agent .nai-agent-track button {
+  padding: 6px;
+}
+
+.nai-agent-modes {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* 「自动」两个字比数字宽，第一段多给一点 */
+.nai-agent-counts-track {
+  grid-template-columns: 1.3fr repeat(6, minmax(0, 1fr));
+}
+
+.nai-agent .nai-agent-counts-track button {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 档位说明是这一行的注脚，别被 .nai-agent 的 12px 拉开成独立一段 */
+.nai-agent-mode-hint {
+  margin-top: -6px;
+}
+
+/* 知识源是可切换胶囊（多选），和上面两条单选轨道并排，高度得对上。
+   字号不在这里写：.nai-agent button.nai-md3-inline-action 权重更高，写了也不生效，
+   而 12px 本来就是规范值。 */
 .nai-agent .nai-agent-source {
   padding: 6px 11px;
-  font-size: 11px;
 }
 
 .nai-agent .nai-agent-source.is-active {
@@ -230,6 +281,21 @@
 .nai-library-agent .nai-md3-input:focus {
   border-color: var(--nai-lib-orange);
   box-shadow: 0 0 0 3px var(--nai-lib-soft), inset 0 -1px 0 var(--nai-lib-orange);
+}
+
+/* 抽屉把胶囊按钮放轻放高（400 / 34px）。分段控件也得跟上，
+   否则同一行里两种控件一个粗一个细、一个高一个矮。 */
+.nai-library-agent .nai-agent-row {
+  --nai-agent-row-height: 40px;
+}
+
+.nai-library-agent .nai-agent-sources {
+  --nai-agent-row-height: 34px;
+}
+
+.nai-library-agent .nai-agent .nai-agent-track button {
+  min-height: 34px;
+  font-weight: 400;
 }
 
 .nai-library-agent .nai-agent button.nai-md3-inline-action {

@@ -10,8 +10,8 @@
 中文需求
  └ 本地预检：拿词典的中文释义反查，捞出一批「确定存在且模型掌握得好」的 tag
     └ runLlmToolLoop（js/background/06-llm-runner.js）
-       ├ system = skill 正文 + 参考资料 + 运行环境补充
-       ├ user   = 需求 + 模式 + 角色串 + 预检结果
+       ├ system = skill 正文 + 参考资料 + 运行环境补充 + V5 规则核对
+       ├ user   = 需求 + 生成方式 + 角色栏数量 + 角色串 + 知识源 + 预检结果
        └ 模型不确定时调 search_tags 补查，最多 4 步
           └ 结果：markdown 回复 → 抽出代码框 → 复制 / 写入 / 追加
 ```
@@ -50,7 +50,28 @@
 别名会被解析：模型写出废弃写法时，回的是「`catgirl` 已合并到 `cat_girl`，请用后者」，比一句 `not_found` 有用得多。
 开关在设置的「发送与输出」，默认开。
 
-## 3. skill 是什么
+## 3. 生成方式与角色栏数量
+
+`AGENT_MODES`（[js/background/08-agent.js](./js/background/08-agent.js)）四档，界面上是一条分段控件：
+
+| 档 | 干什么 |
+|---|---|
+| 默认 | tag 骨架 + 精确自然语言，多人时另给各自的外观栏 |
+| 展开 | 主提示词讲清动作、站位、层次与互动，另外严格输出 Character 1、2… 独立角色栏 |
+| 改写 | 整理、纠错、补齐用户已有的提示词，原样保留用户写下的内容与数字权重 |
+| 精简 | 优先给准确、精炼的 tag，说不清的关系才补一两句自然语言 |
+
+**措辞只写在后台**，前端只传档位名。以前是前端一句「本轮使用展开模式」——
+按钮上写的和发出去的是两处文案，改一处就不一致。
+
+改写档改的是「已经存在的那份提示词」。切过去时如果「当前提示词」和「上一轮结果」一个都没勾，
+会自动勾上「当前提示词」并在状态条说一声 —— 自动勾是**看得见**的，那颗 chip 会亮起来。
+
+「角色栏」是 0~6 的分段控件，0 = 自动。选了就会要求模型**正好**输出那么多个角色栏，
+并按 Character 1 到 Character N 排。这个 1~6 是我们快捷填入栏位的数量，
+**不是 NovelAI 的模型上限** —— 这句话在发出去的文本里也写着，免得模型自己把它当限制。
+
+## 4. skill 是什么
 
 一份带 YAML frontmatter 的 markdown，外加若干参考资料：
 
@@ -80,7 +101,30 @@ skill 存在 `chrome.storage.local['nai-agent-skills']`，当前选择存 `['nai
 
 skill 原文是按「有 shell、能 grep 本地 CSV」写的。扩展里没有 shell，所以 `AGENT_RUNTIME_NOTE` 会追加在 system 末尾，把查证方式改成调 `search_tags`，并声明它优先级高于 skill 里的查证章节。**换自己的 skill 时不用管这段，它是自动加的。**
 
-## 4. 知识源 —— 让它能「改」而不只是能「写」
+### NovelAI V5 规则核对
+
+`AGENT_NAI5_NOTE` 跟在运行环境补充后面，同样是自动追加的，内容是 V5 的官方公开规则：
+
+- 加权只用分段语法 `1.2::tag::` / `0.8::tag::`，V4.5+ 支持负权重；**每个权重必须闭合**
+- tag 与自然语言可以混写，官方支持英文和日文，输出主体一律英文
+- 主提示词管画面与互动，独立角色栏只管外观（用来减少特征串色）
+- **否掉 V4 文档里「最多六人」和 5×5 网格那套旧限制** —— V5 改进了自由角色定位
+- 画面文字用双引号原样标出，并说明字体、位置、载体；不要自己造 `Text:` 区块
+- 两种透明别混：整图透明背景是 `transparent background` + `has alpha`，
+  伞/火焰/玻璃这类物体半透明但保留背景是 `alpha transparency` + `has alpha`
+- 新 tag `depthness` / `attractive male` / `low|medium|high|ultra complexity` / `has alpha`，
+  只在与画面直接相关时用，别当固定质量尾词
+
+**为什么不写进内置 skill：**
+
+1. 换成自己的 skill 时它照样生效 —— 用户手上那份多半是按 V4 写的
+2. 它是官方文档里的事实，不属于任何一份 skill 的私有内容
+3. `17-agent-skill-builtin.js` 是不动的（见 [CLAUDE.md](./CLAUDE.md)）
+
+冲突时以这段为准：skill 管写作风格，这段管模型的能力边界。出了新版本模型它就会过时，
+所以设置的「发送与输出」里留了开关，默认开。
+
+## 5. 知识源 —— 让它能「改」而不只是能「写」
 
 skill 第 1.4 节写着「迭代时每轮修改 2–3 处，说明修改内容及对应问题，不整体重写」。这条规则以前**永远触发不了** —— Agent 根本看不见上一版长什么样。
 
@@ -90,14 +134,35 @@ skill 第 1.4 节写着「迭代时每轮修改 2–3 处，说明修改内容�
 |---|---|---|
 | 当前提示词 | 网站输入框里的现值 | 本轮变成迭代：只改 2~3 处并说明改了什么 |
 | 上一轮结果 | Agent 上一次给的版本 | 多轮追加：「上一版不错，把光影再压一点」 |
-| 词库角色 | 词库里的 `char:` 条目 | 用户点名角色时直接用现成的串，不让模型另编外貌 |
+| 词库角色 | 词库里的 `char:` 条目 | 描述里点到名字就直接用现成的串，不让模型另编外貌 —— 见下 |
 | 画师库 | 画师库当前页的画师（按星级排） | **默认不写进输出** —— skill 明说画师串由用户维护。只有用户问起才引用 |
 
 每类都有截断和条数上限（正文 4000 字、画师 24 条、角色 16 条），不会把请求撑爆。
 
 这套分法学自 Ultimate_Novelai_launcher 的 Agent 请求形状（images / caller history / knowledge-source selection / artist-OC context / current whole-per-character prompts），逻辑参考，代码是重写的。
 
-## 5. 输出怎么用
+### OC 角色：写到名字就等于点名
+
+参考实现给 OC 单开了一个库。我们**不另起一套数据** —— 词库的 `char:` 分类本来就是干这个的，
+只在它上面加两件事：
+
+1. **别名**（`aliases`）。词库编辑区多一栏「别名」，只在分类是「角色」时出现。
+   逗号、顿号、分号、换行都能分隔，去重去空，最多 8 条、每条 40 字。
+2. **点名匹配**（`findMentionedAgentCharacters`）。描述里写到名字或别名 → 只发这几个角色，
+   并按**出现的先后**直接指派 `Character 1`、`Character 2`…；一个都没点到才退回原来的整份列表。
+
+匹配口径分两套：纯 ASCII 的名字**卡词边界**（`ray` 不能被 `array`、`x-ray` 带出来），
+中日文没有词边界这回事，只能直接子串。
+
+只看用户自己写的字（需求 + 角色外貌串 + 补充要求），**不看知识源** ——
+否则「上一轮结果」里出现过的名字会把角色一直粘着带下去，用户换了人也甩不掉。
+
+筛选在**后台**做，不在面板：面板先截断的话，用户正好点到的那个可能已经被截掉了。
+
+> 两份 `normalizePromptLibraryEntry`（content 一份、assistant 一份）都要认 `aliases`。
+> 少认一份，用户在那一侧存一次词条别名就静悄悄没了 —— `scripts/test-build.mjs` 守着这条。
+
+## 6. 输出怎么用
 
 模型按 skill 的规范返回 markdown。界面把其中的代码框抽出来单独成卡片：第一个是主提示词，第二个是角色外貌，每张卡片三个按钮：
 
@@ -109,7 +174,7 @@ skill 第 1.4 节写着「迭代时每轮修改 2–3 处，说明修改内容�
 
 底下的「完整回复」保留原始 markdown —— 构图方向、不确定 tag 的标注都在那里。
 
-## 6. 文件
+## 7. 文件
 
 | 文件 | 职责 |
 |---|---|
@@ -117,18 +182,21 @@ skill 第 1.4 节写着「迭代时每轮修改 2–3 处，说明修改内容�
 | [js/assistant/17-agent-skill-builtin.js](./js/assistant/17-agent-skill-builtin.js) | 内置 skill 数据 |
 | [js/assistant/18-agent-skills.js](./js/assistant/18-agent-skills.js) | skill 仓库：解析、存取、导入、编辑、导出 |
 | [js/assistant/19-agent.js](./js/assistant/19-agent.js) | 界面：markup、渲染、事件、发起写作 |
+| [js/assistant/21-nai-character-fields.js](./js/assistant/21-nai-character-fields.js) | 把角色栏结果填进网页的 Character 1~6 |
 | [styles/07-agent.css](./styles/07-agent.css) | 布局（外观一律套既有 class，见 [STYLE.md](./STYLE.md)） |
 
 LLM 那一层的分工见 [LLM.md](./LLM.md)。Agent 不自己发 HTTP，主备切换、重试、取消全部走同一套。
 
-## 7. 测试
+## 8. 测试
 
 ```bash
 node scripts/test-agent.mjs
 node scripts/test-danbooru.mjs
 ```
 
-和 LLM 服务共用 [scripts/lib/background-sandbox.mjs](./scripts/lib/background-sandbox.mjs)，跑的是真正上线的那份代码。覆盖预检口径、词典查证、消息装配、工具回路、主备切换和取消。
+和 LLM 服务共用 [scripts/lib/background-sandbox.mjs](./scripts/lib/background-sandbox.mjs)，跑的是真正上线的那份代码。覆盖预检口径、词典查证、消息装配、生成方式分档、角色栏数量、V5 规则核对、OC 点名、工具回路、主备切换和取消。
+
+别名的归一化在 [scripts/test-content.mjs](./scripts/test-content.mjs)（content 侧那份 normalize）。
 
 另有一条打包不变量：
 

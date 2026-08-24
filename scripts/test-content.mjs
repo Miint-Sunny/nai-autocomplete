@@ -254,4 +254,47 @@ test('textarea 走 value 坐标，同样要对齐 trim', () => {
   });
 });
 
+// ═══════════════════════════ 5. 词库别名 ═══════════════════════════
+//
+// 写词时「描述里提到名字 = 点名这个角色」靠的就是这串别名。
+// content 和 assistant 各有一份 normalize，content 这份一旦不认别名，
+// 用户在覆盖层里存一次词条，别名就静悄悄没了。
+
+group('词库别名');
+
+const normalizePromptLibraryEntry = box.get('normalizePromptLibraryEntry');
+
+function entry(overrides) {
+  return normalizePromptLibraryEntry({ alias: 'char:natsuki', tags: ['blonde hair', 'red eyes'], ...overrides });
+}
+
+test('数组原样收下', () => {
+  deepEqual(entry({ aliases: ['小夏', 'Natsuki'] }).aliases, ['小夏', 'Natsuki']);
+});
+
+test('一行字也认，逗号顿号分号换行都能分', () => {
+  deepEqual(entry({ aliases: '小夏, Natsuki；夏夏、なつき\nNatsu' }).aliases,
+    ['小夏', 'Natsuki', '夏夏', 'なつき', 'Natsu']);
+});
+
+test('去空、去重（不分大小写）、掐掉两端空白', () => {
+  deepEqual(entry({ aliases: '  小夏 , ,natsuki, NATSUKI ,小夏' }).aliases, ['小夏', 'natsuki']);
+});
+
+test('最多 8 条，一条最长 40 字', () => {
+  const many = entry({ aliases: Array.from({ length: 20 }, (_, i) => `n${i}`) });
+  assert.equal(many.aliases.length, 8);
+  assert.equal(entry({ aliases: ['x'.repeat(80)] }).aliases[0].length, 40);
+});
+
+test('没写就是空数组，不是 undefined', () => {
+  deepEqual(entry({}).aliases, []);
+});
+
+test('回归：再归一化一遍不会把别名弄丢', () => {
+  const once = entry({ aliases: ['小夏', 'Natsuki'] });
+  const twice = normalizePromptLibraryEntry(once);
+  deepEqual(twice.aliases, ['小夏', 'Natsuki']);
+});
+
 await run('输入框覆盖层偏移测试');
