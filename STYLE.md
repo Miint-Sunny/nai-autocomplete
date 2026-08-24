@@ -108,7 +108,8 @@ node scripts/check-theme-tokens.mjs
 
 | 控件 | class | 规格 |
 |---|---|---|
-| 按钮 / 页签 | `.nai-md3-tabs button` `.nai-md3-actions button` `.nai-md3-inline-action` | `999px` / `11px 12px` / 12px / 700 / `--nai-md3-chip-shadow` / hover `translateY(-1px)` |
+| 动作按钮 / chip | `.nai-md3-actions button` `.nai-md3-inline-action` | `999px` / `11px 12px` / 12px / 700 / `--nai-md3-chip-shadow` / hover `translateY(-1px)` |
+| 页签（导航） | `.nai-md3-tabs button` | 同上，但上下内边距 `8px` —— 导航不必和主要动作一样高（轨道 38px） |
 | 主按钮 | `.nai-md3-primary` | `--nai-md3-primary-fill` + `on-primary` |
 | 输入 / 下拉 | `.nai-md3-input` | `radius-md` / `12px 14px` / `--nai-md3-input-bg` / inset 阴影 / focus `0 0 0 4px accent-soft` |
 | 列表卡片 | `.nai-history-item` | `radius-lg` / `12px` / `--nai-md3-history-item-bg` / `--nai-md3-soft-shadow` / hover `translateY(-2px)` |
@@ -194,6 +195,45 @@ Apple 的 popover / Spotlight / 菜单也是这套 —— 一整块连续材质�
 面板是常驻工作区，补全弹窗是打字时一闪而过的下拉，两者密度不同是对的，但别把间距浪费掉。
 行高曾经是 `min-height: 50px` —— 那正好是「标题 + 译名」两行的高度，结果**没有译名的单行也被
 撑到 50px**，一屏只放得下三条。现在是 `30px` 起、由内容撑开（两行 40px、单行 30px）。
+
+### 固定开销的当前值
+
+改这些数之前先量一遍，别凭感觉调。
+
+| | 悬浮窗 | 工作台 |
+|---|---|---|
+| 外壳内边距 | `14px 16px 12px` | — |
+| 标题栏 | 46px（`7px 12px`，关闭钮 32×32） | 61px（`10px 20px`，标题 20px） |
+| 页签轨 / 侧栏项 | 38px（轨 `3px`，按钮 `8px`） | 34px（`0 8px`） |
+| 滚动区内边距 | `2px 14px 10px` | `16px 20px` |
+| 状态条 | 内容的一部分 | 全幅横条 `7px 20px`，**空了就 `display: none`** |
+
+几处踩过的：
+
+- **两个外边距会叠在一起。** 标题栏的 `margin-bottom: 12px` 加页签轨的 `margin-top: 12px`
+  = 24px 的空档，看不出是谁留的。现在标题栏不带 margin，间距只由页签轨一处负责。
+- **底部内边距别叠两层。** 面板 `padding-bottom: 24px` + 滚动区 `padding-bottom: 28px`
+  = 52px 的死区。
+- **容器的高度往往由里面最高的那个控件定。** 标题栏 58px 不是因为标题（22px），
+  是因为关闭钮 38px。想矮就先看那颗按钮。
+
+### 短页面要长满，不要留白
+
+面板的高度是**打开那一下**按当时那一页定死的（`keepPanelInsideViewport` 会写死 inline height），
+切到内容更少的页就会空出一大截 —— 历史页曾经空 353px，画师页 147px。
+
+做法是让滚动区变 flex 列，可见的那页 `flex: 1 0 auto`，页里再指定**一个**吃掉剩余高度的元素：
+
+```css
+.nai-md3-body { display: flex; flex-direction: column; }
+.nai-md3-page:not(.nai-hidden) { display: flex; flex: 1 0 auto; flex-direction: column; }
+.nai-md3-page[data-page="reverse"] > .nai-md3-result { flex: 1 0 auto; }
+```
+
+**`1 0 auto` 不是 `1`。** `flex: 1` 会把 basis 设成 0，内容比容器高的页（设置、写词）会被压扁；
+`1 0 auto` 是「有富余就长，绝不缩」，超高的页照旧交给滚动区滚。
+
+同理，**列表不要写死 `max-height`**。画师列表曾经封在 460px，面板拉高之后下面就是一截空白。
 
 ## 6. 反复踩到的坑
 

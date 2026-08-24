@@ -91,10 +91,12 @@
 }
 
 /* 列表容器与 .nai-history-list 同规格 */
+/* 460px 的硬帽在高一点的面板里就是一截空白。改成「有富余就长」，
+   上限交给面板自己的高度。 */
 .nai-artist-quick-list {
   display: flex;
+  flex: 1 0 auto;
   min-height: 90px;
-  max-height: 460px;
   flex-direction: column;
   gap: 10px;
   overflow: auto;
