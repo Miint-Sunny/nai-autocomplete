@@ -1,6 +1,9 @@
 /* ================= 数据存取（chrome.storage，容量大） ================= */
 const KEY = 'naiArtistTracker_v1';
+// 词库是自动补全那边存的，这里只读不写 —— 手机版导出要带上它
+const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
 let data = { artists: [], labels: [], artistStrings: [] };
+let promptLibrary = [];
 let currentArtistId = null;
 let editingArtistId = null;
 let editingCategories = [];
@@ -215,11 +218,12 @@ function deleteLibraryPage(id) {
 }
 
 function load(cb) {
-  chrome.storage.local.get(KEY, res => {
+  chrome.storage.local.get([KEY, PROMPT_LIBRARY_KEY], res => {
     try {
       if (res[KEY]) data = JSON.parse(res[KEY]);
       ensureDataShape();
     } catch (e) { console.error(e); }
+    promptLibrary = Array.isArray(res[PROMPT_LIBRARY_KEY]) ? res[PROMPT_LIBRARY_KEY] : [];
     cb();
   });
 }

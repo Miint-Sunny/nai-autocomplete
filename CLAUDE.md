@@ -42,7 +42,7 @@ node scripts/build-modular.mjs && node scripts/check-theme-tokens.mjs && node sc
 
 CI 跑的就是这一串。测试用 `node:vm` 加载**真正上线的那份 chunk**，不是为测试另写的副本（见 `scripts/lib/*-sandbox.mjs`）。
 
-**样式改动光跑脚本不够 —— 必须实际渲染出来截图看。** computed style 对了不代表视觉对了；黑边、裁切、伪影只有截图才看得见。方法见 STYLE.md 第 8 节。
+**样式改动光跑脚本不够 —— 必须实际渲染出来截图看。** computed style 对了不代表视觉对了；黑边、裁切、伪影只有截图才看得见。方法见 STYLE.md 第 9 节。
 
 ## 产品约束
 

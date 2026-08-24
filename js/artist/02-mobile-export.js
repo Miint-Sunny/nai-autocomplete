@@ -20,6 +20,10 @@ function mobileViewerApp() {
   const stringLabels = document.getElementById('mobileStringLabels');
   const stringMatch = document.getElementById('mobileStringMatch');
   const selectedStringLabels = new Set();
+  const promptEntries = Array.isArray(library.promptLibrary) ? library.promptLibrary : [];
+  const promptSearch = document.getElementById('mobilePromptSearch');
+  const promptList = document.getElementById('mobilePromptList');
+  const promptSummary = document.getElementById('mobilePromptSummary');
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -27,7 +31,13 @@ function mobileViewerApp() {
   function normalize(value) { return String(value || '').trim().toLocaleLowerCase(); }
   function updateSubtitle(pageName) {
     const date = library.exportedAt ? new Date(library.exportedAt).toLocaleDateString('zh-CN') : '';
-    document.getElementById('mobileSubtitle').textContent = `${pageName ? `${pageName} · ` : ''}${library.artists.length} 位画师 · ${strings.length} 条画师串 · ${Array.isArray(library.labels) ? library.labels.length : 0} 个分类${date ? ` · ${date} 导出` : ''}`;
+    const bits = [
+      `${library.artists.length} 位画师`,
+      `${strings.length} 条画师串`,
+      promptEntries.length ? `${promptEntries.length} 条词库` : '',
+      `${Array.isArray(library.labels) ? library.labels.length : 0} 个分类`,
+    ].filter(Boolean).join(' · ');
+    document.getElementById('mobileSubtitle').textContent = `${pageName ? `${pageName} · ` : ''}${bits}${date ? ` · ${date} 导出` : ''}`;
   }
   function switchPage(id) {
     const page = pages.find(item => item.id === id);
@@ -119,14 +129,51 @@ function mobileViewerApp() {
       return `<button class="filter-chip${selectedStringLabels.has(label) ? ' active' : ''}" data-action="filter-string-label" data-label="${escapeHtml(label)}">${escapeHtml(label === '__uncategorized__' ? '未分类' : label)} <span>${count}</span></button>`;
     }).join('') : '<span class="muted">还没有画师串分类</span>';
   }
+  // 三个模式了，别再用一个布尔量分叉
+  const MODES = {
+    artists: { tab: 'mobileArtistTab', nodes: ['mobileFilters', 'mobileList'], render: () => renderList() },
+    strings: { tab: 'mobileStringTab', nodes: ['mobileStringsPanel'], render: () => renderArtistStrings() },
+    prompts: { tab: 'mobilePromptTab', nodes: ['mobilePromptPanel'], render: () => renderPromptLibrary() },
+  };
   function switchMode(mode) {
-    const showingStrings = mode === 'strings';
-    document.getElementById('mobileFilters').style.display = showingStrings ? 'none' : '';
-    list.style.display = showingStrings ? 'none' : '';
-    document.getElementById('mobileStringsPanel').style.display = showingStrings ? '' : 'none';
-    document.getElementById('mobileArtistTab').classList[showingStrings ? 'remove' : 'add']('active');
-    document.getElementById('mobileStringTab').classList[showingStrings ? 'add' : 'remove']('active');
-    if (showingStrings) renderArtistStrings(); else renderList();
+    const active = MODES[mode] ? mode : 'artists';
+    Object.entries(MODES).forEach(([key, config]) => {
+      config.nodes.forEach((id) => {
+        const node = document.getElementById(id);
+        if (node) node.style.display = key === active ? '' : 'none';
+      });
+      const tab = document.getElementById(config.tab);
+      if (tab) tab.classList[key === active ? 'add' : 'remove']('active');
+    });
+    MODES[active].render();
+  }
+
+  function renderPromptLibrary() {
+    if (!promptList) return;
+    const query = normalize(promptSearch ? promptSearch.value : '');
+    const rows = promptEntries.filter(entry => !query
+      || normalize(entry.alias).includes(query)
+      || normalize(entry.name).includes(query)
+      || normalize((entry.tags || []).join(' ')).includes(query));
+
+    if (promptSummary) {
+      promptSummary.textContent = promptEntries.length
+        ? `${rows.length} / ${promptEntries.length} 条词库`
+        : '这份导出里没有词库条目';
+    }
+
+    promptList.innerHTML = rows.length ? rows.map(entry => {
+      const text = entry.promptText || (entry.tags || []).join(', ');
+      return `<article class="mix-card is-text"><div class="mix-content">`
+        + `<h3>${escapeHtml(entry.alias)}</h3>`
+        + `<div class="mix-labels">${entry.category ? `<span class="artist-chip">${escapeHtml(entry.category)}</span>` : ''}`
+        + `<span class="artist-chip">${(entry.tags || []).length} tags</span></div>`
+        + `<pre>${escapeHtml(text)}</pre>`
+        + `<div class="mix-actions">`
+        + `<button data-action="copy-text" data-copy="${escapeHtml(text)}">复制提示词</button>`
+        + `<button data-action="copy-text" data-copy="${escapeHtml(entry.alias)}">复制别名</button>`
+        + `</div></div></article>`;
+    }).join('') : '<div class="empty">没有匹配的词库条目。</div>';
   }
   function imageBlock(src, title) {
     return `<div class="image-column"><span>${escapeHtml(title)}</span>${src ? `<img data-action="zoom-image" src="${escapeHtml(src)}" alt="${escapeHtml(title)}" loading="lazy">` : '<div class="image-empty">暂无图片</div>'}</div>`;
@@ -174,6 +221,7 @@ function mobileViewerApp() {
   pageSelector.value = initialPageId;
   pageSelector.addEventListener('change', () => switchPage(pageSelector.value));
   stringSearch.addEventListener('input', renderArtistStrings);
+  if (promptSearch) promptSearch.addEventListener('input', renderPromptLibrary);
   stringMatch.addEventListener('change', renderArtistStrings);
   rating.addEventListener('change', renderList);
   matchMode.addEventListener('change', renderList);
@@ -209,7 +257,10 @@ function mobileViewerApp() {
   renderList();
   renderStringLabels();
   renderArtistStrings();
-  if (!library.artists.length && strings.length) switchMode('strings');
+  renderPromptLibrary();
+  const promptTab = document.getElementById('mobilePromptTab');
+  if (promptTab && !promptEntries.length) promptTab.style.display = 'none';
+  if (!library.artists.length) switchMode(strings.length ? 'strings' : (promptEntries.length ? 'prompts' : 'artists'));
 }
 
 function buildMobileViewerHtml(snapshot) {
@@ -225,15 +276,144 @@ function buildMobileViewerHtml(snapshot) {
 <meta name="color-scheme" content="dark">
 <title>NAI 画师记录本 · 手机版</title>
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html{background:#151722;color:#e1e4f5;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}body{max-width:760px;margin:0 auto;padding:0 14px calc(24px + env(safe-area-inset-bottom))}button,select,input{font:inherit}button{cursor:pointer}.masthead{padding:24px 2px 14px}.masthead h1{margin:0;color:#d1b0ff;font-size:24px}.masthead p{margin:7px 0 0;color:#9ca6c6;font-size:13px}.filters{position:sticky;top:0;z-index:2;padding:10px 0 12px;background:#151722}.search{width:100%;height:46px;padding:0 14px;border:1px solid #414761;border-radius:12px;background:#202333;color:#e1e4f5;font-size:15px}.filter-labels{display:flex;flex-wrap:wrap;gap:7px;max-height:112px;overflow:auto;padding:11px 0 9px}.filter-chip,.artist-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid #414761;border-radius:999px;background:#202333;color:#c3cae3;font-size:12px}.filter-chip.active{border-color:#c3a2ff;background:#413553;color:#f0e3ff}.filter-chip span{font-size:11px;opacity:.72}.select-row{display:flex;gap:8px}.select-row select{height:39px;min-width:0;flex:1;padding:0 8px;border:1px solid #414761;border-radius:9px;background:#202333;color:#dbe0f4;font-size:12px}.summary-row{display:flex;align-items:center;justify-content:space-between;margin-top:9px;color:#9ca6c6;font-size:12px}.clear-button{padding:5px 9px;border:0;border-radius:7px;background:#292d40;color:#cfd5ed}.artist-list{display:flex;flex-direction:column;gap:10px}.artist-card{display:flex;width:100%;min-height:128px;gap:13px;padding:10px;border:1px solid #353a51;border-radius:14px;background:#202333;color:#e1e4f5;text-align:left}.artist-thumb{display:block;width:88px;height:106px;flex:0 0 88px;overflow:hidden;border:1px solid #414761;border-radius:10px;background:#171925}.artist-thumb img,.thumb-placeholder{display:block;width:100%;height:100%;object-fit:cover;object-position:center 35%}.thumb-placeholder{display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#3c3153,#23283b);color:#d6bfff;font-size:32px;font-weight:700}.artist-info{display:flex;min-width:0;flex:1;flex-direction:column;justify-content:center}.artist-info strong{overflow:hidden;font-size:17px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}.artist-tag{overflow:hidden;margin-top:4px;color:#b2bdd9;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.artist-stars,.profile-stars{margin-top:5px;color:#edbe74;font-size:15px;letter-spacing:1px}.artist-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.artist-chip{padding:3px 8px;border-color:#4a405b;background:#342e44;color:#dfccff;font-size:11px}.entry-count{margin-top:7px;color:#9ca6c6;font-size:11px}.muted{color:#9ca6c6;font-size:12px}.empty{padding:35px 12px;color:#9ca6c6;text-align:center;font-size:14px;line-height:1.8}.detail-overlay{position:fixed;inset:0;z-index:4;display:none;overflow-y:auto;background:#151722}.detail-overlay.show{display:block}.detail-sheet{max-width:760px;min-height:100%;margin:0 auto;padding:0 14px 30px}.detail-top{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:14px;height:58px;background:#151722;color:#cfd5ed}.detail-top button{padding:6px 9px;border:0;border-radius:8px;background:#282b3c;color:#e4dcff;font-size:14px}.profile{padding:17px;border:1px solid #353a51;border-radius:14px;background:#202333}.profile h2{margin:0;color:#dbbdff;font-size:24px}.profile-stars{font-size:19px}.tag-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:10px;border-radius:9px;background:#171925}.tag-box code{overflow:hidden;color:#a8d485;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.tag-box button,.record-text button{padding:6px 9px;border:0;border-radius:7px;background:#3b3550;color:#eadcff;font-size:12px;white-space:nowrap}.artist-notes{margin-top:13px;color:#c2cae1;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word}.records-title{padding:22px 3px 10px;color:#c0c8e3;font-size:15px}.record{margin-bottom:12px;padding:12px;border:1px solid #353a51;border-radius:13px;background:#202333}.record-heading{display:flex;justify-content:space-between;margin-bottom:12px;color:#e1e4f5;font-size:13px}.record-heading>span{color:#edbe74;font-size:12px}.image-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.image-column>span{display:block;margin-bottom:6px;color:#aeb8d5;text-align:center;font-size:11px}.image-column img,.image-empty{display:block;width:100%;min-height:96px;max-height:340px;object-fit:contain;border-radius:8px;background:#151722}.image-empty{display:flex;align-items:center;justify-content:center;color:#79839f;font-size:12px}.record-text{margin-top:12px;color:#aeb8d5;font-size:12px}.record-text>span{display:block;margin-bottom:5px}.record-text p{margin:0;padding:9px;border-radius:7px;background:#171925;color:#d5daeb;line-height:1.65;white-space:pre-wrap;word-break:break-word}.record-text button{margin-top:7px}.source-link{display:inline-block;margin-top:12px;color:#94b8ff;font-size:12px}.lightbox{position:fixed;inset:0;z-index:6;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.92)}.lightbox.show{display:flex}.lightbox img{max-width:96vw;max-height:94vh;object-fit:contain}.toast{position:fixed;bottom:32px;left:50%;z-index:8;padding:10px 17px;border-radius:9px;background:#a4d47c;color:#172019;font-size:13px;opacity:0;transform:translateX(-50%);pointer-events:none}.toast.show{opacity:1}@media(max-width:370px){body,.detail-sheet{padding-right:10px;padding-left:10px}.artist-thumb{width:76px;height:98px;flex-basis:76px}.artist-info strong{font-size:16px}.masthead h1{font-size:21px}}
+/* 配色与规格是 novelai 主题的静态快照：手机版是离线独立页，引不到扩展的 CSS，
+   但 token 名字、圆角档位、材质配方必须和面板那份完全一致，否则就是两个产品。
+   面板配方见 STYLE.md 第 5 节；这里没有 backdrop-filter —— 独立页背后没有东西可模糊。 */
+:root{
+  --md-sys-color-surface:#0e0f21;--md-sys-color-surface-container:#15172f;--md-sys-color-surface-container-high:#1d2347;
+  --md-sys-color-on-surface:#edeff7;--md-sys-color-on-surface-variant:#9aa1c8;
+  --md-sys-color-outline:#3c4475;--md-sys-color-outline-variant:#242b54;
+  --md-sys-color-primary:#f5f3c2;--md-sys-color-on-primary:#1a1b2e;--md-sys-color-secondary:#c6ccf2;
+  --nai-md3-radius-xl:28px;--nai-md3-radius-lg:22px;--nai-md3-radius-md:18px;--nai-md3-radius-sm:14px;--nai-md3-radius-xs:12px;--nai-md3-radius-2xs:10px;
+  --nai-md3-panel-border:rgba(199,205,242,.16);--nai-md3-panel-inner-border:rgba(214,220,255,.07);
+  --nai-md3-panel-glow:rgba(245,243,194,.16);--nai-md3-panel-grad-a:rgba(21,23,47,.96);--nai-md3-panel-grad-b:rgba(14,15,33,.95);
+  --nai-md3-panel-shadow:0 24px 56px rgba(2,3,12,.55),0 8px 20px rgba(0,0,0,.32);
+  --nai-md3-chip-bg:rgba(255,255,255,.06);--nai-md3-chip-shadow:0 8px 18px rgba(0,0,0,.18);--nai-md3-chip-hover-shadow:0 12px 22px rgba(0,0,0,.26);
+  --nai-md3-input-bg:rgba(255,255,255,.05);--nai-md3-section-bg:rgba(255,255,255,.03);
+  --nai-md3-tab-active-bg:linear-gradient(180deg,#3a4374,#2c3460);--nai-md3-tab-active-fg:#edeff7;--nai-md3-tab-active-shadow:0 12px 24px rgba(8,11,28,.45);
+  --nai-md3-ink-label:#edeff7;--nai-md3-ink-muted:#9aa1c8;
+  --nai-category-artist:#ff6b6b;--nai-category-character:#86d6a2;--nai-category-meta:#f5f3c2;
+  --md-sys-elevation-3:0 16px 34px rgba(0,0,0,.5),0 4px 10px rgba(0,0,0,.36);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-family:"MiSans","HarmonyOS Sans SC",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+body{max-width:760px;margin:0 auto;padding:0 14px calc(24px + env(safe-area-inset-bottom))}
+button,select,input{font:inherit}button{cursor:pointer}
+.masthead{padding:24px 2px 14px}
+.masthead h1{margin:0;color:var(--md-sys-color-primary);font-size:24px}
+.masthead p{margin:7px 0 0;color:var(--nai-md3-ink-muted);font-size:13px}
+.filters{position:sticky;top:0;z-index:2;padding:10px 0 12px;background:var(--md-sys-color-surface)}
+/* 输入框套 .nai-md3-input 的规格：radius-md + input-bg + inset 阴影 */
+.search,.select-row select,.mix-filter-row select{
+  border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--nai-md3-radius-md);
+  background:var(--nai-md3-input-bg);color:var(--md-sys-color-on-surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.search{width:100%;height:46px;padding:0 14px;font-size:15px}
+.search::placeholder{color:var(--nai-md3-ink-muted)}
+.filter-labels{display:flex;flex-wrap:wrap;gap:7px;max-height:112px;overflow:auto;padding:11px 0 9px}
+/* 胶囊三件套的规格：999px + chip-bg + 1px 半透明描边 + 700 + chip-shadow */
+.filter-chip,.artist-chip,.clear-button,.mix-actions button,.tag-box button,.record-text button,.detail-top button{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 11px;
+  border:1px solid var(--md-sys-color-outline-variant);border-radius:999px;
+  background:var(--nai-md3-chip-bg);color:var(--nai-md3-ink-label);
+  font-size:12px;font-weight:700;letter-spacing:.01em;box-shadow:var(--nai-md3-chip-shadow);
+  transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+.filter-chip:hover,.clear-button:hover,.mix-actions button:hover,.tag-box button:hover,.record-text button:hover,.detail-top button:hover{
+  transform:translateY(-1px);box-shadow:var(--nai-md3-chip-hover-shadow)}
+/* 按下即整颗填充，和面板页签 .nai-md3-tabs button.active 同一条规则 */
+.filter-chip.active{background:var(--nai-md3-tab-active-bg);color:var(--nai-md3-tab-active-fg);border-color:transparent;box-shadow:var(--nai-md3-tab-active-shadow)}
+.filter-chip span{font-size:11px;opacity:.72;font-weight:400}
+.select-row{display:flex;gap:8px}
+.select-row select{height:40px;min-width:0;flex:1;padding:0 10px;font-size:12px}
+.summary-row{display:flex;align-items:center;justify-content:space-between;margin-top:9px;color:var(--nai-md3-ink-muted);font-size:12px}
+.artist-list{display:flex;flex-direction:column;gap:10px}
+/* 卡片走 panel 那份配方：左上角辉光 + 竖向双层渐变 + 外亮内柔两层包边 */
+.artist-card,.profile,.record,.mix-card{
+  position:relative;border-radius:var(--nai-md3-radius-lg);
+  border:1px solid var(--nai-md3-panel-border);
+  background:radial-gradient(circle at top left,var(--nai-md3-panel-glow),transparent 38%),
+    linear-gradient(180deg,var(--nai-md3-panel-grad-a),var(--nai-md3-panel-grad-b));
+  box-shadow:var(--md-sys-elevation-3);color:var(--md-sys-color-on-surface)}
+.artist-card::before,.profile::before,.record::before,.mix-card::before{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  border:1px solid var(--nai-md3-panel-inner-border);opacity:.85}
+.artist-card{display:flex;width:100%;min-height:128px;gap:13px;padding:10px;text-align:left}
+.artist-thumb{display:block;width:88px;height:106px;flex:0 0 88px;overflow:hidden;border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--nai-md3-radius-xs);background:var(--md-sys-color-surface)}
+.artist-thumb img,.thumb-placeholder{display:block;width:100%;height:100%;object-fit:cover;object-position:center 35%}
+.thumb-placeholder{display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,var(--md-sys-color-surface-container-high),var(--md-sys-color-surface-container));color:var(--md-sys-color-primary);font-size:32px;font-weight:700}
+.artist-info{display:flex;min-width:0;flex:1;flex-direction:column;justify-content:center}
+.artist-info strong{overflow:hidden;font-size:17px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
+.artist-tag{overflow:hidden;margin-top:4px;color:var(--nai-md3-ink-muted);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.artist-stars,.profile-stars{margin-top:5px;color:var(--md-sys-color-primary);font-size:15px;letter-spacing:1px}
+.artist-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.artist-chip{padding:3px 9px;font-size:11px;box-shadow:none}
+.entry-count{margin-top:7px;color:var(--nai-md3-ink-muted);font-size:11px}
+.muted{color:var(--nai-md3-ink-muted);font-size:12px}
+.empty{padding:35px 12px;color:var(--nai-md3-ink-muted);text-align:center;font-size:14px;line-height:1.8}
+.detail-overlay{position:fixed;inset:0;z-index:4;display:none;overflow-y:auto;background:var(--md-sys-color-surface)}
+.detail-overlay.show{display:block}
+.detail-sheet{max-width:760px;min-height:100%;margin:0 auto;padding:0 14px 30px}
+.detail-top{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:14px;height:58px;background:var(--md-sys-color-surface);color:var(--nai-md3-ink-muted)}
+.profile{padding:17px}
+.profile h2{margin:0;color:var(--md-sys-color-primary);font-size:24px}
+.profile-stars{font-size:19px}
+.tag-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:10px 12px;border-radius:var(--nai-md3-radius-sm);background:var(--nai-md3-section-bg);border:1px solid var(--md-sys-color-outline-variant)}
+.tag-box code{overflow:hidden;color:var(--md-sys-color-secondary);font-size:13px;text-overflow:ellipsis;white-space:nowrap}
+.artist-notes{margin-top:13px;color:var(--nai-md3-ink-muted);font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.records-title{padding:22px 3px 10px;color:var(--nai-md3-ink-label);font-size:15px;font-weight:700}
+.record{margin-bottom:12px;padding:12px}
+.record-heading{display:flex;justify-content:space-between;margin-bottom:12px;color:var(--md-sys-color-on-surface);font-size:13px}
+.record-heading>span{color:var(--md-sys-color-primary);font-size:12px}
+.image-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.image-column>span{display:block;margin-bottom:6px;color:var(--nai-md3-ink-muted);text-align:center;font-size:11px}
+.image-column img,.image-empty{display:block;width:100%;min-height:96px;max-height:340px;object-fit:contain;border-radius:var(--nai-md3-radius-2xs);background:var(--md-sys-color-surface)}
+.image-empty{display:flex;align-items:center;justify-content:center;color:var(--nai-md3-ink-muted);font-size:12px}
+.record-text{margin-top:12px;color:var(--nai-md3-ink-muted);font-size:12px}
+.record-text>span{display:block;margin-bottom:5px}
+.record-text p{margin:0;padding:10px;border-radius:var(--nai-md3-radius-2xs);background:var(--nai-md3-section-bg);color:var(--md-sys-color-on-surface);line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.record-text button{margin-top:7px}
+.source-link{display:inline-block;margin-top:12px;color:var(--md-sys-color-tertiary,#86cdf3);font-size:12px}
+.lightbox{position:fixed;inset:0;z-index:6;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.92)}
+.lightbox.show{display:flex}
+.lightbox img{max-width:96vw;max-height:94vh;object-fit:contain}
+.toast{position:fixed;bottom:32px;left:50%;z-index:8;padding:11px 18px;border-radius:999px;background:var(--nai-md3-tab-active-bg);color:var(--nai-md3-tab-active-fg);font-size:13px;font-weight:700;box-shadow:var(--md-sys-elevation-3);opacity:0;transform:translateX(-50%);pointer-events:none;transition:opacity .16s ease}
+.toast.show{opacity:1}
+@media(max-width:370px){body,.detail-sheet{padding-right:10px;padding-left:10px}.artist-thumb{width:76px;height:98px;flex-basis:76px}.artist-info strong{font-size:16px}.masthead h1{font-size:21px}}
 </style>
 <style>
-.mode-tabs{display:flex;gap:8px;margin-bottom:4px}.mode-tabs button{flex:1;padding:10px 8px;border:1px solid #414761;border-radius:10px;background:#202333;color:#c3cae3;font-size:13px}.mode-tabs button.active{border-color:#c3a2ff;background:#413553;color:#f0e3ff}.mix-panel{padding-top:12px}.mix-summary{padding:10px 2px;color:#9ca6c6;font-size:12px}.mix-filter-row{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:6px}.mix-filter-row select{min-width:0;padding:7px 8px;border:1px solid #414761;border-radius:8px;background:#202333;color:#dbe0f4;font-size:12px}.mix-list{display:flex;flex-direction:column;gap:12px}.mix-card{display:grid;grid-template-columns:108px minmax(0,1fr);gap:11px;padding:10px;border:1px solid #353a51;border-radius:13px;background:#202333}.mix-image{display:flex;min-height:130px;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:#151722}.mix-image img{width:100%;max-height:220px;object-fit:contain}.mix-no-image{color:#8791ae;text-align:center;font-size:11px}.mix-content{min-width:0}.mix-content h3{margin:0 0 7px;color:#dbbdff;font-size:15px}.mix-labels{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.mix-content pre{max-height:155px;overflow:auto;margin:0;padding:8px;border-radius:7px;background:#171925;color:#a8d485;font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word}.mix-notes,.mix-meta{margin:8px 0 0;color:#b9c2dc;font-size:11px;line-height:1.55;word-break:break-word}.mix-meta{color:#edbe74}.mix-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.mix-actions button{padding:7px 8px;border:0;border-radius:7px;background:#403651;color:#f0e3ff;font-size:11px}.mix-actions button+button{background:#30425a;color:#dbeaff}@media(max-width:365px){.mix-card{grid-template-columns:91px minmax(0,1fr)}.mix-image{min-height:112px}}
+/* 页签就是面板那套：未按下描边胶囊，按下整颗填充 */
+.mode-tabs{display:flex;gap:8px;margin-bottom:4px}
+.mode-tabs button{flex:1;padding:11px 10px;border:1px solid var(--md-sys-color-outline-variant);border-radius:999px;
+  background:var(--nai-md3-chip-bg);color:var(--nai-md3-ink-label);font-size:13px;font-weight:700;letter-spacing:.01em;
+  box-shadow:var(--nai-md3-chip-shadow);transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+.mode-tabs button:hover{transform:translateY(-1px);box-shadow:var(--nai-md3-chip-hover-shadow)}
+.mode-tabs button.active{background:var(--nai-md3-tab-active-bg);color:var(--nai-md3-tab-active-fg);border-color:transparent;box-shadow:var(--nai-md3-tab-active-shadow)}
+.mix-panel{padding-top:12px}
+.mix-summary{padding:10px 2px;color:var(--nai-md3-ink-muted);font-size:12px}
+.mix-filter-row{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:6px}
+.mix-filter-row select{min-width:0;padding:8px 10px;font-size:12px}
+.mix-list{display:flex;flex-direction:column;gap:12px}
+.mix-card{display:grid;grid-template-columns:108px minmax(0,1fr);gap:11px;padding:11px}
+.mix-card.is-text{grid-template-columns:minmax(0,1fr)}
+.mix-image{display:flex;min-height:130px;align-items:center;justify-content:center;overflow:hidden;border-radius:var(--nai-md3-radius-2xs);background:var(--md-sys-color-surface)}
+.mix-image img{width:100%;max-height:220px;object-fit:contain}
+.mix-no-image{color:var(--nai-md3-ink-muted);text-align:center;font-size:11px}
+.mix-content{min-width:0}
+.mix-content h3{margin:0 0 7px;color:var(--md-sys-color-primary);font-size:15px}
+.mix-labels{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.mix-content pre{max-height:155px;overflow:auto;margin:0;padding:9px;border-radius:var(--nai-md3-radius-2xs);
+  background:var(--nai-md3-section-bg);border:1px solid var(--md-sys-color-outline-variant);
+  color:var(--md-sys-color-secondary);font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.mix-notes,.mix-meta{margin:8px 0 0;color:var(--nai-md3-ink-muted);font-size:11px;line-height:1.55;word-break:break-word}
+.mix-meta{color:var(--md-sys-color-primary)}
+.mix-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.mix-actions button{padding:7px 11px;font-size:11px}
+@media(max-width:365px){.mix-card{grid-template-columns:91px minmax(0,1fr)}.mix-card.is-text{grid-template-columns:minmax(0,1fr)}.mix-image{min-height:112px}.mode-tabs button{padding:11px 5px;font-size:11px}}
 </style>
 </head>
 <body>
 <header class="masthead"><h1>🎨 NAI 画师记录本</h1><p id="mobileSubtitle">离线手机版</p><select id="mobilePageSelect" style="width:100%;height:40px;margin-top:12px;padding:0 10px;border:1px solid #414761;border-radius:10px;background:#202333;color:#dbe0f4;font-size:13px" aria-label="切换画师库页面"></select></header>
-<nav class="mode-tabs"><button id="mobileArtistTab" class="active" data-action="switch-mode" data-mode="artists">🎨 画师列表</button><button id="mobileStringTab" data-action="switch-mode" data-mode="strings">🧬 画师串收藏</button></nav>
+<nav class="mode-tabs"><button id="mobileArtistTab" class="active" data-action="switch-mode" data-mode="artists">🎨 画师</button><button id="mobileStringTab" data-action="switch-mode" data-mode="strings">🧬 画师串</button><button id="mobilePromptTab" data-action="switch-mode" data-mode="prompts">📝 词库</button></nav>
 <section class="filters" id="mobileFilters">
   <input class="search" id="mobileSearch" type="search" placeholder="🔍 搜索画师、NAI tag、分类或笔记">
   <div class="filter-labels" id="mobileLabels"></div>
@@ -245,6 +425,7 @@ function buildMobileViewerHtml(snapshot) {
 </section>
 <main class="artist-list" id="mobileList"></main>
 <section class="mix-panel" id="mobileStringsPanel" style="display:none"><input class="search" id="mobileStringSearch" type="search" placeholder="🔍 搜索画师串、分类、标题或备注"><div class="filter-labels" id="mobileStringLabels"></div><div class="mix-filter-row"><select id="mobileStringMatch"><option value="any">任一分类标签</option><option value="all">全部分类标签</option></select><button class="clear-button" data-action="clear-string-filters">清除筛选</button></div><div class="mix-summary" id="mobileStringSummary"></div><div class="mix-list" id="mobileStringList"></div></section>
+<section class="mix-panel" id="mobilePromptPanel" style="display:none"><input class="search" id="mobilePromptSearch" type="search" placeholder="🔍 搜索别名、名称或 tag"><div class="mix-summary" id="mobilePromptSummary"></div><div class="mix-list" id="mobilePromptList"></div></section>
 <div class="detail-overlay" id="mobileDetail"></div>
 <div class="lightbox" id="mobileLightbox" data-action="close-lightbox"><img id="mobileZoomImage" alt="作品大图"></div>
 <div class="toast" id="mobileToast"></div>

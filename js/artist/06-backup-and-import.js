@@ -49,7 +49,17 @@ function exportMobile() {
     page.id !== data.activePageId && ((Array.isArray(page.artists) && page.artists.length) || (Array.isArray(page.artistStrings) && page.artistStrings.length))
   );
   if (!hasContent) { toast('还没有画师或画师串可以导出'); return; }
-  const html = buildMobileViewerHtml(createBackupPayload());
+  // 只塞进手机版，不进 createBackupPayload —— 备份格式不该因为这个变
+  const html = buildMobileViewerHtml({
+    ...createBackupPayload(),
+    promptLibrary: promptLibrary.map((entry) => ({
+      alias: String(entry?.alias || ''),
+      category: String(entry?.category || ''),
+      name: String(entry?.name || ''),
+      tags: Array.isArray(entry?.tags) ? entry.tags : [],
+      promptText: String(entry?.promptText || ''),
+    })).filter((entry) => entry.alias && entry.tags.length),
+  });
   downloadBackupFile(html, 'text/html;charset=utf-8', 'NAI画师库手机版', 'html');
   toast('手机版已下载，发送到手机即可离线查看 ✓');
 }

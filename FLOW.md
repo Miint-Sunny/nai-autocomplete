@@ -166,7 +166,7 @@ node scripts/test-flow.mjs
 node scripts/test-content.mjs
 ```
 
-[scripts/lib/flow-sandbox.mjs](./scripts/lib/flow-sandbox.mjs) 把 `js/flow/*.js` 按上线时同样的顺序装进 `node:vm`。模型和分类是纯逻辑，全部可测；渲染与指针交互靠浏览器里的合成事件验证（见 STYLE.md 第 8 节的验证方法）。
+[scripts/lib/flow-sandbox.mjs](./scripts/lib/flow-sandbox.mjs) 把 `js/flow/*.js` 按上线时同样的顺序装进 `node:vm`。模型和分类是纯逻辑，全部可测；渲染与指针交互靠浏览器里的合成事件验证（见 STYLE.md 第 9 节的验证方法）。
 
 [scripts/lib/content-sandbox.mjs](./scripts/lib/content-sandbox.mjs) 同样装 `js/flow/*` + `js/content/*`（content bundle 的 epilogue 才调 `init()`，只加载分片没有副作用），另外配一份最小 DOM 替身：`nodeType` / `tagName` / `childNodes` / `classList.contains` / `dataset` / `parentNode`，外加一个只记端点的 Range。覆盖层的偏移就是拿它守的。
 
