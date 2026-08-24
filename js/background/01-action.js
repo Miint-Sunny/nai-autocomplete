@@ -3,31 +3,34 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('[NAI-AC] Extension installed');
 });
 
-function getActionPage(url) {
+// 两个界面，两个入口：
+//   · 右下悬浮球 → 悬浮窗（反推 / 写词 / 改词 / 画师 / 历史 / 设置）
+//   · 浏览器扩展图标 → 工作台（只在 novelai.net 出图页有；别处退回悬浮窗）
+function isWorkbenchPage(url) {
   try {
     const parsed = new URL(url || '');
-    return parsed.origin === 'https://novelai.net' && parsed.pathname === '/image'
-      ? 'library'
-      : 'reverse';
+    return parsed.origin === 'https://novelai.net' && parsed.pathname === '/image';
   } catch (error) {
-    return 'reverse';
+    return false;
   }
 }
 
 function updateActionTitle(tabId, url) {
   if (!tabId) return;
-  const title = getActionPage(url) === 'library' ? '词库' : '图像反推助手';
+  const title = isWorkbenchPage(url) ? '工作台' : '图像反推助手';
   chrome.action.setTitle({ tabId, title });
 }
 
 chrome.action.onClicked.addListener((tab) => {
   if (!tab?.id) return;
 
-  const page = getActionPage(tab.url);
+  const message = isWorkbenchPage(tab.url)
+    ? { type: 'nai-open-workbench' }
+    : { type: 'nai-open-panel', page: 'reverse' };
 
-  chrome.tabs.sendMessage(tab.id, { type: 'nai-open-panel', page }, () => {
+  chrome.tabs.sendMessage(tab.id, message, () => {
     if (chrome.runtime.lastError) {
-      console.warn('[NAI-AC] Failed to open panel from action click:', chrome.runtime.lastError.message);
+      console.warn('[NAI-AC] Failed to open UI from action click:', chrome.runtime.lastError.message);
     }
   });
 });

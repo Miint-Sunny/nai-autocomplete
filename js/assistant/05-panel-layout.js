@@ -227,6 +227,7 @@ function bindPanelInteractions() {
   window.addEventListener('resize', () => {
     keepPanelInsideViewport();
     persistPanelLayout();
+    keepFabInsideViewport();
   });
 }
 
@@ -328,3 +329,112 @@ function bindDrawerResize() {
   });
 }
 
+// ─────────────────────────── 悬浮球 ───────────────────────────
+// 它挂在 .nai-md3-root 上（root 是 fixed + right/bottom，球是唯一常驻的子元素）。
+// 面板和抽屉都是各自 fixed 的，所以挪 root 只会挪这颗球。
+
+const FAB_MARGIN = 8;
+// 拖过 4px 才算拖 —— 不然手一抖点击就被吞了，球点不开
+const FAB_DRAG_THRESHOLD = 4;
+
+function normalizeStoredFabPosition(position) {
+  if (!position || typeof position !== 'object') return null;
+  const left = Number(position.left);
+  const top = Number(position.top);
+  if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+  return { left: Math.round(left), top: Math.round(top) };
+}
+
+function clampFabPosition(left, top, width, height) {
+  return {
+    left: clamp(left, FAB_MARGIN, Math.max(FAB_MARGIN, window.innerWidth - width - FAB_MARGIN)),
+    top: clamp(top, FAB_MARGIN, Math.max(FAB_MARGIN, window.innerHeight - height - FAB_MARGIN)),
+  };
+}
+
+function applyFabPosition(position) {
+  const normalized = normalizeStoredFabPosition(position);
+  if (!ui.root || !ui.fab || !normalized) return;
+
+  const rect = ui.fab.getBoundingClientRect();
+  const pos = clampFabPosition(normalized.left, normalized.top, rect.width || 44, rect.height || 44);
+  ui.root.style.left = `${pos.left}px`;
+  ui.root.style.top = `${pos.top}px`;
+  ui.root.style.right = 'auto';
+  ui.root.style.bottom = 'auto';
+}
+
+function persistFabPosition() {
+  if (!ui.fab) return;
+  const rect = ui.fab.getBoundingClientRect();
+  const position = { left: Math.round(rect.left), top: Math.round(rect.top) };
+  state.fabPosition = position;
+  void storageSet({ [FAB_POSITION_KEY]: position });
+}
+
+// 窗口变小之后球可能被挤到视口外，那就再也点不着了
+function keepFabInsideViewport() {
+  if (!ui.root || !ui.fab || !state.fabPosition) return;
+  applyFabPosition(state.fabPosition);
+  persistFabPosition();
+}
+
+function bindFabDrag(onClick) {
+  if (!ui.fab) return;
+  const drag = { pointerId: null, startX: 0, startY: 0, originLeft: 0, originTop: 0, moved: false, width: 0, height: 0 };
+
+  ui.fab.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const rect = ui.fab.getBoundingClientRect();
+    drag.pointerId = event.pointerId;
+    drag.startX = event.clientX;
+    drag.startY = event.clientY;
+    drag.originLeft = rect.left;
+    drag.originTop = rect.top;
+    drag.width = rect.width;
+    drag.height = rect.height;
+    drag.moved = false;
+    ui.fab.setPointerCapture?.(event.pointerId);
+  });
+
+  ui.fab.addEventListener('pointermove', (event) => {
+    if (drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dx) < FAB_DRAG_THRESHOLD && Math.abs(dy) < FAB_DRAG_THRESHOLD) return;
+
+    drag.moved = true;
+    ui.fab.classList.add('is-dragging');
+    const pos = clampFabPosition(drag.originLeft + dx, drag.originTop + dy, drag.width, drag.height);
+    ui.root.style.left = `${pos.left}px`;
+    ui.root.style.top = `${pos.top}px`;
+    ui.root.style.right = 'auto';
+    ui.root.style.bottom = 'auto';
+  });
+
+  const finish = (event) => {
+    if (drag.pointerId !== event.pointerId) return;
+    ui.fab.releasePointerCapture?.(event.pointerId);
+    drag.pointerId = null;
+    ui.fab.classList.remove('is-dragging');
+    if (drag.moved) persistFabPosition();
+    else onClick();
+  };
+
+  ui.fab.addEventListener('pointerup', finish);
+  ui.fab.addEventListener('pointercancel', (event) => {
+    if (drag.pointerId !== event.pointerId) return;
+    ui.fab.releasePointerCapture?.(event.pointerId);
+    drag.pointerId = null;
+    ui.fab.classList.remove('is-dragging');
+    if (drag.moved) persistFabPosition();
+  });
+
+  // 拖完手指抬起来那一下浏览器还会补一个 click，不拦住就会又开一次面板
+  ui.fab.addEventListener('click', (event) => {
+    if (!drag.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drag.moved = false;
+  }, true);
+}

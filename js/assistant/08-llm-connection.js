@@ -27,14 +27,14 @@ async function testConnection() {
   const primaryConfig = buildPrimaryConfig(testMessages);
   if (!hasCompleteModelConfig(primaryConfig)) {
     setStatus('\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u4e3b\u6a21\u578b\u7684\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002', true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 
   const fallbackConfig = buildFallbackConfig(testMessages);
   if (state.settings.enableFallbackModel && !hasCompleteModelConfig(fallbackConfig)) {
     setStatus(T.statusNeedFallbackConfig, true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 

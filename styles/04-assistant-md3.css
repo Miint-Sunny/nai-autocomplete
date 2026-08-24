@@ -727,6 +727,16 @@
   padding: 0;
 }
 
+/* 收起之后侧栏只剩图标，文字被藏起来了。箭头不翻面的话，那颗按钮收起前后长得
+   一模一样 —— 看上去就只有收起、没有展开。 */
+.nai-workbench-nav-item.is-collapse[aria-expanded="false"] .nai-workbench-nav-icon {
+  transform: rotate(180deg);
+}
+
+.nai-workbench-nav-item.is-collapse .nai-workbench-nav-icon {
+  transition: transform 200ms ease;
+}
+
 .nai-library-drawer[data-sidebar-collapsed="true"] .nai-workbench-nav-text {
   position: absolute;
   width: 1px;
@@ -1164,6 +1174,12 @@
     white-space: nowrap;
   }
 
+  /* 这个宽度下侧栏本来就只剩图标条，收起/展开点了什么都不会变 ——
+     留着就是一颗按了没反应的按钮 */
+  .nai-workbench-nav-item.is-collapse {
+    display: none;
+  }
+
   .nai-library-editor,
   .nai-library-main,
   .nai-library-index,
@@ -1222,18 +1238,22 @@
   }
 }
 
+/* 小方块，不是大圆钮：常驻在页面上的东西越小越不碍事。
+   圆角走 radius-xs 档，44px 上看起来是个圆润方块而不是一颗药丸。
+   触摸目标 44px 正好是最小可点尺寸，再小就点不准了。 */
 .nai-md3-fab {
   position: relative;
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--nai-md3-radius-xs);
   background: linear-gradient(180deg, color-mix(in srgb, var(--md-sys-color-primary) 86%, white), var(--md-sys-color-primary));
   color: var(--md-sys-color-on-primary);
-  font-size: 13px;
-  font-weight: 800;
   letter-spacing: 0.04em;
-  cursor: pointer;
+  /* 拖的时候别选中里面的字，也别让浏览器接管成滚动手势 */
+  user-select: none;
+  touch-action: none;
+  cursor: grab;
   box-shadow: var(--nai-md3-fab-shadow);
   transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
 }
@@ -1245,6 +1265,22 @@
 
 .nai-md3-fab:active {
   transform: translateY(0) scale(0.98);
+}
+
+/* `.nai-md3-root button { font: inherit }` 权重是 (0,1,1)，单类规则压不住，
+   字号字重只能在这一层重申（STYLE.md 6.3） */
+.nai-md3-root button.nai-md3-fab {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* 拖动中：不要 hover 的位移和过渡，否则跟手会慢半拍 */
+.nai-md3-fab.is-dragging,
+.nai-md3-fab.is-dragging:hover,
+.nai-md3-fab.is-dragging:active {
+  transform: none;
+  transition: none;
+  cursor: grabbing;
 }
 
 .nai-md3-panel {

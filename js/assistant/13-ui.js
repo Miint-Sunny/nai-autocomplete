@@ -210,7 +210,7 @@ function createUI() {
             <div class="nai-library-drawer-kicker">NAI Autocomplete</div>
             <div class="nai-library-drawer-title">工作台</div>
           </div>
-          <button class="nai-library-drawer-close" type="button" data-action="close" aria-label="关闭">×</button>
+          <button class="nai-library-drawer-close" type="button" data-action="close-drawer" aria-label="关闭工作台">×</button>
         </header>
 
         <div class="nai-library-drawer-status"></div>
@@ -748,7 +748,9 @@ function createUI() {
     }
   });
 
-  ui.fab.addEventListener('click', () => openPanel(state.isNovelAIImagePage ? 'library' : 'reverse'));
+  // 右下悬浮球 = 悬浮窗；工作台走浏览器扩展图标。两个入口各开各的界面。
+  // 球本身可以拖着换位置，拖过就不算点击。
+  bindFabDrag(() => openPanel());
   bindPanelInteractions();
   bindDrawerResize();
   bindTextareaAutosize();
@@ -777,6 +779,7 @@ function createUI() {
     const action = actionTarget.getAttribute('data-action');
 
     if (action === 'close') closePanel();
+    else if (action === 'close-drawer') closeLibraryDrawer();
     else if (action === 'pick') startPickMode();
     else if (action === 'workbench-open-agent') openAgentWorkbenchPanel();
     else if (action === 'workbench-open-flow') openFlowWorkbenchPanel();

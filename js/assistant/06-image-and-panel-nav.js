@@ -364,7 +364,9 @@ function resolveImageSource(element) {
 }
 
 function setPage(page) {
-  const targetPage = state.isNovelAIImagePage ? 'library' : (page === 'library' ? 'reverse' : page);
+  // 面板早就没有 library 页了（它在工作台里）。这里以前会在出图页把 targetPage
+  // 强制成 'library'，结果是所有 section 全被藏掉 —— 面板一片空白。
+  const targetPage = page === 'library' ? 'reverse' : page;
   state.activePage = targetPage;
   if (ui.root) {
     ui.root.dataset.page = targetPage;
@@ -382,8 +384,14 @@ function setPage(page) {
   requestAnimationFrame(() => autoResizeAllTextareas());
 }
 
+// 悬浮窗和工作台是两个各自独立的界面，各记各的开关 —— 共用一个 isOpen
+// 会让「关掉其中一个」把另一个也算成关了。
+function isLibraryDrawerOpen() {
+  return Boolean(ui.library.drawer) && !ui.library.drawer.classList.contains('nai-hidden');
+}
+
 function openLibraryDrawer() {
-  state.isOpen = true;
+  state.drawerOpen = true;
   ui.library.drawer?.classList.remove('nai-hidden');
   syncWorkbenchLayoutState();
   renderLibraryManager();
@@ -391,7 +399,7 @@ function openLibraryDrawer() {
 }
 
 function closeLibraryDrawer() {
-  state.isOpen = false;
+  state.drawerOpen = false;
   ui.library.drawer?.classList.add('nai-hidden');
 }
 
@@ -406,8 +414,13 @@ function syncWorkbenchLayoutState() {
     button.toggleAttribute('aria-current', isActive);
   });
   if (ui.library.sidebarToggle) {
-    ui.library.sidebarToggle.setAttribute('aria-expanded', state.workbenchSidebarCollapsed ? 'false' : 'true');
-    ui.library.sidebarToggle.querySelector('.nai-workbench-nav-text').textContent = state.workbenchSidebarCollapsed ? '展开' : '收起';
+    const collapsed = state.workbenchSidebarCollapsed;
+    ui.library.sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    // 收起之后文字被 CSS 藏了，只剩这个箭头 —— 它不翻个面，看上去就只有收起没有展开。
+    // 箭头本身由 [aria-expanded="false"] 转 180°，这里只管无障碍和悬停提示。
+    ui.library.sidebarToggle.title = collapsed ? '展开侧边栏' : '收起侧边栏';
+    ui.library.sidebarToggle.setAttribute('aria-label', collapsed ? '展开侧边栏' : '收起侧边栏');
+    ui.library.sidebarToggle.querySelector('.nai-workbench-nav-text').textContent = collapsed ? '展开' : '收起';
   }
 }
 
@@ -467,30 +480,34 @@ function openArtistWorkbenchPanel() {
   openArtistQuickPanel();
 }
 
+// 两个界面独立之后，「去设置」得看用户人在哪：工作台开着就切它自己的设置页，
+// 别在他面前再弹一个悬浮窗出来，两套设置界面并排更让人懵。
+function openSettingsSurface() {
+  if (isLibraryDrawerOpen()) {
+    openLibrarySettingsPanel();
+    return;
+  }
+  openPanel('settings');
+}
+
 function toggleWorkbenchSidebar() {
   state.workbenchSidebarCollapsed = !state.workbenchSidebarCollapsed;
   syncWorkbenchLayoutState();
 }
 
+// 悬浮窗。出图页上它也照常能开 —— 以前这里会掉头去开工作台，
+// 于是出图页根本没有任何入口能打开悬浮窗。
 function openPanel(page) {
-  if (state.isNovelAIImagePage) {
-    openLibraryDrawer();
-    return;
-  }
   state.isOpen = true;
   if (state.panelLayout) {
     applyPanelLayout(state.panelLayout);
   }
   ui.panel.classList.remove('nai-hidden');
-  setPage(page || state.activePage || (state.isNovelAIImagePage ? 'library' : 'reverse'));
+  setPage(page || state.activePage || 'reverse');
   keepPanelInsideViewport();
 }
 
 function closePanel() {
-  if (state.isNovelAIImagePage) {
-    closeLibraryDrawer();
-    return;
-  }
   persistPanelLayout();
   state.isOpen = false;
   ui.panel.classList.add('nai-hidden');

@@ -2,6 +2,7 @@
 const SETTINGS_KEY = 'nai-llm-assistant-settings';
 const HISTORY_KEY = 'nai-llm-reverse-history';
 const PANEL_LAYOUT_KEY = 'nai-llm-panel-layout';
+const FAB_POSITION_KEY = 'nai-fab-position';
 const DRAWER_LAYOUT_KEY = 'nai-llm-drawer-layout';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
 const ROLE_LIBRARY_CATEGORY = 'char';
@@ -19,10 +20,8 @@ const PANEL_MIN_HEIGHT = 260;
 const DRAWER_MIN_WIDTH = 480;
 
 const T = {
-  title: '\u56fe\u50cf\u53cd\u63a8\u52a9\u624b',
-  fab: '\u53cd\u63a8',
-  imagePageTitle: '\u8bcd\u5e93',
-  imagePageFab: '\u8bcd\u5e93',
+  title: 'NAI Autocomplete',
+  fab: 'NAI',
   tabLibrary: '\u8bcd\u5e93',
   tabReverse: '\u53cd\u63a8',
   tabHistory: '\u5386\u53f2',
@@ -85,9 +84,9 @@ const T = {
   sendImageAsDataUrl: '\u53d1\u9001\u56fe\u7247\u5185\u5bb9\uff08\u5173\u95ed\u5219\u53d1\u9001\u539f\u59cb URL\uff09',
   enableBooruTagContext: '\u9644\u52a0\u7f51\u7ad9\u6807\u7b7e\u4e0a\u4e0b\u6587\uff08Danbooru / Gelbooru\uff09',
   showReverseEntry: '\u663e\u793a\u53cd\u63a8\u60ac\u6d6e\u5165\u53e3',
-  showWorkbenchEntry: '\u663e\u793a\u5de5\u4f5c\u53f0\u60ac\u6d6e\u5165\u53e3',
+  showWorkbenchEntry: '\u5728 NovelAI \u51fa\u56fe\u9875\u663e\u793a\u60ac\u6d6e\u5165\u53e3',
   showExternalEntry: '\u5728\u5176\u4ed6\u7f51\u7ad9\u663e\u793a\u53cd\u63a8\u60ac\u6d6e\u5165\u53e3',
-  showExternalEntryHint: '\u5176\u4ed6\u7f51\u7ad9\uff08\u975e NovelAI\uff09\u9ed8\u8ba4\u4e0d\u663e\u793a\u60ac\u6d6e\u7403\uff0c\u70b9\u51fb\u6d4f\u89c8\u5668\u6269\u5c55\u56fe\u6807\u5373\u53ef\u6253\u5f00\u53cd\u63a8\u9762\u677f\u3002',
+  showExternalEntryHint: '\u60ac\u6d6e\u7403\u5f00\u7684\u662f\u60ac\u6d6e\u7a97\uff08\u53cd\u63a8 / \u5199\u8bcd / \u6539\u8bcd / \u753b\u5e08 / \u5386\u53f2 / \u8bbe\u7f6e\uff09\uff1b\u5de5\u4f5c\u53f0\u8d70\u6d4f\u89c8\u5668\u6269\u5c55\u56fe\u6807\uff0c\u53ea\u5728 novelai.net \u51fa\u56fe\u9875\u6709\u3002\u5176\u4ed6\u7f51\u7ad9\u9ed8\u8ba4\u4e0d\u663e\u793a\u60ac\u6d6e\u7403\uff0c\u70b9\u6269\u5c55\u56fe\u6807\u4e00\u6837\u80fd\u5f00\u60ac\u6d6e\u7a97\u3002',
   tabArtists: '\u753b\u5e08\u5e93',
   artistQuickManage: '\u7ba1\u7406',
   artistQuickHint: '\u70b9\u5361\u7247\u6216 \uff0b \u8ffd\u52a0\u5230\u63d0\u793a\u8bcd\uff1b\ud83d\udccb \u53ea\u590d\u5236',
@@ -673,6 +672,8 @@ const state = {
   selectedImage: null,
   lastResult: '',
   isOpen: false,
+  drawerOpen: false,
+  fabPosition: null,
   isPickingImage: false,
   pending: false,
   cancellableRunId: null,

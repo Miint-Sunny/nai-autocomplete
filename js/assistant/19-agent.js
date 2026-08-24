@@ -332,7 +332,7 @@ async function runAgentWrite() {
   const primaryConfig = buildPrimaryConfig([]);
   if (!hasCompleteModelConfig(primaryConfig)) {
     setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 

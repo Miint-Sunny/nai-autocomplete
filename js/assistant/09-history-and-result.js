@@ -114,14 +114,14 @@ async function reverseAndCopy() {
 
   if (!state.settings.apiKey?.trim()) {
     setStatus(T.statusNeedKey, true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 
   const resolvedBlocks = getPromptConfig();
   if (!resolvedBlocks.length || !resolvedBlocks.some((b) => b.role === 'user')) {
     setStatus(T.statusNeedPrompt, true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 
@@ -130,7 +130,7 @@ async function reverseAndCopy() {
     const hasRoleVar = preset.blocks.some((b) => b.enabled && b.content.includes('{{role_prompt}}'));
     if (hasRoleVar) {
       setStatus(T.statusNeedRolePrompt, true);
-      openPanel('settings');
+      openSettingsSurface();
       return;
     }
   }
@@ -140,7 +140,7 @@ async function reverseAndCopy() {
 
   if (!hasCompleteModelConfig(primaryConfig)) {
     setStatus('\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u4e3b\u6a21\u578b\u7684\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002', true);
-    openPanel('settings');
+    openSettingsSurface();
     return;
   }
 

@@ -386,25 +386,23 @@ function applyPageMode() {
   if (!ui.root) return;
 
   ui.root.dataset.novelaiImagePage = state.isNovelAIImagePage ? 'true' : 'false';
+  // 悬浮球在哪儿都开同一个悬浮窗，所以标题不再跟着页面换。
+  // 出图页曾经把它叫「词库」—— 那是工作台的名字，现在工作台走扩展图标。
   if (ui.fab) {
-    ui.fab.textContent = state.isNovelAIImagePage ? T.imagePageFab : T.fab;
-    ui.fab.title = state.isNovelAIImagePage ? T.imagePageTitle : T.title;
+    ui.fab.textContent = T.fab;
+    ui.fab.title = T.title;
   }
   const title = ui.root.querySelector('.nai-md3-title');
-  if (title) title.textContent = state.isNovelAIImagePage ? T.imagePageTitle : T.title;
+  if (title) title.textContent = T.title;
 
   updateFabVisibility();
 
   if (state.isNovelAIImagePage) {
     ensureOfficialChunkBridgeScript();
-    if (ui.panel) ui.panel.classList.add('nai-hidden');
-    state.activePage = 'library';
     renderLibraryManager();
-    setStatus(T.statusLibraryReady, false);
-  } else if (state.activePage === 'library') {
+  } else {
+    // 工作台是出图页专有的（词库要往官方 Prompt Chunk 同步），离开就收起来
     closeLibraryDrawer();
-    setPage('reverse');
-    setStatus(T.statusReady, false);
   }
 }
 
