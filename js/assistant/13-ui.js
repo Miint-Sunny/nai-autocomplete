@@ -63,34 +63,54 @@ function createUI() {
            几处原来隔着一整段的东西也归了位：
              · 「启用备用模型」原来在生成选项末尾，控制的却是下一段的显隐 → 挪进备用模型段的段首
              · 备用模型的思考强度原来和主模型的挤在一起 → 跟着它的模型走
+             · 备用模型段原来隔着生成选项和发送与输出 → 紧跟主模型，两段模型配置排在一起
              · 悬浮球说明和玻璃说明原来都堆在外观段末尾 → 各自贴着自己那组
-             · 玻璃开关原来夹在三个悬浮球开关里，和强度滑块隔开 → 两者相邻 -->
+             · 玻璃开关原来夹在三个悬浮球开关里，和强度滑块隔开 → 两者相邻
+           模型服务那几项一律占整行，不并排两半：面板半宽的下拉只剩约 150px 可写字，
+           「OpenAI Chat Completions」（169px）和「Google Vertex AI (OpenAI兼容)」（199px）
+           都会被截断，模型名同理。抽屉那边足够宽，仍然是两列。 -->
       <section class="nai-md3-page nai-hidden" data-page="settings">
         <div class="nai-md3-settings-section">
           <div class="nai-md3-section-head">
             <div class="nai-md3-section-title">${T.sectionProvider}</div>
             <div class="nai-md3-section-note">${T.sectionProviderHint}</div>
           </div>
-          <div class="nai-md3-grid-2">
-            <div><label class="nai-md3-label">${T.serviceProvider}</label><select class="nai-md3-input" data-field="providerPreset"></select></div>
-            <div><label class="nai-md3-label">${T.protocol}</label><select class="nai-md3-input" data-field="protocol"></select></div>
-          </div>
+          <label class="nai-md3-label">${T.serviceProvider}</label><select class="nai-md3-input" data-field="providerPreset"></select>
+          <label class="nai-md3-label">${T.protocol}</label><select class="nai-md3-input" data-field="protocol"></select>
           <label class="nai-md3-label">API Endpoint</label><input class="nai-md3-input" data-field="endpoint" type="text" />
-          <div class="nai-md3-grid-2">
-            <div>
-              <label class="nai-md3-label">${T.model}</label>
-              <div class="nai-md3-input-row">
-                <input class="nai-md3-input" data-field="model" list="nai-primary-model-list" type="text" />
-                <button type="button" class="nai-md3-inline-action" data-action="fetch-models">${T.fetchModels}</button>
-              </div>
-              <datalist id="nai-primary-model-list"></datalist>
-            </div>
-            <div>
-              <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
-              <input class="nai-md3-input" data-field="apiKey" type="password" />
-            </div>
+          <!-- 模型和 API Key 各占整行：并排两半时模型名（deepseek-reasoner 一类）
+               被「获取模型」挤到只剩一截，看不出选的是哪个 -->
+          <label class="nai-md3-label">${T.model}</label>
+          <div class="nai-md3-input-row">
+            <input class="nai-md3-input" data-field="model" list="nai-primary-model-list" type="text" />
+            <button type="button" class="nai-md3-inline-action" data-action="fetch-models">${T.fetchModels}</button>
           </div>
+          <datalist id="nai-primary-model-list"></datalist>
+          <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
+          <input class="nai-md3-input" data-field="apiKey" type="password" />
           <div class="nai-md3-help-note nai-hidden" data-field="keyHelp"></div>
+        </div>
+
+        <div class="nai-md3-settings-section">
+          <div class="nai-md3-section-head">
+            <div class="nai-md3-section-title">${T.sectionFallback}</div>
+            <div class="nai-md3-section-note">${T.sectionFallbackHint}</div>
+          </div>
+          <label class="nai-md3-switch"><input data-field="enableFallbackModel" type="checkbox" /><span>${T.fallbackMode}</span></label>
+          <!-- 只藏字段，不藏上面那个开关 —— 否则关掉之后就再也打不开了 -->
+          <div class="nai-md3-fallback-fields nai-hidden" data-fallback-section>
+            <label class="nai-md3-label">${T.fallbackProvider}</label><select class="nai-md3-input" data-field="fallbackProviderPreset"></select>
+            <label class="nai-md3-label">${T.fallbackProtocol}</label><select class="nai-md3-input" data-field="fallbackProtocol"></select>
+            <label class="nai-md3-label">${T.fallbackEndpoint}</label><input class="nai-md3-input" data-field="fallbackEndpoint" type="text" />
+            <label class="nai-md3-label">${T.fallbackModel}</label>
+            <div class="nai-md3-input-row">
+              <input class="nai-md3-input" data-field="fallbackModel" list="nai-fallback-model-list" type="text" />
+              <button type="button" class="nai-md3-inline-action" data-action="fetch-fallback-models">${T.fetchModels}</button>
+            </div>
+            <datalist id="nai-fallback-model-list"></datalist>
+            <label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" />
+            <label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select>
+          </div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -129,34 +149,6 @@ function createUI() {
           <div class="nai-md3-section-note">${T.preferNaiMetadataHint}</div>
           <div class="nai-md3-section-note">${T.allowDanbooruLookupHint}</div>
           <div class="nai-md3-section-note">${T.agentNai5RulesHint}</div>
-        </div>
-
-        <div class="nai-md3-settings-section">
-          <div class="nai-md3-section-head">
-            <div class="nai-md3-section-title">${T.sectionFallback}</div>
-            <div class="nai-md3-section-note">${T.sectionFallbackHint}</div>
-          </div>
-          <label class="nai-md3-switch"><input data-field="enableFallbackModel" type="checkbox" /><span>${T.fallbackMode}</span></label>
-          <!-- 只藏字段，不藏上面那个开关 —— 否则关掉之后就再也打不开了 -->
-          <div class="nai-md3-fallback-fields nai-hidden" data-fallback-section>
-            <div class="nai-md3-grid-2">
-              <div><label class="nai-md3-label">${T.fallbackProvider}</label><select class="nai-md3-input" data-field="fallbackProviderPreset"></select></div>
-              <div><label class="nai-md3-label">${T.fallbackProtocol}</label><select class="nai-md3-input" data-field="fallbackProtocol"></select></div>
-            </div>
-            <label class="nai-md3-label">${T.fallbackEndpoint}</label><input class="nai-md3-input" data-field="fallbackEndpoint" type="text" />
-            <div class="nai-md3-grid-2">
-              <div>
-                <label class="nai-md3-label">${T.fallbackModel}</label>
-                <div class="nai-md3-input-row">
-                  <input class="nai-md3-input" data-field="fallbackModel" list="nai-fallback-model-list" type="text" />
-                  <button type="button" class="nai-md3-inline-action" data-action="fetch-fallback-models">${T.fetchModels}</button>
-                </div>
-                <datalist id="nai-fallback-model-list"></datalist>
-              </div>
-              <div><label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" /></div>
-            </div>
-            <label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select>
-          </div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -370,9 +362,10 @@ function createUI() {
                   <div class="nai-library-page-title">工作台设置</div>
                 </div>
               </div>
-              <!-- 顺序和面板设置页一致：模型服务 → 生成参数 → 发送与输出 → 备用模型 → 提示词 → 外观。
+              <!-- 顺序和面板设置页一致：主模型 → 备用模型 → 生成参数 → 发送与输出 → 提示词 → 外观。
                    两边曾经各排各的（这边是外观打头），同一个设置在两个界面里位置对不上。
-                   「启用备用模型」也从生成选项挪进了备用模型段的段首。 -->
+                   「启用备用模型」也从生成选项挪进了备用模型段的段首。
+                   模型和 API Key 各占整行 —— 并排两半时模型名会被截断，看不出选的是哪个。 -->
               <div class="nai-library-settings-stack">
                 <div class="nai-library-settings-group">
                   <div class="nai-library-settings-title">主模型</div>
@@ -390,20 +383,52 @@ function createUI() {
                     <span>API Endpoint</span>
                     <input data-field="libraryEndpoint" type="text" />
                   </label>
-                  <div class="nai-library-settings-grid">
-                    <label class="nai-library-field">
-                      <span>${T.model}</span>
-                      <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
-                      <datalist id="nai-library-primary-model-list"></datalist>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>API Key</span>
-                      <input data-field="libraryApiKey" type="password" />
-                    </label>
-                  </div>
+                  <label class="nai-library-field">
+                    <span>${T.model}</span>
+                    <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
+                    <datalist id="nai-library-primary-model-list"></datalist>
+                  </label>
+                  <label class="nai-library-field">
+                    <span>API Key</span>
+                    <input data-field="libraryApiKey" type="password" />
+                  </label>
                   <div class="nai-library-settings-actions">
                     <button type="button" data-action="library-fetch-models">${T.fetchModels}</button>
                     <button type="button" data-action="library-test-connection">${T.testConnection}</button>
+                  </div>
+                </div>
+
+                <div class="nai-library-settings-group">
+                  <div class="nai-library-settings-title">备用模型</div>
+                  <label class="nai-library-check">
+                    <input data-field="libraryEnableFallbackModel" type="checkbox" />
+                    <span>${T.fallbackMode}</span>
+                  </label>
+                  <div class="nai-library-settings-grid">
+                    <label class="nai-library-field">
+                      <span>${T.fallbackProvider}</span>
+                      <select data-field="libraryFallbackProviderPreset"></select>
+                    </label>
+                    <label class="nai-library-field">
+                      <span>${T.fallbackProtocol}</span>
+                      <select data-field="libraryFallbackProtocol"></select>
+                    </label>
+                  </div>
+                  <label class="nai-library-field">
+                    <span>${T.fallbackEndpoint}</span>
+                    <input data-field="libraryFallbackEndpoint" type="text" />
+                  </label>
+                  <label class="nai-library-field">
+                    <span>${T.fallbackModel}</span>
+                    <input data-field="libraryFallbackModel" list="nai-library-fallback-model-list" type="text" />
+                    <datalist id="nai-library-fallback-model-list"></datalist>
+                  </label>
+                  <label class="nai-library-field">
+                    <span>${T.fallbackApiKey}</span>
+                    <input data-field="libraryFallbackApiKey" type="password" />
+                  </label>
+                  <div class="nai-library-settings-actions">
+                    <button type="button" data-action="library-fetch-fallback-models">${T.fetchModels}</button>
                   </div>
                 </div>
 
@@ -447,42 +472,6 @@ function createUI() {
                     <input data-field="libraryDefaultCodeFence" type="checkbox" />
                     <span>${T.defaultCodeFence}</span>
                   </label>
-                </div>
-
-                <div class="nai-library-settings-group">
-                  <div class="nai-library-settings-title">备用模型</div>
-                  <label class="nai-library-check">
-                    <input data-field="libraryEnableFallbackModel" type="checkbox" />
-                    <span>${T.fallbackMode}</span>
-                  </label>
-                  <div class="nai-library-settings-grid">
-                    <label class="nai-library-field">
-                      <span>${T.fallbackProvider}</span>
-                      <select data-field="libraryFallbackProviderPreset"></select>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>${T.fallbackProtocol}</span>
-                      <select data-field="libraryFallbackProtocol"></select>
-                    </label>
-                  </div>
-                  <label class="nai-library-field">
-                    <span>${T.fallbackEndpoint}</span>
-                    <input data-field="libraryFallbackEndpoint" type="text" />
-                  </label>
-                  <div class="nai-library-settings-grid">
-                    <label class="nai-library-field">
-                      <span>${T.fallbackModel}</span>
-                      <input data-field="libraryFallbackModel" list="nai-library-fallback-model-list" type="text" />
-                      <datalist id="nai-library-fallback-model-list"></datalist>
-                    </label>
-                    <label class="nai-library-field">
-                      <span>${T.fallbackApiKey}</span>
-                      <input data-field="libraryFallbackApiKey" type="password" />
-                    </label>
-                  </div>
-                  <div class="nai-library-settings-actions">
-                    <button type="button" data-action="library-fetch-fallback-models">${T.fetchModels}</button>
-                  </div>
                 </div>
 
                 <div class="nai-library-settings-group">
