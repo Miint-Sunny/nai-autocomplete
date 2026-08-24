@@ -24,6 +24,10 @@ function createUI() {
         <button type="button" data-page="settings">${T.tabSettings}</button>
       </nav>
 
+      <!-- 全局状态条：写词 / 设置页的反馈也要看得见，不能只挂在反推页里。
+           空了就 display:none，不占高度（工作台那条同款）。 -->
+      <div class="nai-md3-status"></div>
+
       <div class="nai-md3-body">
       <section class="nai-md3-page" data-page="reverse">
         <div class="nai-md3-hint">${T.quickHint}<kbd>Alt</kbd> + <kbd>Shift</kbd> + \u70b9\u51fb\u56fe\u7247</div>
@@ -36,7 +40,6 @@ function createUI() {
         </div>
         <img class="nai-md3-preview nai-hidden" alt="preview" />
         <div class="nai-md3-preview-hint">${T.previewEmpty}</div>
-        <div class="nai-md3-status"></div>
         <label class="nai-md3-label">${T.resultLabel}</label>
         <textarea class="nai-md3-result" rows="8" readonly placeholder="${T.resultPlaceholder}"></textarea>
       </section>
@@ -156,6 +159,8 @@ function createUI() {
             <div class="nai-md3-section-title">${T.sectionPrompt}</div>
             <div class="nai-md3-section-note">${T.sectionPromptHint}</div>
           </div>
+          <label class="nai-md3-label">${T.naiDialectLabel}</label><select class="nai-md3-input" data-field="naiDialect"></select>
+          <div class="nai-md3-section-note">${T.naiDialectHint}</div>
           <div class="nai-md3-grid-2" style="align-items:end">
             <div><label class="nai-md3-label">预设</label><select class="nai-md3-input" data-field="activePresetId"></select></div>
             <div style="display:flex;gap:.4em;padding-bottom:2px;flex-wrap:wrap"><button type="button" class="nai-md3-inline-action" data-action="duplicate-preset">复制</button><button type="button" class="nai-md3-inline-action" data-action="new-preset">新建</button><button type="button" class="nai-md3-inline-action" data-action="import-st-preset">${T.importStPreset}</button><button type="button" class="nai-md3-inline-action nai-preset-delete-btn nai-hidden" data-action="delete-preset">删除</button><button type="button" class="nai-md3-inline-action nai-preset-reset-btn nai-hidden" data-action="reset-preset">恢复默认</button></div>
@@ -477,6 +482,10 @@ function createUI() {
                 <div class="nai-library-settings-group">
                   <div class="nai-library-settings-title">提示词</div>
                   <label class="nai-library-field">
+                    <span>${T.naiDialectLabel}</span>
+                    <select data-field="libraryNaiDialect"></select>
+                  </label>
+                  <label class="nai-library-field">
                     <span>预设</span>
                     <select data-field="libraryActivePresetId"></select>
                   </label>
@@ -609,6 +618,7 @@ function createUI() {
   ui.settings.preferNaiMetadata = root.querySelector('[data-field="preferNaiMetadata"]');
   ui.settings.allowDanbooruLookup = root.querySelector('[data-field="allowDanbooruLookup"]');
   ui.settings.agentNai5Rules = root.querySelector('[data-field="agentNai5Rules"]');
+  ui.settings.naiDialect = root.querySelector('[data-field="naiDialect"]');
   ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
   ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
@@ -643,6 +653,7 @@ function createUI() {
   ui.library.preferNaiMetadata = ui.library.drawer?.querySelector('[data-field="libraryPreferNaiMetadata"]');
   ui.library.allowDanbooruLookup = ui.library.drawer?.querySelector('[data-field="libraryAllowDanbooruLookup"]');
   ui.library.agentNai5Rules = ui.library.drawer?.querySelector('[data-field="libraryAgentNai5Rules"]');
+  ui.library.naiDialect = ui.library.drawer?.querySelector('[data-field="libraryNaiDialect"]');
   ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
   ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
   ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');
@@ -661,6 +672,8 @@ function createUI() {
   fillSelectOptions(ui.settings.reasoningEffort, REASONING_EFFORTS);
   fillSelectOptions(ui.settings.fallbackReasoningEffort, REASONING_EFFORTS);
   fillSelectOptions(ui.settings.themePreset, THEME_PRESETS);
+  fillSelectOptions(ui.settings.naiDialect, NAI_DIALECT_OPTIONS);
+  fillSelectOptions(ui.library.naiDialect, NAI_DIALECT_OPTIONS);
   fillSelectOptions(ui.library.themePreset, THEME_PRESETS);
   fillSelectOptions(ui.settings.fallbackProviderPreset, PROVIDER_PRESETS);
   fillSelectOptions(ui.settings.fallbackProtocol, PROTOCOL_OPTIONS);

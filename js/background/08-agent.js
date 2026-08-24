@@ -159,6 +159,15 @@ const AGENT_NAI5_NOTE = `【NovelAI Diffusion V5 规则核对（与 skill 冲突
 - 透明是两件事，别混：整张图要透明背景 → \`transparent background\` + \`has alpha\`，需要更强时可以写 \`2.1::transparent background::\`；伞、火焰、玻璃、魔法这类**物体本身半透明、但背景要留着** → \`alpha transparency\` + \`has alpha\`。
 - V5 新增的 tag：\`depthness\`、\`attractive male\`、\`low complexity\` / \`medium complexity\` / \`high complexity\` / \`ultra complexity\`、\`has alpha\`。只在跟画面直接相关时用，不要当成固定的质量尾词挂在末尾。`;
 
+// V4.5 的规则核对：纯 tag 路线。和 V5 那份互斥，按「提示词格式」二选一附加。
+const AGENT_NAI45_NOTE = `【NovelAI Diffusion V4.5 规则核对（与 skill 冲突时以这里为准）】
+- V4.5 的提示词以 danbooru tag 为主体：先查证再用（本地词典 / search_tags），冷门或编造的写法画不准。自然语言只在 tag 说不清人物互动、空间关系时补一两句，不要整段写散文。
+- 加权只用分段语法：\`1.2::tag::\` 加强、\`0.8::tag::\` 减弱，V4.5 支持负权重 \`-1::tag::\`。不要用大括号或方括号的旧写法，每个数字权重都必须闭合。
+- 分工：主提示词管构图、场景、光线和人物互动；独立角色栏只放该角色的外观与服装。V4.5 的角色栏上限是 6 个，不要超。
+- 角色站位靠网站里的位置控件（5×5 网格），不要在文本里发明坐标写法。
+- 不要用 V5 才有的新 tag（depthness、complexity 系列、has alpha 等），V4.5 不认识它们。
+- 质量尾词按 skill 的规矩来，不要自作主张往末尾堆。`;
+
 function buildAgentSystemText(skill, options = {}) {
   const parts = [];
   const body = String(skill?.body || '').trim();
@@ -171,26 +180,58 @@ function buildAgentSystemText(skill, options = {}) {
   }
 
   parts.push(AGENT_RUNTIME_NOTE);
-  if (options.nai5Rules !== false) parts.push(AGENT_NAI5_NOTE);
+  if (options.attachRules !== false) {
+    parts.push(options.dialect === 'v45' ? AGENT_NAI45_NOTE : AGENT_NAI5_NOTE);
+  }
   return parts.join('\n\n---\n\n');
+}
+
+// 兼容旧字段：v1.5.x 的面板发的是 nai5Rules，新面板发 dialect + attachRules。
+function agentRuleOptions(payload) {
+  return {
+    dialect: payload?.dialect === 'v45' ? 'v45' : 'v5',
+    attachRules: (payload?.attachRules ?? payload?.nai5Rules) !== false,
+  };
 }
 
 // 生成方式分档。措辞放在后台、前端只传档位名 —— 要改说法时不用动 UI，
 // 也不会出现「按钮上写的」和「发出去的」两套文案。
 const AGENT_MODES = {
-  default: '按 skill 的默认方式写：tag 骨架 + 精确的自然语言；有多个角色时另外给出各自的外观栏。',
-  expanded: '展开写。主提示词要讲清动作、左右站位、前后层次和角色之间的互动，另外严格输出 Character 1、Character 2… 独立角色栏。角色栏只放外貌、发型、眼睛、身体特征、服装和配饰；动作、表情、镜头、场景、背景一律留在主提示词里，不要漏进角色栏。',
-  refine: '改写用户已有的提示词：整理、纠错、补齐、理顺顺序。用户已经写下的内容和数字权重要原样保留，不要擅自加画师串、质量尾词或 UC。结果之外用一两句说明你改了哪几处、各针对什么问题。',
-  tags: '优先给准确、精炼的 danbooru tag，能用 tag 表达的就不要写成句子；只有人物互动或空间关系用 tag 说不清时，才补一两句自然语言。',
+  v5: {
+    default: '按 skill 的默认方式写：先用锚定的 danbooru tag 定住主体、数量、风格这些硬事实，再用自然语言句子讲清动作、互动、空间关系和光线，两者混写；有多个角色时另外给出各自的外观栏。',
+    expanded: '展开写。主提示词用自然语言讲透动作、左右站位、前后层次和角色之间的互动（锚定 tag 打底），另外严格输出 Character 1、Character 2… 独立角色栏。角色栏只放外貌、发型、眼睛、身体特征、服装和配饰；动作、表情、镜头、场景、背景一律留在主提示词里，不要漏进角色栏。',
+    refine: '改写用户已有的提示词：整理、纠错、补齐、理顺顺序。用户已经写下的内容和数字权重要原样保留，不要擅自加画师串、质量尾词或 UC。结果之外用一两句说明你改了哪几处、各针对什么问题。',
+    tags: '优先给准确、精炼的 danbooru tag，能用 tag 表达的就不要写成句子；只有人物互动或空间关系用 tag 说不清时，才补一两句自然语言。',
+  },
+  v45: {
+    default: '按 V4.5 的习惯写：输出以 danbooru tag 为主体，逐个查证写法（本地词典 / search_tags），自然语言只在 tag 说不清人物互动或空间关系时补一两句；有多个角色时另外给出各自的外观栏。',
+    expanded: '展开写。主提示词用尽可能精确的 tag 交代构图、站位和互动（确实说不清的补一两句短句），另外严格输出 Character 1、Character 2… 独立角色栏，V4.5 最多 6 个。角色栏只放外貌、发型、眼睛、身体特征、服装和配饰。',
+    refine: '改写用户已有的提示词：整理、纠错、补齐、理顺顺序，并把与 danbooru 标准写法不符的 tag 修正成标准写法。用户已经写下的内容和数字权重要原样保留，不要擅自加画师串、质量尾词或 UC。结果之外用一两句说明你改了哪几处、各针对什么问题。',
+    tags: '只输出经过查证的 danbooru tag，逗号分隔，不写句子；拿不准的 tag 先用 search_tags 查证再用。',
+  },
 };
 
-function agentModeInstruction(mode) {
-  return AGENT_MODES[mode] || AGENT_MODES.default;
+function agentModeInstruction(mode, dialect) {
+  const set = AGENT_MODES[dialect === 'v45' ? 'v45' : 'v5'];
+  return set[mode] || set.default;
 }
 
 function normalizeAgentCharacterCount(value) {
   const count = Math.trunc(Number(value) || 0);
   return Math.max(0, Math.min(AGENT_MAX_CHARACTER_SLOTS, count));
+}
+
+const AGENT_HISTORY_LIMITS = { entries: 6, text: 4000 };
+
+// 对话历史原样进 messages（最近 3 轮）。「上一轮结果」不再是一个要勾的知识源 ——
+// 模型直接看见自己说过什么，迭代规则（每轮只改 2~3 处）自然成立。
+function buildAgentHistoryMessages(history) {
+  return (Array.isArray(history) ? history : [])
+    .filter((entry) => entry && (entry.role === 'user' || entry.role === 'assistant'))
+    .map((entry) => ({ role: entry.role, text: clipText(entry.text, AGENT_HISTORY_LIMITS.text) }))
+    .filter((entry) => entry.text)
+    .slice(-AGENT_HISTORY_LIMITS.entries)
+    .map((entry) => ({ role: entry.role, content: entry.text }));
 }
 
 const AGENT_CONTEXT_LIMITS = {
@@ -296,10 +337,14 @@ function buildAgentContextBlocks(context, mentionText) {
   return blocks;
 }
 
-function buildAgentUserText(payload, prefiltered) {
+function buildAgentUserText(payload, prefiltered, options = {}) {
   const parts = [`画面需求：\n${String(payload.request || '').trim()}`];
 
-  parts.push(`本轮的生成方式：${agentModeInstruction(payload.mode)}`);
+  parts.push(`本轮的生成方式：${agentModeInstruction(payload.mode, payload.dialect)}`);
+
+  if (options.hasHistory) {
+    parts.push('本轮是上面对话的延续：在你上一轮版本的基础上按 skill 的迭代规则改，只动需要动的地方，说明改了哪几处；不要整体重写。');
+  }
 
   const characterCount = normalizeAgentCharacterCount(payload.characterCount);
   if (characterCount) {
@@ -326,9 +371,11 @@ function buildAgentUserText(payload, prefiltered) {
 }
 
 function buildAgentMessages(payload, prefiltered) {
+  const history = buildAgentHistoryMessages(payload.history);
   return [
-    { role: 'system', content: buildAgentSystemText(payload.skill, { nai5Rules: payload.nai5Rules !== false }) },
-    { role: 'user', content: [{ type: 'text', text: buildAgentUserText(payload, prefiltered) }] },
+    { role: 'system', content: buildAgentSystemText(payload.skill, agentRuleOptions(payload)) },
+    ...history,
+    { role: 'user', content: [{ type: 'text', text: buildAgentUserText(payload, prefiltered, { hasHistory: history.length > 0 }) }] },
   ];
 }
 

@@ -1,11 +1,12 @@
-/* 提示词 Agent：反推面板的「写词」页与工作台抽屉的「写词」窗口共用。
-   外观一律沿用既有的 .nai-md3-input / .nai-md3-tabs / .nai-md3-inline-action /
+/* 提示词 Agent：反推面板的「写词」页与工作台抽屉的「写词」窗口共用，
+   正文是一条对话流（参数行 → 消息记录 → 底部输入区）。
+   外观一律沿用既有的 .nai-md3-input / .nai-md3-tabs / .nai-md3-actions /
    .nai-history-item 规格，这里只负责布局，以及抽屉上下文里改回 .nai-library-* 的尺寸。 */
 
 .nai-agent {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   color: var(--md-sys-color-on-surface);
 }
@@ -115,6 +116,91 @@
   margin-top: -4px;
 }
 
+/* ─── 对话流 ───
+   滚动交给面板的滚动区，这里只排消息：用户消息是右对齐的小胶囊卡，
+   回复不包壳 —— 散文直接排在玻璃上，提示词块沿用下面的卡片规格。
+   thread 吃掉写词页的剩余高度，输入区被顶在底部。 */
+.nai-agent-thread {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nai-agent-thread-empty {
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.nai-agent-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nai-agent-msg.is-user {
+  align-self: flex-end;
+  max-width: 86%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--nai-md3-radius-lg);
+  padding: 8px 12px;
+  background: var(--nai-md3-chip-bg);
+  box-shadow: var(--nai-md3-chip-shadow);
+}
+
+.nai-agent-msg-text {
+  color: var(--md-sys-color-on-surface);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nai-agent-msg-pending {
+  color: var(--nai-md3-ink-muted);
+}
+
+/* 「全部填入」是整条回复的次要动作，靠右收尾，不做全幅大按钮 */
+.nai-agent-msg-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ─── 输入区 ───
+   发送占满一行；清空是次要动作：小号、贴最右，规格同块卡片上的小按钮。 */
+.nai-agent-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nai-agent-input {
+  resize: vertical;
+  min-height: 44px;
+}
+
+.nai-agent-composer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 0;
+}
+
+.nai-agent .nai-agent-send {
+  flex: 1;
+}
+
+.nai-agent .nai-agent-composer-actions button.nai-agent-clear {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
 .nai-agent-manager {
   display: flex;
   flex-direction: column;
@@ -140,8 +226,7 @@
 .nai-agent-skill-desc,
 .nai-agent-skill-refs,
 .nai-agent-note,
-.nai-agent-meta,
-.nai-agent-foot {
+.nai-agent-msg-meta {
   color: var(--nai-md3-ink-muted);
   font-size: 11px;
   line-height: 1.6;
@@ -178,25 +263,6 @@
   resize: vertical;
 }
 
-.nai-agent-request,
-.nai-agent-character {
-  resize: vertical;
-}
-
-.nai-agent-request {
-  min-height: 86px;
-}
-
-.nai-agent-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.nai-agent-blocks:empty {
-  display: none;
-}
 
 /* 卡片逐项照搬 .nai-history-item */
 .nai-agent-block {
@@ -239,13 +305,6 @@
   overflow-wrap: anywhere;
 }
 
-.nai-agent-result {
-  min-height: 140px;
-}
-
-.nai-agent-meta:empty {
-  display: none;
-}
 
 /* .nai-md3-root button 的 `font: inherit` 权重是 (0,1,1)，
    单类规则压不住，胶囊按钮的字号字重必须在这一层重申 */
@@ -331,10 +390,4 @@
   border-color: var(--nai-lib-orange);
   background: var(--nai-lib-orange);
   color: var(--nai-lib-paper);
-}
-
-/* 一键填入是整行的次要动作，别在两列网格里缩成半个 */
-.nai-agent-fill-actions {
-  grid-template-columns: 1fr;
-  margin-top: 10px;
 }

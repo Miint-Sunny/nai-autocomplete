@@ -41,6 +41,7 @@ function applySettingsToInputs() {
   ui.settings.preferNaiMetadata.checked = state.settings.preferNaiMetadata !== false;
   ui.settings.allowDanbooruLookup.checked = state.settings.allowDanbooruLookup !== false;
   if (ui.settings.agentNai5Rules) ui.settings.agentNai5Rules.checked = state.settings.agentNai5Rules !== false;
+  if (ui.settings.naiDialect) ui.settings.naiDialect.value = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
   ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
   ui.settings.enableBooruTagContext.checked = Boolean(state.settings.enableBooruTagContext);
   updateBooruTagTypesVisibility();
@@ -113,6 +114,7 @@ function applyLibrarySettingsToInputs() {
     if (!ui.library[key]) return;
     ui.library[key].checked = Boolean(state.settings[settingKey]);
   });
+  if (ui.library.naiDialect) ui.library.naiDialect.value = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
 
   renderPromptLibraryOptions();
 }
@@ -147,6 +149,7 @@ function readLibrarySettingsFromInputs() {
     preferNaiMetadata: Boolean(ui.library.preferNaiMetadata?.checked),
     allowDanbooruLookup: Boolean(ui.library.allowDanbooruLookup?.checked),
     agentNai5Rules: Boolean(ui.library.agentNai5Rules?.checked),
+    naiDialect: ui.library.naiDialect?.value === 'v45' ? 'v45' : 'v5',
     sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
     enableBooruTagContext: Boolean(ui.library.enableBooruTagContext?.checked),
     showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
@@ -189,6 +192,7 @@ function readSettingsFromInputs() {
     preferNaiMetadata: Boolean(ui.settings.preferNaiMetadata.checked),
     allowDanbooruLookup: Boolean(ui.settings.allowDanbooruLookup.checked),
     agentNai5Rules: Boolean(ui.settings.agentNai5Rules?.checked ?? DEFAULT_SETTINGS.agentNai5Rules),
+    naiDialect: ui.settings.naiDialect?.value === 'v45' ? 'v45' : 'v5',
     sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),
     enableBooruTagContext: Boolean(ui.settings.enableBooruTagContext.checked),
     showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),
@@ -199,6 +203,17 @@ function readSettingsFromInputs() {
   };
 }
 
+// 内置反推预设跟着「提示词格式」走：nai-v5 ↔ nai-v4。
+// 只在档位真的变了、且当前选的是这两个内置项之一时切换 —— 用户自选的预设不碰。
+function applyDialectPresetFollow(previousDialect) {
+  const next = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
+  if (next === previousDialect) return false;
+  const pair = { v5: 'nai-v5', v45: 'nai-v4' };
+  if (state.settings.activePresetId !== pair[previousDialect]) return false;
+  state.settings.activePresetId = pair[next];
+  return true;
+}
+
 async function saveSettings() {
   if (!ensureExtensionContext()) {
     setStatus(T.statusContextInvalidated, true);
@@ -207,7 +222,12 @@ async function saveSettings() {
   syncActivePresetIdFromUI();
   syncBlocksToPreset();
   applyActivePresetName('settings');
+  const previousDialect = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
   state.settings = { ...DEFAULT_SETTINGS, ...readSettingsFromInputs() };
+  if (applyDialectPresetFollow(previousDialect)) {
+    renderPresetSelector();
+    renderPresetEditor('settings');
+  }
   const saved = await storageSet({ [SETTINGS_KEY]: state.settings });
   if (!saved) {
     setStatus(T.statusContextInvalidated, true);
@@ -222,17 +242,23 @@ async function saveSettings() {
   updateFabVisibility();
   applyLibrarySettingsToInputs();
   renderPresetEditor('workbench');
+  renderAgentPanel();
   setStatus(T.statusSaved, false);
 }
 
 async function saveLibrarySettings() {
   if (!ensureExtensionContext()) return;
+  const previousDialect = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
   state.settings = { ...DEFAULT_SETTINGS, ...readLibrarySettingsFromInputs() };
+  applyDialectPresetFollow(previousDialect);
   const saved = await storageSet({ [SETTINGS_KEY]: state.settings });
   if (!saved) return;
   applyThemePreset();
   updateFabVisibility();
   applySettingsToInputs();
+  renderPresetSelector();
+  renderPresetEditor('settings');
+  renderAgentPanel();
   setStatus(T.statusSaved, false);
 }
 

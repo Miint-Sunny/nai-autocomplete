@@ -1,15 +1,16 @@
-// 提示词 Agent 的界面。面板页和工作台抽屉共用同一份 markup，
+// 提示词 Agent 的界面：一条对话流。面板页和工作台抽屉共用同一份 markup，
 // 状态放在 state.agent 里，渲染时推给所有 host（和画师库快捷面板同一套路）。
 //
-// 这里只负责「写提示词」：复制、写入输入框。不做任何触发生成的动作。
+// 这里只负责「写提示词」：结果不自动填入，全部由每块卡片上的按钮写进输入框。
+// 不做任何触发生成的动作。
 
 // 四档生成方式。前端只管标签和提示，发出去的任务说明在后台的 AGENT_MODES 里 ——
-// 一句话两处写会立刻不一致。
+// 一句话两处写会立刻不一致。hint 按「提示词格式」分 V5 / V4.5 两套。
 const AGENT_MODE_OPTIONS = [
-  { id: 'default', label: T.agentModeDefault, hint: T.agentModeHintDefault },
-  { id: 'expanded', label: T.agentModeExpanded, hint: T.agentModeHintExpanded },
-  { id: 'refine', label: T.agentModeRefine, hint: T.agentModeHintRefine },
-  { id: 'tags', label: T.agentModeTags, hint: T.agentModeHintTags },
+  { id: 'default', label: T.agentModeDefault, hint: T.agentModeHintDefault, hintV45: T.agentModeHintDefaultV45 },
+  { id: 'expanded', label: T.agentModeExpanded, hint: T.agentModeHintExpanded, hintV45: T.agentModeHintExpandedV45 },
+  { id: 'refine', label: T.agentModeRefine, hint: T.agentModeHintRefine, hintV45: T.agentModeHintRefineV45 },
+  { id: 'tags', label: T.agentModeTags, hint: T.agentModeHintTags, hintV45: T.agentModeHintTagsV45 },
 ];
 
 // 0 = 自动（不限定）。1~6 是快捷填入栏位的数量，不是 NovelAI 的模型上限。
@@ -17,6 +18,9 @@ const AGENT_CHARACTER_COUNTS = [0, 1, 2, 3, 4, 5, 6];
 
 // 词库角色整份发给后台再筛，不是发给模型 —— 这个上限只是别把消息撑爆。
 const AGENT_CHARACTER_SOURCE_LIMIT = 120;
+
+// 对话保留的条数（一问一答算两条）。发给模型的裁剪在后台另有一套更紧的口径。
+const AGENT_CONVERSATION_LIMIT = 24;
 
 function agentMarkup() {
   return `
@@ -63,30 +67,21 @@ function agentMarkup() {
         <span class="nai-agent-row-label">${T.agentSourcesLabel}</span>
         <div class="nai-agent-row-controls">
           <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="currentPrompt">${T.agentSourceCurrentPrompt}</button>
-          <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="previous">${T.agentSourcePrevious}</button>
           <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="characters">${T.agentSourceCharacters}</button>
           <button type="button" class="nai-md3-inline-action nai-agent-source" data-agent-action="source" data-source="artists">${T.agentSourceArtists}</button>
         </div>
       </div>
       <div class="nai-agent-note nai-agent-sources-hint">${T.agentSourcesHint}</div>
 
-      <label class="nai-md3-label">${T.agentRequestLabel}</label>
-      <textarea class="nai-md3-input nai-agent-request" data-agent-field="request" rows="4" placeholder="${T.agentRequestPlaceholder}"></textarea>
+      <div class="nai-agent-thread" data-agent-field="thread"></div>
 
-      <label class="nai-md3-label">${T.agentCharacterLabel}</label>
-      <textarea class="nai-md3-input nai-agent-character" data-agent-field="characterPrompt" rows="2" placeholder="${T.agentCharacterPlaceholder}"></textarea>
-
-      <div class="nai-md3-actions nai-agent-actions">
-        <button type="button" class="nai-md3-primary" data-agent-action="run">${T.agentRun}</button>
-        <button type="button" data-agent-action="clear">${T.agentClear}</button>
+      <div class="nai-agent-composer">
+        <textarea class="nai-md3-input nai-agent-input" data-agent-field="request" rows="2" placeholder="${T.agentRequestPlaceholder}"></textarea>
+        <div class="nai-md3-actions nai-agent-composer-actions">
+          <button type="button" class="nai-md3-primary nai-agent-send" data-agent-action="run">${T.agentRun}</button>
+          <button type="button" class="nai-agent-clear" data-agent-action="clear">${T.agentClear}</button>
+        </div>
       </div>
-
-      <div class="nai-agent-meta" data-agent-field="meta"></div>
-      <div class="nai-agent-blocks" data-agent-field="blocks"></div>
-
-      <label class="nai-md3-label">${T.agentResultLabel}</label>
-      <textarea class="nai-md3-result nai-agent-result" data-agent-field="result" rows="8" readonly placeholder="${T.agentResultPlaceholder}"></textarea>
-      <div class="nai-agent-foot">${T.agentHint}</div>
     </div>`;
 }
 
@@ -94,13 +89,21 @@ function activeAgentMode() {
   return AGENT_MODE_OPTIONS.find((option) => option.id === state.agent.mode) || AGENT_MODE_OPTIONS[0];
 }
 
-// 改写档改的是「已经存在的那份提示词」。一样都没带就没东西可改 ——
-// 与其让模型凭空重写一版，不如顺手把「当前提示词」勾上，并且说一声。
-// 自动勾上是看得见的：那颗 chip 会亮起来。
+function agentModeHint(option) {
+  return state.settings.naiDialect === 'v45' ? (option.hintV45 || option.hint) : option.hint;
+}
+
+function agentConversationHasAssistant() {
+  return state.agent.conversation.some((entry) => entry.role === 'assistant');
+}
+
+// 改写档改的是「已经存在的那份提示词」。对话里已有上一轮版本时不用管；
+// 对话是空的且「当前提示词」也没勾，就顺手勾上并说一声 —— 自动勾是看得见的，
+// 那颗 chip 会亮起来。
 function setAgentMode(mode) {
   state.agent.mode = AGENT_MODE_OPTIONS.some((option) => option.id === mode) ? mode : 'default';
 
-  if (state.agent.mode === 'refine' && !state.agent.sources.currentPrompt && !state.agent.sources.previous) {
+  if (state.agent.mode === 'refine' && !state.agent.sources.currentPrompt && !agentConversationHasAssistant()) {
     state.agent.sources.currentPrompt = true;
     setStatus(T.statusAgentRefineNeedsPrompt, false);
   }
@@ -128,36 +131,114 @@ function extractAgentBlocks(text) {
   return blocks;
 }
 
+// 回复整理成对话条目：代码框抽成卡片、其余散文单独放。
+// 模型没按格式给代码框时，整段回复就当唯一一块 —— 填入/复制永远有的按。
+function agentAssistantEntry(text, meta) {
+  const raw = String(text || '');
+  const fenced = extractAgentBlocks(raw);
+  const blocks = fenced.length ? fenced : [raw.trim()].filter(Boolean);
+  const prose = fenced.length
+    ? raw.replace(/```[a-zA-Z0-9_-]*\r?\n[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trim()
+    : '';
+  return { role: 'assistant', text: raw, prose, blocks, meta: String(meta || '') };
+}
+
+function trimAgentConversation() {
+  if (state.agent.conversation.length > AGENT_CONVERSATION_LIMIT) {
+    state.agent.conversation = state.agent.conversation.slice(-AGENT_CONVERSATION_LIMIT);
+  }
+}
+
+function normalizeAgentConversation(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((entry) => entry && (entry.role === 'user' || entry.role === 'assistant') && String(entry.text || '').trim())
+    .slice(-AGENT_CONVERSATION_LIMIT)
+    .map((entry) => (entry.role === 'assistant'
+      ? agentAssistantEntry(entry.text, typeof entry.meta === 'string' ? entry.meta : '')
+      : { role: 'user', text: String(entry.text) }));
+}
+
+async function loadAgentConversation() {
+  const data = await storageGet([AGENT_CONVERSATION_KEY]);
+  state.agent.conversation = normalizeAgentConversation(data[AGENT_CONVERSATION_KEY]);
+}
+
+// 只存 role/text/meta，blocks 和散文加载时重新算 —— 存派生值只会两处不一致
+function saveAgentConversation() {
+  const compact = state.agent.conversation.map((entry) => (entry.role === 'assistant'
+    ? { role: 'assistant', text: entry.text, meta: entry.meta || '' }
+    : { role: 'user', text: entry.text }));
+  // 存不进去就算了（扩展上下文失效等），别让一次写作因为持久化炸掉
+  storageSet({ [AGENT_CONVERSATION_KEY]: compact }).catch(() => {});
+}
+
 function agentBlockLabel(index) {
   if (index === 0) return T.agentBlockMain;
   if (index === 1) return T.agentBlockCharacter;
   return `${T.agentBlockOther} ${index + 1}`;
 }
 
-function agentBlocksMarkup() {
-  if (!state.agent.blocks.length) return '';
+function agentBlockMarkup(turnIndex, block, blockIndex) {
+  const ref = `data-turn="${turnIndex}" data-index="${blockIndex}"`;
+  // 填入在前、复制在后；只填输入框，不碰「生成」—— 触发出图那条红线在这儿也算数
+  const actions = blockIndex === 0
+    ? `
+      <button type="button" class="nai-md3-inline-action" data-agent-action="write-block" ${ref}>${T.agentWrite}</button>
+      <button type="button" class="nai-md3-inline-action" data-agent-action="append-block" ${ref}>${T.agentAppend}</button>
+      <button type="button" class="nai-md3-inline-action" data-agent-action="flow-block" ${ref}>${T.tabFlow}</button>
+      <button type="button" class="nai-md3-inline-action" data-agent-action="copy-block" ${ref}>${T.agentCopy}</button>`
+    : `
+      <button type="button" class="nai-md3-inline-action" data-agent-action="fill-character" ${ref}>${T.agentFillCharacter} ${blockIndex}</button>
+      <button type="button" class="nai-md3-inline-action" data-agent-action="copy-block" ${ref}>${T.agentCopy}</button>`;
 
-  // 只填输入框，不碰「生成」—— 触发出图那条红线在这儿也算数
-  const fillAll = state.agent.blocks.length > 1
-    ? `<div class="nai-md3-actions nai-agent-fill-actions"><button type="button" class="nai-md3-inline-action" data-agent-action="fill-all-characters">${T.agentFillAllCharacters}</button></div>`
+  return `
+    <article class="nai-agent-block">
+      <div class="nai-agent-block-head">
+        <span class="nai-agent-block-title">${agentBlockLabel(blockIndex)}</span>
+        <div class="nai-agent-block-actions">${actions}</div>
+      </div>
+      <pre class="nai-agent-block-body">${escapeHtml(block)}</pre>
+    </article>`;
+}
+
+function agentTurnMarkup(entry, turnIndex) {
+  if (entry.role === 'user') {
+    return `
+      <div class="nai-agent-msg is-user">
+        <div class="nai-agent-msg-text">${escapeHtml(entry.text)}</div>
+      </div>`;
+  }
+
+  const blocks = Array.isArray(entry.blocks) ? entry.blocks : [];
+  const fillAll = blocks.length > 1
+    ? `<div class="nai-agent-msg-actions"><button type="button" class="nai-md3-inline-action" data-agent-action="fill-all" data-turn="${turnIndex}">${T.agentFillAll}</button></div>`
     : '';
 
-  return fillAll + state.agent.blocks
-    .map((block, index) => `
-      <article class="nai-agent-block" data-index="${index}">
-        <div class="nai-agent-block-head">
-          <span class="nai-agent-block-title">${agentBlockLabel(index)}</span>
-          <div class="nai-agent-block-actions">
-            <button type="button" class="nai-md3-inline-action" data-agent-action="copy-block" data-index="${index}">${T.agentCopy}</button>
-            <button type="button" class="nai-md3-inline-action" data-agent-action="write-block" data-index="${index}">${T.agentWrite}</button>
-            <button type="button" class="nai-md3-inline-action" data-agent-action="append-block" data-index="${index}">${T.agentAppend}</button>
-            <button type="button" class="nai-md3-inline-action" data-agent-action="flow-block" data-index="${index}">${T.tabFlow}</button>
-            ${index > 0 ? `<button type="button" class="nai-md3-inline-action" data-agent-action="fill-character" data-index="${index}">${T.agentFillCharacter} ${index}</button>` : ''}
-          </div>
-        </div>
-        <pre class="nai-agent-block-body">${escapeHtml(block)}</pre>
-      </article>`)
-    .join('');
+  return `
+    <div class="nai-agent-msg is-assistant">
+      ${entry.prose ? `<div class="nai-agent-msg-text">${escapeHtml(entry.prose)}</div>` : ''}
+      ${blocks.map((block, blockIndex) => agentBlockMarkup(turnIndex, block, blockIndex)).join('')}
+      ${fillAll}
+      ${entry.meta ? `<div class="nai-agent-msg-meta">${escapeHtml(entry.meta)}</div>` : ''}
+    </div>`;
+}
+
+function agentThreadMarkup() {
+  const running = state.pending && state.pendingScope === 'agent';
+  const turns = state.agent.conversation.map((entry, turnIndex) => agentTurnMarkup(entry, turnIndex)).join('');
+  const pending = running ? `<div class="nai-agent-msg is-assistant"><div class="nai-agent-msg-text nai-agent-msg-pending">${T.statusAgentRunning}</div></div>` : '';
+
+  if (!turns && !pending) {
+    return `<div class="nai-agent-thread-empty">${T.agentThreadEmpty}</div>`;
+  }
+  return turns + pending;
+}
+
+function agentScrollThreadToEnd() {
+  agentHosts().forEach((host) => {
+    const thread = host.querySelector('[data-agent-field="thread"]');
+    thread?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  });
 }
 
 function agentSkillMetaMarkup() {
@@ -180,7 +261,7 @@ function renderAgentPanel() {
   const options = agentSkillList()
     .map((skill) => `<option value="${escapeHtml(skill.id)}"${skill.id === active.id ? ' selected' : ''}>${escapeHtml(skill.name)}</option>`)
     .join('');
-  const blocksHtml = agentBlocksMarkup();
+  const threadHtml = agentThreadMarkup();
   const skillMetaHtml = agentSkillMetaMarkup();
   const editing = typeof state.agent.editing === 'string';
 
@@ -212,24 +293,13 @@ function renderAgentPanel() {
     });
 
     const modeHint = host.querySelector('[data-agent-field="modeHint"]');
-    if (modeHint) modeHint.textContent = activeAgentMode().hint;
+    if (modeHint) modeHint.textContent = agentModeHint(activeAgentMode());
 
     const request = host.querySelector('[data-agent-field="request"]');
     if (request && request.value !== state.agent.request) request.value = state.agent.request;
-    const character = host.querySelector('[data-agent-field="characterPrompt"]');
-    if (character && character.value !== state.agent.characterPrompt) character.value = state.agent.characterPrompt;
 
-    const meta = host.querySelector('[data-agent-field="meta"]');
-    if (meta) {
-      meta.textContent = state.agent.meta || '';
-      meta.classList.toggle('nai-hidden', !state.agent.meta);
-    }
-
-    const blocks = host.querySelector('[data-agent-field="blocks"]');
-    if (blocks) blocks.innerHTML = blocksHtml;
-
-    const result = host.querySelector('[data-agent-field="result"]');
-    if (result && result.value !== state.agent.result) result.value = state.agent.result;
+    const thread = host.querySelector('[data-agent-field="thread"]');
+    if (thread) thread.innerHTML = threadHtml;
 
     const deleteButton = host.querySelector('[data-agent-action="delete"]');
     if (deleteButton) deleteButton.disabled = active.builtin;
@@ -253,12 +323,6 @@ function renderAgentRunState() {
 
 function readAgentInputs(host) {
   state.agent.request = host.querySelector('[data-agent-field="request"]')?.value ?? state.agent.request;
-  state.agent.characterPrompt = host.querySelector('[data-agent-field="characterPrompt"]')?.value ?? state.agent.characterPrompt;
-}
-
-function setAgentResult(text) {
-  state.agent.result = String(text || '');
-  state.agent.blocks = extractAgentBlocks(state.agent.result);
 }
 
 function describeAgentRun(response) {
@@ -275,7 +339,8 @@ function describeAgentRun(response) {
   return parts.join(' · ');
 }
 
-// 只收集勾上的那几项 —— 没勾的一个字都不发出去
+// 只收集勾上的那几项 —— 没勾的一个字都不发出去。
+// 上一轮结果不在这里：对话历史整体发给后台，模型直接看见。
 async function collectAgentContext() {
   const sources = state.agent.sources;
   const context = {};
@@ -283,10 +348,6 @@ async function collectAgentContext() {
   if (sources.currentPrompt) {
     const current = readPromptFieldText();
     if (current?.trim()) context.currentPrompt = current.trim();
-  }
-
-  if (sources.previous && String(state.agent.result || '').trim()) {
-    context.previous = state.agent.result.trim();
   }
 
   if (sources.characters) {
@@ -344,10 +405,22 @@ async function runAgentWrite() {
 
   const skill = getActiveAgentSkill();
   const context = await collectAgentContext();
+  // 历史先取快照再 push 本轮，发出去的正好是「这句话之前」的对话
+  const history = state.agent.conversation.map((entry) => ({ role: entry.role, text: entry.text }));
   const runId = createId('agent-run');
+
   setPending(true, T.agentRun, { runId, scope: 'agent' });
   setStatus(T.statusAgentRunning, false);
-  state.agent.meta = '';
+  state.agent.conversation.push({ role: 'user', text: request });
+  trimAgentConversation();
+  renderAgentPanel();
+  agentScrollThreadToEnd();
+
+  // 失败或取消时把刚 push 的这句撤回来 —— 草稿还留在输入框里，改改再发
+  const revertUserTurn = () => {
+    const last = state.agent.conversation[state.agent.conversation.length - 1];
+    if (last?.role === 'user' && last.text === request) state.agent.conversation.pop();
+  };
 
   try {
     const response = await sendRuntimeMessage({
@@ -356,42 +429,48 @@ async function runAgentWrite() {
       payload: {
         skill: { name: skill.name, body: skill.body, references: skill.references },
         request,
-        characterPrompt: String(state.agent.characterPrompt || '').trim(),
         mode: state.agent.mode,
         characterCount: state.agent.characterCount,
         context,
+        history,
+        dialect: state.settings.naiDialect === 'v45' ? 'v45' : 'v5',
+        attachRules: state.settings.agentNai5Rules !== false,
         primary: primaryConfig,
         fallback: fallbackConfig,
         allowDanbooruLookup: state.settings.allowDanbooruLookup !== false,
-        nai5Rules: state.settings.agentNai5Rules !== false,
       },
     });
 
     if (response?.errorKind === 'aborted') {
+      revertUserTurn();
       setStatus(T.statusAgentCancelled, false);
       return;
     }
 
     if (!response?.ok) throw new Error(response?.error || '写提示词失败');
 
-    setAgentResult(response.text);
-    state.agent.meta = describeAgentRun(response);
+    state.agent.request = '';
+    state.agent.conversation.push(agentAssistantEntry(response.text, describeAgentRun(response)));
+    trimAgentConversation();
+    saveAgentConversation();
     setStatus(T.statusAgentDone, false);
   } catch (error) {
+    revertUserTurn();
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
     setPending(false);
     renderAgentPanel();
+    agentScrollThreadToEnd();
+    requestAnimationFrame(() => autoResizeAllTextareas());
   }
 }
 
-function clearAgentDraft() {
+function clearAgentConversation() {
+  state.agent.conversation = [];
   state.agent.request = '';
-  state.agent.characterPrompt = '';
-  state.agent.result = '';
-  state.agent.blocks = [];
-  state.agent.meta = '';
+  saveAgentConversation();
   renderAgentPanel();
+  requestAnimationFrame(() => autoResizeAllTextareas());
 }
 
 async function handleAgentAction(action, target, host) {
@@ -429,7 +508,7 @@ async function handleAgentAction(action, target, host) {
   }
 
   if (action === 'clear') {
-    clearAgentDraft();
+    clearAgentConversation();
     return;
   }
 
@@ -467,15 +546,21 @@ async function handleAgentAction(action, target, host) {
     return;
   }
 
-  if (action === 'fill-all-characters') {
-    await runAgentCharacterFill(state.agent.blocks
-      .slice(1)
-      .map((prompt, offset) => ({ slot: offset + 1, prompt })));
+  // 往下都是对话里某条回复上的动作，先定位到那一轮
+  const turn = state.agent.conversation[Number(target.dataset.turn)];
+  const blocks = Array.isArray(turn?.blocks) ? turn.blocks : [];
+
+  if (action === 'fill-all') {
+    if (!blocks.length) return;
+    await writePromptFieldValue(blocks[0], 'replace');
+    if (blocks.length > 1) {
+      await runAgentCharacterFill(blocks.slice(1).map((prompt, offset) => ({ slot: offset + 1, prompt })));
+    }
     return;
   }
 
   const index = Number(target.dataset.index);
-  const block = state.agent.blocks[index];
+  const block = blocks[index];
   if (!block) return;
 
   if (action === 'copy-block') {
@@ -522,7 +607,6 @@ function bindAgentPanel(root) {
     host.addEventListener('input', (event) => {
       const field = event.target.dataset?.agentField;
       if (field === 'request') state.agent.request = event.target.value;
-      else if (field === 'characterPrompt') state.agent.characterPrompt = event.target.value;
       else if (field === 'editorText') state.agent.editing = event.target.value;
     });
 
@@ -535,6 +619,11 @@ function bindAgentPanel(root) {
 
 async function initAgentPanel(root) {
   bindAgentPanel(root);
+  try {
+    await loadAgentConversation();
+  } catch (error) {
+    state.agent.conversation = [];
+  }
   try {
     await loadAgentSkills();
   } catch (error) {

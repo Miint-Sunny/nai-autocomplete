@@ -97,6 +97,7 @@ NAI 生成的图把提示词写在自己身上，两个位置：
 | DeepSeek | V4 默认就开着思考且是高档。选「关闭」必须显式发 `thinking:{type:'disabled'}`，否则白白拖慢反推 |
 | DeepSeek | `deepseek-chat` / `deepseek-reasoner` 两个旧别名已于 2026-07-24 完全退役 |
 | Responses (xAI) | 只认 `low` / `high` 两档，中档往上取 |
+| Responses（通用） | assistant 历史消息的内容类型是 `output_text`，不是 `input_text` —— 全写成 `input_text` 会被严格实现拒掉（写词对话流带上历史后踩到） |
 | Anthropic | 开 extended thinking 时**不接受 `temperature`**，且 `max_tokens` 必须大于 `budget_tokens` |
 | Anthropic | 不接受相邻的两条同角色消息，要合并 |
 | Anthropic | 没有 JSON 模式。用预填 `{` 逼它进对象，解析时补回来；开了思考不能预填 |

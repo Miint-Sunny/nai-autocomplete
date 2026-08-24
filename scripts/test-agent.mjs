@@ -320,7 +320,7 @@ async function systemTextFor(payload) {
 }
 
 test('四档各自把任务说明整段发出去', async () => {
-  assert.match(await userTextFor({ mode: 'default' }), /tag 骨架/);
+  assert.match(await userTextFor({ mode: 'default' }), /锚定的 danbooru tag/);
   assert.match(await userTextFor({ mode: 'expanded' }), /不要漏进角色栏/);
   assert.match(await userTextFor({ mode: 'refine' }), /原样保留/);
   assert.match(await userTextFor({ mode: 'tags' }), /能用 tag 表达的就不要写成句子/);
@@ -332,7 +332,7 @@ test('默认档也会发说明 —— 不是「非默认才说」', async () => 
 
 test('认不出来的档位退回默认，不是发一句空话', async () => {
   const text = await userTextFor({ mode: 'nonsense' });
-  assert.match(text, /tag 骨架/);
+  assert.match(text, /锚定的 danbooru tag/);
 });
 
 test('改写档要求保留用户已有的权重', async () => {
@@ -361,7 +361,7 @@ test('超范围会夹回 0~6', async () => {
   assert.equal(/角色栏数量/.test(await userTextFor({ characterCount: 'abc' })), false);
 });
 
-group('V5 规则核对');
+group('规则核对（V5 / V4.5 二选一）');
 
 test('默认附在 system 末尾，排在运行环境补充后面', async () => {
   const system = await systemTextFor({});
@@ -383,16 +383,97 @@ test('几条容易写错的规则都在', async () => {
   assert.match(system, /双引号/, '画面文字');
 });
 
-test('关掉开关就一个字都不附', async () => {
-  const system = await systemTextFor({ nai5Rules: false });
+test('关掉开关就一个字都不附（新旧两个字段名都认）', async () => {
+  const viaNew = await systemTextFor({ attachRules: false });
+  assert.equal(/规则核对/.test(viaNew), false);
+  assert.match(viaNew, /运行环境补充/, '关的只是规则那段，别把运行环境也带走');
+
+  const viaLegacy = await systemTextFor({ nai5Rules: false });
+  assert.equal(/规则核对/.test(viaLegacy), false, 'v1.5.x 的面板发的是 nai5Rules，得继续认');
+});
+
+test('V4.5 档附的是 V4.5 那份，V5 那份不跟着来', async () => {
+  const system = await systemTextFor({ dialect: 'v45' });
+  assert.match(system, /NovelAI Diffusion V4\.5 规则核对/);
   assert.equal(/V5 规则核对/.test(system), false);
-  assert.match(system, /运行环境补充/, '关的只是 V5 那段，别把运行环境也带走');
+  assert.match(system, /上限是 6 个/, 'V4.5 的六人上限是真的，要说回来');
+  assert.equal(/depthness、attractive male/.test(system), false, 'V5 新 tag 的介绍不该出现');
 });
 
 test('换成自己的 skill 也照样附上 —— 用户的 skill 多半是按 V4 写的', async () => {
   const system = await systemTextFor({ skill: { name: '我的', body: '随便写点什么' } });
   assert.match(system, /随便写点什么/);
   assert.match(system, /V5 规则核对/);
+});
+
+group('格式档位');
+
+test('V4.5 档的默认措辞是纯 tag 路线', async () => {
+  const text = await userTextFor({ dialect: 'v45' });
+  assert.match(text, /V4\.5 的习惯/);
+  assert.match(text, /以 danbooru tag 为主体/);
+});
+
+test('V4.5 展开档把六个角色栏的上限说清楚', async () => {
+  assert.match(await userTextFor({ dialect: 'v45', mode: 'expanded' }), /V4\.5 最多 6 个/);
+});
+
+test('两档的展开写开头一致，前端的档位名对得上', async () => {
+  assert.match(await userTextFor({ mode: 'expanded' }), /展开写。/);
+  assert.match(await userTextFor({ dialect: 'v45', mode: 'expanded' }), /展开写。/);
+});
+
+group('对话历史');
+
+const HISTORY = [
+  { role: 'user', text: '雨夜便利店门口的女孩' },
+  { role: 'assistant', text: '1girl, convenience store, rainy night' },
+];
+
+test('历史原样进 messages：system 之后、本轮 user 之前', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({ history: HISTORY }), FAST);
+
+  const messages = calls[0].body.messages;
+  assert.equal(messages.length, 4);
+  assert.equal(messages[0].role, 'system');
+  assert.equal(messages[1].role, 'user');
+  assert.match(String(messages[1].content), /雨夜便利店门口的女孩/);
+  assert.equal(messages[2].role, 'assistant');
+  assert.match(String(messages[2].content), /rainy night/);
+  assert.equal(messages[3].role, 'user');
+  assert.match(messages[3].content[0].text, /本轮的生成方式/, '本轮的 user 仍然带完整任务说明');
+});
+
+test('带历史时点明这是迭代；不带就不说', async () => {
+  const withHistory = await (async () => {
+    const box = newSandbox();
+    const calls = box.mockFetch(() => reply('done'));
+    await box.get('runPromptAgent')(agentPayload({ history: HISTORY }), FAST);
+    return calls[0].body.messages.at(-1).content[0].text;
+  })();
+  assert.match(withHistory, /对话的延续/);
+  assert.match(withHistory, /不要整体重写/);
+
+  assert.equal(/对话的延续/.test(await userTextFor({})), false);
+});
+
+test('历史只留最近 6 条，坏条目直接丢', async () => {
+  const long = Array.from({ length: 10 }, (_, i) => ({
+    role: i % 2 ? 'assistant' : 'user',
+    text: `第 ${i + 1} 条`,
+  }));
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    history: [...long, { role: 'tool', text: '不该进来' }, { role: 'user', text: '   ' }],
+  }), FAST);
+
+  const messages = calls[0].body.messages;
+  assert.equal(messages.length, 8, 'system + 6 条历史 + 本轮 user');
+  assert.match(String(messages[1].content), /第 5 条/, '裁掉的是最早的');
+  assert.equal(messages.some((m) => /不该进来/.test(String(m.content))), false);
 });
 
 group('OC 点名');

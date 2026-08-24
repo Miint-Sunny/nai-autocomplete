@@ -1559,6 +1559,10 @@
   text-overflow: ellipsis;
 }
 
+.nai-md3-status:empty {
+  display: none;
+}
+
 .nai-md3-status {
   min-height: 24px;
   margin-top: 12px;

@@ -76,7 +76,7 @@ async function init() {
   renderLibraryManager();
   setResult('');
   setPage('reverse');
-  setStatus(T.statusReady, false);
+  setStatus('', false);
 
   initFlowPage(ui.root);
   initAgentPanel(ui.root).catch(() => {});

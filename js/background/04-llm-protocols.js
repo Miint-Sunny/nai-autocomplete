@@ -228,14 +228,18 @@ function buildResponsesInput(messages) {
       };
     }
 
+    // assistant 的历史内容在 Responses API 里是 output_text，其余角色才是 input_text。
+    // 全写成 input_text 的话，带对话历史的请求会被严格实现拒掉。
+    const textType = message.role === 'assistant' ? 'output_text' : 'input_text';
+
     if (!Array.isArray(message.content)) {
-      return { role: message.role, content: [{ type: 'input_text', text: String(message.content || '') }] };
+      return { role: message.role, content: [{ type: textType, text: String(message.content || '') }] };
     }
 
     return {
       role: message.role,
       content: message.content.map((item) => {
-        if (item.type === 'text') return { type: 'input_text', text: item.text };
+        if (item.type === 'text') return { type: textType, text: item.text };
         if (item.type === 'image_url') return { type: 'input_image', image_url: item.image_url?.url || '' };
         return item;
       }),

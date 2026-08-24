@@ -5,6 +5,7 @@ const PANEL_LAYOUT_KEY = 'nai-llm-panel-layout';
 const FAB_POSITION_KEY = 'nai-fab-position';
 const DRAWER_LAYOUT_KEY = 'nai-llm-drawer-layout';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
+const AGENT_CONVERSATION_KEY = 'nai-agent-conversation';
 const ROLE_LIBRARY_CATEGORY = 'char';
 const PROMPT_LIBRARY_CATEGORIES = [
   { id: 'char', label: '角色' },
@@ -73,11 +74,11 @@ const T = {
   fallbackApiKey: '\u5907\u7528 API Key\uff08\u6309\u4f9b\u5e94\u5546\u4fdd\u5b58\uff09',
   themePreset: '\u989c\u8272\u9884\u8bbe',
   agentFillCharacter: '\u586b\u5165 Character',
-  agentFillAllCharacters: '\u4e00\u952e\u586b\u5165 Character \u680f',
+  agentFillAll: '全部填入',
   allowDanbooruLookup: '\u672c\u5730\u8bcd\u5178\u67e5\u4e0d\u5230\u65f6\u95ee\u4e00\u4e0b danbooru',
   allowDanbooruLookupHint: '\u672c\u5730\u8bcd\u5178\u662f\u5feb\u7167\uff0c\u51b7\u95e8 tag\u3001\u65b0 tag\u3001\u4ee5\u53ca\u5df2\u7ecf\u88ab\u5408\u5e76\u6389\u7684\u65e7\u5199\u6cd5\u90fd\u67e5\u4e0d\u5230 \u2014\u2014 \u800c\u8fd9\u51e0\u7c7b\u6b63\u662f\u6a21\u578b\u6700\u5bb9\u6613\u7f16\u9519\u7684\u3002\u53ea\u5728\u672c\u5730\u672a\u547d\u4e2d\u65f6\u53d1\u4e00\u6b21\u8bf7\u6c42\uff0c\u53ea\u4f20 tag \u540d\u3002\u5982\u679c\u4f60\u5f00\u7740 danbooru \u6807\u7b7e\u9875\uff0c\u4f1a\u4f18\u5148\u501f\u5b83\u7684\u767b\u5f55\u6001\u3002',
-  agentNai5Rules: '\u7ed9 Agent \u9644\u5e26 NovelAI V5 \u89c4\u5219\u6838\u5bf9',
-  agentNai5RulesHint: '\u628a V5 \u7684\u516c\u5f00\u89c4\u5219\uff08\u6743\u91cd\u8bed\u6cd5\u3001\u4e3b\u63d0\u793a\u8bcd\u4e0e\u89d2\u8272\u680f\u5206\u5de5\u3001\u753b\u9762\u6587\u5b57\u3001\u4e24\u79cd\u900f\u660e\u3001depthness \u7b49\u65b0 tag\uff09\u8ffd\u5728 skill \u672b\u5c3e\uff0c\u6362\u6210\u4f60\u81ea\u5df1\u7684 skill \u4e5f\u7167\u6837\u751f\u6548\u3002\u4f60\u7684 skill \u5df2\u7ecf\u5199\u5168\u4e86\u3001\u6216\u8005\u51fa\u4e86\u65b0\u7248\u672c\u6a21\u578b\uff0c\u5c31\u5173\u6389\u5b83\u3002',
+  agentNai5Rules: '给写词附带目标版本的规则核对',
+  agentNai5RulesHint: '按「提示词格式」选的版本，把对应的官方规则（权重语法、主提示词与角色栏分工、画面文字、透明等）追在 skill 末尾，换成你自己的 skill 也照样生效。skill 已经写全、或出了新版本模型，就关掉它。',
   preferNaiMetadata: 'NAI \u539f\u56fe\u4f18\u5148\u672c\u5730\u8bfb\u53d6\uff08\u4e0d\u8c03\u6a21\u578b\uff09',
   preferNaiMetadataHint: 'NAI \u751f\u6210\u7684\u56fe\u628a\u63d0\u793a\u8bcd\u5199\u5728 PNG \u6587\u672c\u5757\u6216 alpha \u901a\u9053\u9690\u5199\u91cc\u3002\u8bfb\u5230\u5c31\u76f4\u63a5\u7528\uff1a\u96f6\u6210\u672c\u3001\u4e0d\u4e0a\u4f20\u3001\u9010\u5b57\u51c6\u786e\uff1b\u8bfb\u4e0d\u5230\u81ea\u52a8\u56de\u9000\u5230\u6a21\u578b\u53cd\u63a8\u3002',
   statusNaiMetadata: '\u5df2\u4ece NAI \u539f\u56fe\u76f4\u8bfb\u63d0\u793a\u8bcd\uff0c\u6ca1\u6709\u8c03\u7528\u6a21\u578b',
@@ -122,24 +123,25 @@ const T = {
   agentModeExpanded: '展开',
   agentModeRefine: '改写',
   agentModeTags: '精简',
-  agentModeHintDefault: 'tag 骨架 + 精确自然语言，多人时另给各自的外观栏。',
-  agentModeHintExpanded: '主提示词讲清动作、站位与互动，另外严格输出 Character 1、2… 独立角色栏。',
+  agentModeHintDefault: '锚定 tag 定住主体与风格，自然语言讲清动作与互动，混写。',
+  agentModeHintExpanded: '主提示词用自然语言讲透动作、站位与互动，另外严格输出 Character 1、2… 独立角色栏。',
   agentModeHintRefine: '整理、纠错、补齐你现有的提示词，原样保留你写下的内容和权重。',
   agentModeHintTags: '优先给准确精炼的 danbooru tag，说不清的关系才补一句自然语言。',
+  agentModeHintDefaultV45: '输出以查证过的 danbooru tag 为主，自然语言只补 tag 说不清的关系。',
+  agentModeHintExpandedV45: '主提示词用精确 tag 交代构图与互动，另给 Character 1、2… 独立角色栏（最多 6 个）。',
+  agentModeHintRefineV45: '整理、纠错、补齐你现有的提示词，并把不合 danbooru 标准的写法修正。',
+  agentModeHintTagsV45: '只输出查证过的 danbooru tag，不写句子。',
   agentModeLabel: '生成方式',
   agentCountLabel: '角色栏',
   agentCountAuto: '自动',
   statusAgentRefineNeedsPrompt: '已切到改写档，并自动带上「当前提示词」。改写的是输入框里的现值。',
   agentRequestLabel: '画面需求',
   agentRequestPlaceholder: '用中文描述想要的画面，例如：雨夜里，一个穿校服的女孩撑着透明伞站在便利店门口，暖光从店里透出来',
-  agentCharacterLabel: '角色外貌串（可选）',
-  agentCharacterPlaceholder: '填了就只作参考，不会被重复输出',
-  agentRun: '写提示词',
+  agentThreadEmpty: '描述画面后发送；结果不自动填入，用每块上的按钮写进输入框。',
+  agentRun: '发送',
   agentClear: '清空',
-  agentResultLabel: '完整回复',
-  agentResultPlaceholder: '按 skill 写出来的提示词会显示在这里',
   agentCopy: '复制',
-  agentWrite: '写入',
+  agentWrite: '填入',
   agentAppend: '追加',
   agentBlockMain: '主提示词',
   agentBlockCharacter: '角色外貌',
@@ -157,17 +159,18 @@ const T = {
   agentNoSkillRefs: '没有参考资料',
   agentSourcesLabel: '知识源',
   agentSourceCurrentPrompt: '当前提示词',
-  agentSourcePrevious: '上一轮结果',
   agentSourceCharacters: '词库角色',
   agentSourceArtists: '画师库',
-  agentSourcesHint: '勾上的才会发给模型。带上「当前提示词」或「上一轮结果」时，本轮是迭代 —— 只改 2~3 处，不整体重写。',
-  agentHint: '只写提示词，不会触发生成。tag 查证走本地 danbooru 词典。',
+  agentSourcesHint: '勾上的才会发给模型；对话本身自动带上，模型看得见自己上一轮的版本。「当前提示词」把输入框现值当成迭代基准。',
+  naiDialectLabel: '提示词格式',
+  naiDialectV5: 'NAI V5（锚定词 + 自然语言）',
+  naiDialectV45: 'NAI V4.5（tag 为主 / danbooru 查证）',
+  naiDialectHint: 'V5 是混写：锚定的 danbooru tag + 自然语言句子。V4.5 回到纯 tag 路线：danbooru 查证优先，自然语言只作补充。写词的档位措辞、附带的规则核对和内置反推预设会跟着切。',
   statusAgentRunning: '正在按 skill 写提示词...',
-  statusAgentDone: '写完了。代码框可以直接复制或写入提示词框。',
+  statusAgentDone: '写完了。用回复里的按钮填入或复制。',
   statusAgentNeedRequest: '请先描述要画的画面。',
   statusAgentCancelled: '已取消本次写作。',
   saveSettings: '\u4fdd\u5b58\u8bbe\u7f6e',
-  statusReady: '\u5c31\u7eea\u3002\u53ef\u4f7f\u7528 Alt + Shift + \u70b9\u51fb\u56fe\u7247 \u5feb\u901f\u53cd\u63a8\u3002',
   statusNeedImage: '\u8bf7\u5148\u901a\u8fc7\u5feb\u6377\u952e\u6216\u624b\u52a8\u9009\u56fe\u9501\u5b9a\u56fe\u7247\u3002',
   statusNeedKey: '\u672a\u914d\u7f6e API Key\uff0c\u8bf7\u5207\u6362\u5230\u8bbe\u7f6e\u9875\u4fdd\u5b58\u914d\u7f6e\u3002',
   statusNeedPrompt: '\u8bf7\u5148\u5728\u8bbe\u7f6e\u9875\u586b\u5199\u53cd\u63a8\u6307\u4ee4\u3002',
@@ -495,9 +498,10 @@ Output only the final prompt. Nothing else.`,
   preferNaiMetadata: true,
   allowDanbooruLookup: true,
   agentNai5Rules: true,
+  naiDialect: 'v5',
   sendImageAsDataUrl: true,
   enableBooruTagContext: false,
-  activePresetId: 'nai-v4',
+  activePresetId: 'nai-v5',
   booruTagTypes: { artist: true, character: true, copyright: true, general: true, meta: false },
   showReverseFloatingBall: true,
   showWorkbenchFloatingBall: true,
@@ -525,6 +529,11 @@ const PROVIDER_PRESETS = [
   { id: 'anthropic', label: 'Anthropic', protocol: 'anthropic-messages', endpoint: 'https://api.anthropic.com/v1/messages', defaultModel: 'claude-sonnet-5' },
   { id: 'custom', label: '\u81ea\u5b9a\u4e49', protocol: 'openai-chat', endpoint: '', defaultModel: '' },
 ];
+const NAI_DIALECT_OPTIONS = [
+  { id: 'v5', label: T.naiDialectV5 },
+  { id: 'v45', label: T.naiDialectV45 },
+];
+
 const REASONING_EFFORTS = [
   { id: 'off', label: '\u5173\u95ed' },
   { id: 'low', label: '\u4f4e' },
@@ -571,6 +580,70 @@ const PRESETS_KEY = 'nai-llm-prompt-presets';
 const DEFAULT_BOORU_TAG_TYPES = { artist: true, character: true, copyright: true, general: true, meta: false };
 
 const BUILTIN_PRESETS = [
+  {
+    id: 'nai-v5',
+    name: 'NovelAI V5',
+    builtIn: true,
+    blocks: [
+      {
+        id: 'nai-v5-sys', role: 'system', enabled: true,
+        content: `You are an image-to-prompt converter for NovelAI Diffusion V5,
+an anime model that reads a hybrid of anchor Danbooru tags and
+natural-language sentences.
+
+═══ OUTPUT STYLE ═══
+
+Anchor tags pin down hard facts: character count, hair/eye color,
+clothing items, objects, medium, style. Natural language carries what
+tags cannot: actions, interactions, spatial relationships, lighting
+direction, atmosphere.
+
+Write anchor tags first, then flowing sentences. Example:
+2girls, cafe, window seat, afternoon, one girl in a black blazer leans
+across the table to steal a bite of the other's parfait, warm sunlight
+from the left, soft depth of field
+
+═══ OUTPUT FORMAT ═══
+
+Single character:
+One continuous prompt mixing anchor tags and sentences.
+
+Multiple characters:
+{base prompt} | {character 1} | {character 2} | ...
+
+Base prompt: scene, composition, lighting, and ALL actions and
+interactions between characters — mostly natural language over a few
+anchor tags. Each character segment: appearance only (hair, eyes,
+outfit, accessories) as anchor tags. Actions, expressions and camera
+never go into character segments.
+
+═══ RULES ═══
+
+- Weight syntax when needed: 1.2::tag or phrase:: — always closed.
+- Text visible in the image: quote it verbatim in double quotes and say
+  where it appears and on what (sign, page, screen...).
+- Do not output quality tags, negative prompts, explanations, JSON,
+  labels, or multiple versions.
+- Do not invent elements not clearly visible in the image.`,
+      },
+      {
+        id: 'nai-v5-user', role: 'user', enabled: true,
+        content: `Analyze this image and write a NovelAI V5 prompt that combines anchor
+Danbooru tags with natural-language sentences.
+
+Think through:
+1. Scene, composition, camera and lighting (mostly natural language)
+2. Character count and every interaction between characters
+3. Per-character appearance anchors (tags)
+
+Format: single character → one prompt; multiple characters →
+base | char1 | char2 | ... with appearance-only character segments.
+Output only the final prompt. Nothing else.
+
+{{booru_tags}}`,
+      },
+    ],
+  },
   {
     id: 'nai-v4',
     name: 'NovelAI V4+',
@@ -692,15 +765,12 @@ const state = {
     skills: [],
     activeSkillId: '',
     request: '',
-    characterPrompt: '',
+    conversation: [],
     mode: 'default',
     characterCount: 0,
-    result: '',
-    blocks: [],
-    meta: '',
     managerOpen: false,
     editing: null,
-    sources: { currentPrompt: false, previous: true, characters: false, artists: false },
+    sources: { currentPrompt: false, characters: false, artists: false },
   },
   artistQuick: {
     loaded: false,
