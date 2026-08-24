@@ -30,6 +30,10 @@ function upgradePromptSettings(settings) {
     next.preferNaiMetadata = DEFAULT_SETTINGS.preferNaiMetadata;
   }
 
+  if (typeof next.allowDanbooruLookup !== 'boolean') {
+    next.allowDanbooruLookup = DEFAULT_SETTINGS.allowDanbooruLookup;
+  }
+
   const efforts = ['off', 'low', 'medium', 'high'];
   if (!efforts.includes(next.reasoningEffort)) next.reasoningEffort = DEFAULT_SETTINGS.reasoningEffort;
   if (!efforts.includes(next.fallbackReasoningEffort)) next.fallbackReasoningEffort = DEFAULT_SETTINGS.fallbackReasoningEffort;

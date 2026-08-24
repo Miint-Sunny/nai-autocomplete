@@ -40,6 +40,9 @@ jobs:
       - name: Test NAI image metadata
         run: node scripts/test-metadata.mjs
 
+      - name: Test danbooru lookup
+        run: node scripts/test-danbooru.mjs
+
       - name: Test tag flow model
         run: node scripts/test-flow.mjs
 

@@ -301,6 +301,7 @@ async function runAgentWrite() {
         context,
         primary: primaryConfig,
         fallback: fallbackConfig,
+        allowDanbooruLookup: state.settings.allowDanbooruLookup !== false,
       },
     });
 

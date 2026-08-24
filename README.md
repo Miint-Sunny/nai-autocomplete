@@ -38,6 +38,7 @@
 - 悬浮窗可拖动、可缩放
 - 点击浏览器扩展图标可直接打开当前页面内的反推窗口
 - 支持历史记录
+- 写词时本地词典查不到的 tag 会**实时问一次 danbooru**（含别名解析），只传 tag 名；开着 danbooru 标签页时优先借它的登录态。可在设置里关掉
 - 支持角色替换模式
 - **一键填入 Character 1～6**：写词产出的角色栏可直接填进 NovelAI 的角色提示词框，栏位不够会自动点「添加角色」补上（只填输入框，不碰「生成」）
 - 支持默认代码框输出 / 手动包裹代码框
@@ -248,6 +249,7 @@ node scripts/check-theme-tokens.mjs   # 主题变量完整性 + CSS 变量自引
 node scripts/test-llm.mjs             # LLM 服务
 node scripts/test-agent.mjs           # 提示词 Agent 与图片预算
 node scripts/test-metadata.mjs        # NAI 原图元数据（PNG 文本块 + alpha 隐写）
+node scripts/test-danbooru.mjs        # danbooru 查询通道
 node scripts/test-flow.mjs            # TAG 流模型与分类
 node scripts/test-content.mjs         # 输入框覆盖层的分词偏移
 node scripts/test-build.mjs           # 打包不改动源码

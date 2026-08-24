@@ -30,11 +30,15 @@ function createChromeMock() {
 
   const record = (method, args) => calls.push({ method, args });
 
-  return {
+  const chromeMock = {
     listeners,
     calls,
     store,
-    api: {
+    tabsResult: null,
+    scriptingResult: null,
+  };
+
+  chromeMock.api = {
       runtime: {
         lastError: null,
         getURL: (relative) => `chrome-extension://test/${relative}`,
@@ -46,8 +50,16 @@ function createChromeMock() {
         setTitle: (...args) => record('action.setTitle', args),
         onClicked: { addListener: (fn) => listeners.actionClicked.push(fn) },
       },
+      // danbooru 的「借标签页」通道要用 tabs.query + scripting.executeScript，
+      // 测试里直接改这两个桩就能驱动它。
+      scripting: {
+        executeScript: async (...args) => {
+          record('scripting.executeScript', args);
+          return chromeMock.scriptingResult ?? [{ result: { ok: false, message: '测试未安装 scripting mock' } }];
+        },
+      },
       tabs: {
-        query: (_query, callback) => callback?.([]),
+        query: (_query, callback) => callback?.(chromeMock.tabsResult ?? []),
         create: (...args) => record('tabs.create', args),
         update: (...args) => record('tabs.update', args),
         get: (_id, callback) => callback?.(null),
@@ -66,8 +78,9 @@ function createChromeMock() {
         },
         onChanged: { addListener: (fn) => listeners.storageChanged.push(fn) },
       },
-    },
   };
+
+  return chromeMock;
 }
 
 export function createBackgroundSandbox() {

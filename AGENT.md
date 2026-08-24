@@ -30,6 +30,26 @@
 - 英文侧用**两端加空格的整词匹配** —— 多词 tag（`cowboy shot`）能正确命中，`art` 不会撞进 `artist_name`。
 - 两侧都要求 `postCount ≥ 400`，量太低的 tag 模型本身也画不准。
 
+### 本地查不到时问 danbooru
+
+本地那份是**快照**：冷门 tag、新 tag、以及已经被合并掉的旧写法都查不到 —— 而这几类恰恰是模型最容易编错的。
+所以 `search_tags` 是两级的：本地命中直接返回；**本地未命中**的词才走
+[js/background/10-danbooru.js](./js/background/10-danbooru.js) 实时问一次。
+
+两条通道，不用第三方中转（那等于把查询内容送给别人）：
+
+1. **后台直连** —— `host_permissions` 是 `<all_urls>`，不受 CORS 限制
+2. **借用户自己打开着的 danbooru 标签页** —— 同源请求会带上他的 cookie，限流额度更高
+
+三条自律：
+
+- **只在本地未命中时查**，加上 10 分钟结果缓存 —— danbooru 的礼节是别超 10 请求/秒
+- **查询串必须长得像 tag**（`/^[a-z0-9_().\-'!:]+$/`）。用户的中文描述整段送出去是不可接受的
+- **任何一步失败都返回 `null`** —— 查证是加分项，不该让整轮生成挂掉
+
+别名会被解析：模型写出废弃写法时，回的是「`catgirl` 已合并到 `cat_girl`，请用后者」，比一句 `not_found` 有用得多。
+开关在设置的「发送与输出」，默认开。
+
 ## 3. skill 是什么
 
 一份带 YAML frontmatter 的 markdown，外加若干参考资料：
@@ -105,6 +125,7 @@ LLM 那一层的分工见 [LLM.md](./LLM.md)。Agent 不自己发 HTTP，主备�
 
 ```bash
 node scripts/test-agent.mjs
+node scripts/test-danbooru.mjs
 ```
 
 和 LLM 服务共用 [scripts/lib/background-sandbox.mjs](./scripts/lib/background-sandbox.mjs)，跑的是真正上线的那份代码。覆盖预检口径、词典查证、消息装配、工具回路、主备切换和取消。

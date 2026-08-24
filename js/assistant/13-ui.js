@@ -113,6 +113,7 @@ function createUI() {
           </div>
           <div class="nai-md3-switch-stack">
             <label class="nai-md3-switch"><input data-field="preferNaiMetadata" type="checkbox" /><span>${T.preferNaiMetadata}</span></label>
+            <label class="nai-md3-switch"><input data-field="allowDanbooruLookup" type="checkbox" /><span>${T.allowDanbooruLookup}</span></label>
             <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
             <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
           </div>
@@ -125,6 +126,7 @@ function createUI() {
           </div>
           <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
           <div class="nai-md3-section-note">${T.preferNaiMetadataHint}</div>
+          <div class="nai-md3-section-note">${T.allowDanbooruLookupHint}</div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -420,6 +422,10 @@ function createUI() {
                     <span>${T.preferNaiMetadata}</span>
                   </label>
                   <label class="nai-library-check">
+                    <input data-field="libraryAllowDanbooruLookup" type="checkbox" />
+                    <span>${T.allowDanbooruLookup}</span>
+                  </label>
+                  <label class="nai-library-check">
                     <input data-field="librarySendImageAsDataUrl" type="checkbox" />
                     <span>${T.sendImageAsDataUrl}</span>
                   </label>
@@ -602,6 +608,7 @@ function createUI() {
   ui.settings.fallbackApiKey = root.querySelector('[data-field="fallbackApiKey"]');
   ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
   ui.settings.preferNaiMetadata = root.querySelector('[data-field="preferNaiMetadata"]');
+  ui.settings.allowDanbooruLookup = root.querySelector('[data-field="allowDanbooruLookup"]');
   ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
   ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
@@ -632,6 +639,7 @@ function createUI() {
   ui.library.temperature = ui.library.drawer?.querySelector('[data-field="libraryTemperature"]');
   ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
   ui.library.preferNaiMetadata = ui.library.drawer?.querySelector('[data-field="libraryPreferNaiMetadata"]');
+  ui.library.allowDanbooruLookup = ui.library.drawer?.querySelector('[data-field="libraryAllowDanbooruLookup"]');
   ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
   ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
   ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');

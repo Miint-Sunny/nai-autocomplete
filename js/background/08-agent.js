@@ -137,7 +137,8 @@ const AGENT_TAG_TOOL = {
 // skill 是按「有 shell、能 grep CSV」的环境写的，这里得把查证方式改掉，
 // 否则模型会认真地输出一串 grep 命令然后卡住。
 const AGENT_RUNTIME_NOTE = `【运行环境补充（优先级高于 skill 里的查证章节）】
-- 本环境没有 shell，也没有 references 目录。要查证 tag 时调用 search_tags 工具，它查的是同一份 danbooru 词典（含 post 量与中文释义）。
+- 本环境没有 shell，也没有 references 目录。要查证 tag 时调用 search_tags 工具，它先查本地 danbooru 词典（含 post 量与中文释义），本地没有的再实时问一次 danbooru。
+- 结果里带 source: "danbooru" 的表示来自实时查询、本地词典没有；带 note 的表示这个写法已被合并，按 note 里的标准写法用。
 - 不要输出 grep 命令，也不要要求用户自己去查词典。
 - 下面会先给出一批本地词典已确认存在的相关 tag，可以直接用；不够再调工具补查。
 - 最终回复直接给结果，不要复述流程或解释你调了什么工具。`;
@@ -239,7 +240,9 @@ function buildAgentMessages(payload, prefiltered) {
   ];
 }
 
-async function executeAgentTool(call, index) {
+// 本地词典是快照，冷门/新增/已合并的写法都查不到 —— 而这几类正是模型最容易编错的。
+// 所以本地未命中的词再问一次 danbooru，命中就带上 source 让模型知道来源。
+async function executeAgentTool(call, index, options = {}) {
   if (call.name !== 'search_tags') {
     return { error: `未知工具：${call.name}` };
   }
@@ -249,14 +252,31 @@ async function executeAgentTool(call, index) {
     : [String(call.arguments?.query || '')].filter(Boolean);
 
   if (!queries.length) return { error: 'queries 不能为空' };
-  if (!index.length) {
+
+  // 显式 opt-in。这是一次发往第三方的请求，调用方没说要就不发 ——
+  // 面板那边永远会带上这个标志（设置里默认开），所以实际行为不变。
+  const allowRemote = options.allowDanbooruLookup === true;
+  if (!index.length && !allowRemote) {
     return { error: '本地词典尚未缓存。打开一次 novelai.net 让自动补全加载词典后即可查证；这轮先按常识写，并在底部标注不确定的 tag。' };
   }
 
   const results = {};
   for (const query of queries) {
-    const matches = searchAgentTags(index, query);
-    results[query] = matches.length ? matches : 'not_found';
+    const matches = index.length ? searchAgentTags(index, query) : [];
+    if (matches.length) {
+      results[query] = matches;
+      continue;
+    }
+
+    const remote = allowRemote ? await lookupTagOnDanbooru(query) : null;
+    if (!remote) {
+      results[query] = 'not_found';
+      continue;
+    }
+
+    results[query] = remote.status === 'alias'
+      ? { note: remote.note, matches: remote.matches }
+      : remote.matches;
   }
   return results;
 }
@@ -289,7 +309,7 @@ async function runPromptAgent(payload, options = {}) {
       config: { ...config, messages, maxTokens: Math.max(Number(config.maxTokens) || 0, 2000) },
       tools: [AGENT_TAG_TOOL],
       maxSteps: numberOr(payload.maxSteps, AGENT_MAX_STEPS),
-      executeTool: (call) => executeAgentTool(call, index),
+      executeTool: (call) => executeAgentTool(call, index, { allowDanbooruLookup: payload.allowDanbooruLookup }),
       onStep: ({ steps }) => {
         toolSteps.length = 0;
         toolSteps.push(...steps);
