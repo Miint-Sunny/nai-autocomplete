@@ -381,24 +381,13 @@ function keepFabInsideViewport() {
 
 function bindFabDrag(onClick) {
   if (!ui.fab) return;
-  const drag = { pointerId: null, startX: 0, startY: 0, originLeft: 0, originTop: 0, moved: false, width: 0, height: 0 };
+  const drag = { active: false, startX: 0, startY: 0, originLeft: 0, originTop: 0, moved: false, width: 0, height: 0 };
 
-  ui.fab.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    const rect = ui.fab.getBoundingClientRect();
-    drag.pointerId = event.pointerId;
-    drag.startX = event.clientX;
-    drag.startY = event.clientY;
-    drag.originLeft = rect.left;
-    drag.originTop = rect.top;
-    drag.width = rect.width;
-    drag.height = rect.height;
-    drag.moved = false;
-    ui.fab.setPointerCapture?.(event.pointerId);
-  });
-
-  ui.fab.addEventListener('pointermove', (event) => {
-    if (drag.pointerId !== event.pointerId) return;
+  // 拖动监听挂在 document 上，和面板拖动同一套路（startDrag）。
+  // 曾经用 setPointerCapture 挂在球自己身上：一旦那次 pointerup 没送到球上
+  // （指针被页面抢走、捕获没释放），球就卡在按下态，再点也没反应。
+  const move = (event) => {
+    if (!drag.active) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.abs(dx) < FAB_DRAG_THRESHOLD && Math.abs(dy) < FAB_DRAG_THRESHOLD) return;
@@ -410,31 +399,44 @@ function bindFabDrag(onClick) {
     ui.root.style.top = `${pos.top}px`;
     ui.root.style.right = 'auto';
     ui.root.style.bottom = 'auto';
-  });
-
-  const finish = (event) => {
-    if (drag.pointerId !== event.pointerId) return;
-    ui.fab.releasePointerCapture?.(event.pointerId);
-    drag.pointerId = null;
-    ui.fab.classList.remove('is-dragging');
-    if (drag.moved) persistFabPosition();
-    else onClick();
   };
 
-  ui.fab.addEventListener('pointerup', finish);
-  ui.fab.addEventListener('pointercancel', (event) => {
-    if (drag.pointerId !== event.pointerId) return;
-    ui.fab.releasePointerCapture?.(event.pointerId);
-    drag.pointerId = null;
+  const stop = () => {
+    if (!drag.active) return;
+    drag.active = false;
     ui.fab.classList.remove('is-dragging');
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', stop, true);
+    document.removeEventListener('pointercancel', stop, true);
     if (drag.moved) persistFabPosition();
+  };
+
+  ui.fab.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const rect = ui.fab.getBoundingClientRect();
+    drag.active = true;
+    drag.moved = false;
+    drag.startX = event.clientX;
+    drag.startY = event.clientY;
+    drag.originLeft = rect.left;
+    drag.originTop = rect.top;
+    drag.width = rect.width;
+    drag.height = rect.height;
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('pointerup', stop, true);
+    document.addEventListener('pointercancel', stop, true);
   });
 
-  // 拖完手指抬起来那一下浏览器还会补一个 click，不拦住就会又开一次面板
+  // 开面板走 click，不走 pointerup —— click 是浏览器自己判定的「这是一次点击」，
+  // 拖动、右键、指针中途跑掉都不会产生它，比自己数 pointerup 稳。
   ui.fab.addEventListener('click', (event) => {
-    if (!drag.moved) return;
-    event.preventDefault();
-    event.stopPropagation();
-    drag.moved = false;
-  }, true);
+    if (drag.moved) {
+      // 拖完浏览器还会补一个 click，吞掉它，否则拖一下就顺手开一次面板
+      event.preventDefault();
+      event.stopPropagation();
+      drag.moved = false;
+      return;
+    }
+    onClick();
+  });
 }

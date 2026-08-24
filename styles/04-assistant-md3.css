@@ -459,12 +459,6 @@
   opacity: 0.88;
 }
 
-/* NAI 出图页只用工作台抽屉，面板整个不出现（页签里那条「词库」规则跟着按钮一起删了） */
-.nai-md3-root[data-novelai-image-page="true"] .nai-md3-panel,
-.nai-md3-root[data-novelai-image-page="true"] .nai-md3-tabs [data-page="agent"] {
-  display: none;
-}
-
 .nai-library-drawer,
 .nai-library-drawer *,
 .nai-library-drawer *::before,
@@ -1145,44 +1139,24 @@
     min-width: 0;
   }
 
+  /* 这里曾经把侧栏无条件压成 58px 图标条 —— 于是「收起/展开」在这个断点里
+     点了什么都不会变，用户看到的就是「有收起没展开」。收不收起交回给
+     [data-sidebar-collapsed]，只把内容列让窄一点。 */
   .nai-library-drawer-content {
-    grid-template-columns: 58px 0 minmax(0, 1fr);
+    grid-template-columns: 188px 0 minmax(0, 1fr);
     overflow: auto;
   }
 
-  .nai-library-drawer[data-editor-open="true"] .nai-library-drawer-content,
-  .nai-library-drawer[data-sidebar-collapsed="true"][data-editor-open="true"] .nai-library-drawer-content {
-    grid-template-columns: 58px minmax(280px, 0.95fr) minmax(320px, 1fr);
+  .nai-library-drawer[data-editor-open="true"] .nai-library-drawer-content {
+    grid-template-columns: 188px minmax(240px, 0.9fr) minmax(280px, 1fr);
   }
 
   .nai-library-drawer[data-sidebar-collapsed="true"] .nai-library-drawer-content {
     grid-template-columns: 58px 0 minmax(0, 1fr);
   }
 
-  .nai-workbench-sidebar {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  .nai-workbench-nav-item {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    padding: 0;
-  }
-
-  .nai-workbench-nav-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  /* 这个宽度下侧栏本来就只剩图标条，收起/展开点了什么都不会变 ——
-     留着就是一颗按了没反应的按钮 */
-  .nai-workbench-nav-item.is-collapse {
-    display: none;
+  .nai-library-drawer[data-sidebar-collapsed="true"][data-editor-open="true"] .nai-library-drawer-content {
+    grid-template-columns: 58px minmax(240px, 0.9fr) minmax(280px, 1fr);
   }
 
   .nai-library-editor,
@@ -1222,11 +1196,37 @@
     gap: 4px;
   }
 
+  /* 抽屉在这个宽度下几乎就是整屏，188px 的侧栏占掉三分之一 ——
+     只有这里才该固定成图标条，也只有这里该把收起按钮藏掉。 */
   .nai-library-drawer-content,
   .nai-library-drawer[data-editor-open="true"] .nai-library-drawer-content,
   .nai-library-drawer[data-sidebar-collapsed="true"] .nai-library-drawer-content,
   .nai-library-drawer[data-sidebar-collapsed="true"][data-editor-open="true"] .nai-library-drawer-content {
     grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .nai-workbench-sidebar {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .nai-workbench-nav-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0;
+  }
+
+  .nai-workbench-nav-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .nai-workbench-nav-item.is-collapse {
+    display: none;
   }
 
   .nai-library-drawer[data-editor-open="false"] .nai-library-editor,
