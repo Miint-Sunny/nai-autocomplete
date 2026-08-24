@@ -2,6 +2,23 @@
 
 反推、连接测试、模型列表，以及后面要做的提示词 Agent，全部走这一条链路。改任何一层前先读这份。
 
+## 0. 反推不一定要调模型
+
+NAI 生成的图把提示词写在自己身上，两个位置：
+
+| 通道 | 说明 |
+|---|---|
+| PNG 文本块 | `tEXt` / `zTXt` / `iTXt`，键是 `Description`（正向）和 `Comment`（一段 JSON） |
+| alpha 通道最低位隐写 | 签名 `stealth_pnginfo` / `pngcomp` / `rgbinfo` / `rgbcomp`，`comp` 是 gzip |
+
+[js/background/02-nai-metadata.js](./js/background/02-nai-metadata.js) 两条都读，读到就直接出结果 ——
+零 token、不上传图片、逐字准确；读不到自动回退到模型反推。开关在设置的「发送与输出」里，默认开。
+
+**时机是死的**：`applyImageBudget` 会把图缩到 1536 并转 JPEG，两种元数据会一起没掉。
+所以读取必须在预算之前、还拿着原始字节的那一刻。`respondWithBudgetedImage` 里
+`readMetadata` 是显式 opt-in，只有「真的拿到原图字节」的路径才打开（截图和分块拼接是画布重绘，
+不可能带元数据，给它们解一遍全尺寸像素纯属浪费）。
+
 ## 1. 分层
 
 浏览器里这些文件会被 [scripts/build-modular.mjs](./scripts/build-modular.mjs) 按文件名顺序拼成一个 service worker 脚本，共用同一个作用域，没有 import/export。

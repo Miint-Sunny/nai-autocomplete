@@ -38,6 +38,7 @@ function applySettingsToInputs() {
   ui.settings.fallbackModel.value = state.settings.fallbackModel;
   ui.settings.fallbackApiKey.value = state.settings.fallbackApiKey;
   ui.settings.themePreset.value = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
+  ui.settings.preferNaiMetadata.checked = state.settings.preferNaiMetadata !== false;
   ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
   ui.settings.enableBooruTagContext.checked = Boolean(state.settings.enableBooruTagContext);
   updateBooruTagTypesVisibility();
@@ -92,6 +93,7 @@ function applyLibrarySettingsToInputs() {
 
   const checks = {
     enableFallbackModel: 'enableFallbackModel',
+    preferNaiMetadata: 'preferNaiMetadata',
     sendImageAsDataUrl: 'sendImageAsDataUrl',
     enableBooruTagContext: 'enableBooruTagContext',
     defaultCodeFence: 'defaultCodeFence',
@@ -138,6 +140,7 @@ function readLibrarySettingsFromInputs() {
     fallbackApiKey: fallbackConnection.apiKey,
     fallbackProviderConnections: rememberProviderConnection(state.settings.fallbackProviderConnections, fallbackProviderPreset, fallbackConnection),
     themePreset: ui.library.themePreset?.value || DEFAULT_SETTINGS.themePreset,
+    preferNaiMetadata: Boolean(ui.library.preferNaiMetadata?.checked),
     sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
     enableBooruTagContext: Boolean(ui.library.enableBooruTagContext?.checked),
     showReverseFloatingBall: Boolean(ui.library.showReverseFloatingBall?.checked),
@@ -177,6 +180,7 @@ function readSettingsFromInputs() {
     fallbackApiKey: fallbackConnection.apiKey,
     fallbackProviderConnections: rememberProviderConnection(state.settings.fallbackProviderConnections, fallbackProviderPreset, fallbackConnection),
     themePreset: ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset,
+    preferNaiMetadata: Boolean(ui.settings.preferNaiMetadata.checked),
     sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),
     enableBooruTagContext: Boolean(ui.settings.enableBooruTagContext.checked),
     showReverseFloatingBall: Boolean(ui.settings.showReverseFloatingBall.checked),

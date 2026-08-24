@@ -37,7 +37,7 @@ Claude Code 读的是这个文件（不是 `AGENTS.md`）。动手前先按需�
 ## 改完必须跑
 
 ```bash
-node scripts/build-modular.mjs && node scripts/check-theme-tokens.mjs && node scripts/test-llm.mjs && node scripts/test-agent.mjs && node scripts/test-flow.mjs && node scripts/test-content.mjs && node scripts/test-build.mjs
+node scripts/build-modular.mjs && node scripts/check-theme-tokens.mjs && node scripts/test-llm.mjs && node scripts/test-agent.mjs && node scripts/test-metadata.mjs && node scripts/test-flow.mjs && node scripts/test-content.mjs && node scripts/test-build.mjs
 ```
 
 CI 跑的就是这一串。测试用 `node:vm` 加载**真正上线的那份 chunk**，不是为测试另写的副本（见 `scripts/lib/*-sandbox.mjs`）。

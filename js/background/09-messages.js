@@ -6,11 +6,31 @@ const LLM_MESSAGE_TIMEOUT_MS = 90000;
 const AGENT_MESSAGE_TIMEOUT_MS = 120000;
 
 // 图片一律先过预算再回给前端：反推、截图、拼接三条路都会走到模型请求里去
+// 顺序不能反：applyImageBudget 会缩图并转 JPEG，PNG 文本块和 alpha 隐写会一起没掉。
+// 元数据必须在压缩之前、还拿着原始字节的时候读。
+async function readNaiMetadataFromDataUrl(dataUrl) {
+  try {
+    const match = /^data:([^;,]*)[^,]*,(.*)$/s.exec(String(dataUrl || ''));
+    if (!match) return null;
+    const binary = atob(match[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return await extractNaiMetadata(bytes, match[1] || 'image/png');
+  } catch (error) {
+    return null;
+  }
+}
+
 async function respondWithBudgetedImage(sendResponse, payload) {
+  // 显式 opt-in：截图和分块拼接出来的图是画布重绘的，永远不可能带元数据，
+  // 给它们再解一遍全尺寸像素纯属浪费。
+  const naiMetadata = payload.readMetadata ? await readNaiMetadataFromDataUrl(payload.dataUrl) : null;
   const budgeted = await applyImageBudget(payload.dataUrl);
+  const { readMetadata: _ignored, ...rest } = payload;
   sendResponse({
-    ...payload,
+    ...rest,
     ok: true,
+    naiMetadata,
     dataUrl: budgeted.dataUrl,
     imageBytes: budgeted.bytes,
     imageOriginalBytes: budgeted.originalBytes ?? budgeted.bytes,
@@ -118,7 +138,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const targetUrl of urls) {
           try {
             const result = await fetchImage(targetUrl);
-            await respondWithBudgetedImage(sendResponse, result);
+            await respondWithBudgetedImage(sendResponse, { ...result, readMetadata: true });
             return;
           } catch (error) {
             lastError = error;
@@ -206,7 +226,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'nai-budget-image') {
     (async () => {
       try {
-        await respondWithBudgetedImage(sendResponse, { dataUrl: message.dataUrl });
+        await respondWithBudgetedImage(sendResponse, {
+          dataUrl: message.dataUrl,
+          readMetadata: message.readMetadata !== false,
+        });
       } catch (error) {
         sendResponse({ ok: true, dataUrl: message.dataUrl, imageResized: false });
       }

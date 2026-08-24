@@ -37,6 +37,9 @@ jobs:
       - name: Test prompt agent
         run: node scripts/test-agent.mjs
 
+      - name: Test NAI image metadata
+        run: node scripts/test-metadata.mjs
+
       - name: Test tag flow model
         run: node scripts/test-flow.mjs
 

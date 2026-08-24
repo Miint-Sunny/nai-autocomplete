@@ -30,6 +30,7 @@
 
 支持能力：
 
+- **NAI 原图直接读提示词**：PNG 文本块或 alpha 通道隐写，读到就不调模型 —— 零成本、不上传、逐字准确，读不到自动回退
 - `Alt + Shift + 点击图片` 直接锁定图片并打开反推面板
 - 手动选图模式
 - Pixiv 一类覆盖层场景的选图兼容
@@ -245,6 +246,7 @@ node scripts/build-modular.mjs   # 改完分片先构建
 node scripts/check-theme-tokens.mjs   # 主题变量完整性 + CSS 变量自引用
 node scripts/test-llm.mjs             # LLM 服务
 node scripts/test-agent.mjs           # 提示词 Agent 与图片预算
+node scripts/test-metadata.mjs        # NAI 原图元数据（PNG 文本块 + alpha 隐写）
 node scripts/test-flow.mjs            # TAG 流模型与分类
 node scripts/test-content.mjs         # 输入框覆盖层的分词偏移
 node scripts/test-build.mjs           # 打包不改动源码

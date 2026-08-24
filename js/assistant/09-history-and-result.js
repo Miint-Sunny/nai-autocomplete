@@ -72,11 +72,43 @@ async function cancelCurrentRun() {
   }
 }
 
+// NAI 原图把提示词写在 PNG 文本块或 alpha 隐写里，读到了就不必再问模型 ——
+// 零成本、不上传、逐字准确。读不到就照常往下走。
+function formatNaiMetadataResult(metadata) {
+  const lines = [metadata.prompt];
+  metadata.characterPrompts.forEach((character, index) => {
+    lines.push('', `${character.label || `Character ${index + 1}`}: ${character.prompt}`);
+  });
+  if (metadata.negativePrompt) lines.push('', `Undesired Content: ${metadata.negativePrompt}`);
+  return lines.join('\n');
+}
+
+async function useNaiMetadataResult(metadata) {
+  const resultText = formatResultBySettings(formatNaiMetadataResult(metadata));
+  setResult(resultText);
+
+  await pushHistory({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    time: Date.now(),
+    sourceUrl: state.selectedImage.sourceUrl,
+    result: resultText,
+  });
+
+  const copied = await copyText(resultText);
+  const summary = metadata.summary ? `（${metadata.summary}）` : '';
+  setStatus(`${T.statusNaiMetadata}${summary}${copied ? '' : ' · 复制失败，请手动复制'}`, !copied);
+}
+
 async function reverseAndCopy() {
   if (state.pending) return;
 
   if (!state.selectedImage) {
     setStatus(T.statusNeedImage, true);
+    return;
+  }
+
+  if (state.settings.preferNaiMetadata !== false && state.selectedImage.naiMetadata?.prompt) {
+    await useNaiMetadataResult(state.selectedImage.naiMetadata);
     return;
   }
 

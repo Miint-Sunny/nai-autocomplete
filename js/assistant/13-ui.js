@@ -112,6 +112,7 @@ function createUI() {
             <div class="nai-md3-section-note">${T.sectionBehaviorHint}</div>
           </div>
           <div class="nai-md3-switch-stack">
+            <label class="nai-md3-switch"><input data-field="preferNaiMetadata" type="checkbox" /><span>${T.preferNaiMetadata}</span></label>
             <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
             <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
           </div>
@@ -123,6 +124,7 @@ function createUI() {
             <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="meta" /><span>meta</span></label>
           </div>
           <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
+          <div class="nai-md3-section-note">${T.preferNaiMetadataHint}</div>
         </div>
 
         <div class="nai-md3-settings-section">
@@ -414,6 +416,10 @@ function createUI() {
                 <div class="nai-library-settings-group">
                   <div class="nai-library-settings-title">${T.sectionBehavior}</div>
                   <label class="nai-library-check">
+                    <input data-field="libraryPreferNaiMetadata" type="checkbox" />
+                    <span>${T.preferNaiMetadata}</span>
+                  </label>
+                  <label class="nai-library-check">
                     <input data-field="librarySendImageAsDataUrl" type="checkbox" />
                     <span>${T.sendImageAsDataUrl}</span>
                   </label>
@@ -595,6 +601,7 @@ function createUI() {
   ui.settings.fallbackModelList = root.querySelector('#nai-fallback-model-list');
   ui.settings.fallbackApiKey = root.querySelector('[data-field="fallbackApiKey"]');
   ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
+  ui.settings.preferNaiMetadata = root.querySelector('[data-field="preferNaiMetadata"]');
   ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
   ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
@@ -624,6 +631,7 @@ function createUI() {
   ui.library.roleLibrarySelect = ui.library.drawer?.querySelector('[data-field="libraryRoleLibrarySelect"]');
   ui.library.temperature = ui.library.drawer?.querySelector('[data-field="libraryTemperature"]');
   ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
+  ui.library.preferNaiMetadata = ui.library.drawer?.querySelector('[data-field="libraryPreferNaiMetadata"]');
   ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
   ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
   ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');

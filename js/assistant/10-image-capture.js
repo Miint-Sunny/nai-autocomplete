@@ -221,7 +221,12 @@ async function useImageElement(image, autoReverse) {
     if (resolved.dataUrl) {
       // 页面里内嵌的 data URL 没走抓取，得补一次预算，否则原图整个塞给模型
       const budgeted = await budgetInlineImage(resolved.dataUrl);
-      state.selectedImage = { sourceUrl, dataUrl: budgeted.dataUrl, budget: describeImageBudget(budgeted) };
+      state.selectedImage = {
+        sourceUrl,
+        dataUrl: budgeted.dataUrl,
+        budget: describeImageBudget(budgeted),
+        naiMetadata: budgeted.naiMetadata || null,
+      };
       updatePreview();
       openPanel('reverse');
       setStatus(T.statusImageLocked, false);
@@ -246,7 +251,8 @@ async function useImageElement(image, autoReverse) {
         throw new Error(response?.error || '\u56fe\u7247\u8bfb\u53d6\u5931\u8d25');
       }
 
-      state.selectedImage = { sourceUrl, dataUrl: capturedDataUrl, budget: null };
+      // 滚动拼接出来的是画布重绘，不可能带元数据
+      state.selectedImage = { sourceUrl, dataUrl: capturedDataUrl, budget: null, naiMetadata: null };
       updatePreview();
       openPanel('reverse');
       setStatus(T.statusImageLocked, false);
@@ -257,7 +263,12 @@ async function useImageElement(image, autoReverse) {
       return;
     }
 
-    state.selectedImage = { sourceUrl, dataUrl: response.dataUrl, budget: describeImageBudget(response) };
+    state.selectedImage = {
+      sourceUrl,
+      dataUrl: response.dataUrl,
+      budget: describeImageBudget(response),
+      naiMetadata: response.naiMetadata || null,
+    };
     updatePreview();
     openPanel('reverse');
     setStatus(T.statusImageLocked, false);

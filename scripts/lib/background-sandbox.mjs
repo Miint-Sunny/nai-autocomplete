@@ -94,6 +94,11 @@ export function createBackgroundSandbox() {
     JSON,
     btoa: (input) => Buffer.from(input, 'binary').toString('base64'),
     atob: (input) => Buffer.from(input, 'base64').toString('binary'),
+    // 读 NAI 元数据要解 zTXt(deflate) 和隐写 payload(gzip)。
+    // 这三个是宿主对象不是 ECMAScript 内建，vm 的新 realm 里不会自带，必须注进来。
+    Blob,
+    Response,
+    DecompressionStream,
     // 图片工具在 LLM 测试里用不到，给个存在即可的桩，免得加载期就炸。
     OffscreenCanvas: class {},
     createImageBitmap: async () => {

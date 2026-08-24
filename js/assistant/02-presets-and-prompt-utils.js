@@ -24,6 +24,12 @@ function upgradePromptSettings(settings) {
     next.glassEffect = DEFAULT_SETTINGS.glassEffect;
   }
 
+  // 默认为 true 的开关必须在这里补一行：老用户存的设置里没有这个键，
+  // Boolean(undefined) 是 false，功能会对他们默认关着。
+  if (typeof next.preferNaiMetadata !== 'boolean') {
+    next.preferNaiMetadata = DEFAULT_SETTINGS.preferNaiMetadata;
+  }
+
   const efforts = ['off', 'low', 'medium', 'high'];
   if (!efforts.includes(next.reasoningEffort)) next.reasoningEffort = DEFAULT_SETTINGS.reasoningEffort;
   if (!efforts.includes(next.fallbackReasoningEffort)) next.fallbackReasoningEffort = DEFAULT_SETTINGS.fallbackReasoningEffort;
