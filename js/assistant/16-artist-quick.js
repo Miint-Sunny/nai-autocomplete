@@ -250,14 +250,21 @@ function isArtistQuickNegativeField(element) {
 
 function findArtistQuickPromptField() {
   const remembered = state.artistQuick.lastPromptField;
-  if (remembered?.isConnected && isArtistQuickEditable(remembered) && !isArtistQuickNegativeField(remembered)) {
+  if (remembered?.isConnected
+    && isArtistQuickEditable(remembered)
+    && !isArtistQuickNegativeField(remembered)
+    && !isNaiCharacterField(remembered)) {
     return remembered;
   }
   const known = document.getElementById('prompt');
-  if (isArtistQuickEditable(known) && !isArtistQuickNegativeField(known)) return known;
+  if (isArtistQuickEditable(known) && !isArtistQuickNegativeField(known) && !isNaiCharacterField(known)) return known;
 
+  // 必须排掉角色栏：页面上开了角色提示词时，它们和主框长得一样，
+  // 不排的话画师串可能被写进某个角色栏里
   const fields = Array.from(document.querySelectorAll('textarea, input[type="text"], [contenteditable="true"], [role="textbox"]'))
-    .filter((field) => isArtistQuickEditable(field) && !isArtistQuickNegativeField(field));
+    .filter((field) => isArtistQuickEditable(field)
+      && !isArtistQuickNegativeField(field)
+      && !isNaiCharacterField(field));
   const named = fields.find((field) => /prompt|caption|提示词|描述|image generation/i.test([
     field.id, field.name, field.className,
     field.getAttribute?.('placeholder'), field.getAttribute?.('aria-label'), field.getAttribute?.('data-testid'),

@@ -266,3 +266,9 @@
   background: var(--nai-lib-orange);
   color: var(--nai-lib-paper);
 }
+
+/* 一键填入是整行的次要动作，别在两列网格里缩成半个 */
+.nai-agent-fill-actions {
+  grid-template-columns: 1fr;
+  margin-top: 10px;
+}

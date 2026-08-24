@@ -92,7 +92,12 @@ function agentBlockLabel(index) {
 function agentBlocksMarkup() {
   if (!state.agent.blocks.length) return '';
 
-  return state.agent.blocks
+  // 只填输入框，不碰「生成」—— 触发出图那条红线在这儿也算数
+  const fillAll = state.agent.blocks.length > 1
+    ? `<div class="nai-md3-actions nai-agent-fill-actions"><button type="button" class="nai-md3-inline-action" data-agent-action="fill-all-characters">${T.agentFillAllCharacters}</button></div>`
+    : '';
+
+  return fillAll + state.agent.blocks
     .map((block, index) => `
       <article class="nai-agent-block" data-index="${index}">
         <div class="nai-agent-block-head">
@@ -102,6 +107,7 @@ function agentBlocksMarkup() {
             <button type="button" class="nai-md3-inline-action" data-agent-action="write-block" data-index="${index}">${T.agentWrite}</button>
             <button type="button" class="nai-md3-inline-action" data-agent-action="append-block" data-index="${index}">${T.agentAppend}</button>
             <button type="button" class="nai-md3-inline-action" data-agent-action="flow-block" data-index="${index}">${T.tabFlow}</button>
+            ${index > 0 ? `<button type="button" class="nai-md3-inline-action" data-agent-action="fill-character" data-index="${index}">${T.agentFillCharacter} ${index}</button>` : ''}
           </div>
         </div>
         <pre class="nai-agent-block-body">${escapeHtml(block)}</pre>
@@ -392,6 +398,13 @@ async function handleAgentAction(action, target, host) {
     return;
   }
 
+  if (action === 'fill-all-characters') {
+    await runAgentCharacterFill(state.agent.blocks
+      .slice(1)
+      .map((prompt, offset) => ({ slot: offset + 1, prompt })));
+    return;
+  }
+
   const index = Number(target.dataset.index);
   const block = state.agent.blocks[index];
   if (!block) return;
@@ -409,6 +422,13 @@ async function handleAgentAction(action, target, host) {
 
   if (action === 'write-block') await writePromptFieldValue(block, 'replace');
   else if (action === 'append-block') await writePromptFieldValue(block, 'append');
+  else if (action === 'fill-character') await runAgentCharacterFill([{ slot: index, prompt: block }]);
+}
+
+// 第 0 块是主提示词，1 起是角色栏 —— slot 就是块的序号
+async function runAgentCharacterFill(characters) {
+  const result = await fillNaiCharacterFields(characters);
+  setStatus(result.message, !result.ok);
 }
 
 function bindAgentPanel(root) {
