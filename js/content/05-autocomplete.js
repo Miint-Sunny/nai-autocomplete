@@ -5,10 +5,10 @@ function createContainer() {
   c.innerHTML = `
     <div class="nai-autocomplete-header">
       <span class="nai-autocomplete-title">标签补全</span>
-      <label class="nai-slash-toggle" title="下划线与空格互转">
-        <input type="checkbox" id="nai-slash-switch">
-        <span>_ ⇄ 空格</span>
-      </label>
+      <div class="nai-autocomplete-toggles">
+        <button type="button" class="nai-ac-chip" id="nai-slash-switch" title="下划线与空格互转" aria-pressed="false">_ ⇄ 空格</button>
+        <button type="button" class="nai-ac-chip" id="nai-highlight-switch" title="在输入框里给每个 TAG 画分类下划线" aria-pressed="false">TAG 下划线</button>
+      </div>
     </div>
     <div class="nai-autocomplete-list"></div>
     <div class="nai-autocomplete-footer"><span class="nai-autocomplete-count-info"></span><span>↑↓ 选择 · Tab 确认</span></div>
@@ -32,18 +32,62 @@ function createContainer() {
   c.addEventListener('click', handleAutocompleteContainerPick, true);
 
   // 下划线互转开关
-  const slashSwitch = c.querySelector('#nai-slash-switch');
-  slashSwitch.checked = settings.convertSlashToSpace;
-  slashSwitch.addEventListener('change', (e) => {
-    e.stopPropagation();
-    settings.convertSlashToSpace = slashSwitch.checked;
-    localStorage.setItem('nai-ac-settings', JSON.stringify(settings));
-  });
+  bindAutocompleteToggleChip(
+    c.querySelector('#nai-slash-switch'),
+    settings.convertSlashToSpace,
+    (on) => {
+      settings.convertSlashToSpace = on;
+      persistAutocompleteSettings();
+    },
+  );
+
+  // TAG 下划线开关。只管那层装饰，区块的按钮和拖拽照常。
+  bindAutocompleteToggleChip(
+    c.querySelector('#nai-highlight-switch'),
+    settings.highlightTags !== false,
+    (on) => {
+      settings.highlightTags = on;
+      persistAutocompleteSettings();
+      if (activeEditor) renderPromptBlockPanel(activeEditor);
+    },
+  );
 
   document.addEventListener('click', e => {
     if (!c.contains(e.target) && e.target !== activeEditor) hideAutocomplete();
   });
   return c;
+}
+
+// 弹窗里只有三种控件，结构上就得分得开，不然一行里全是长得一样的胶囊、
+// 分不清哪个能点：
+//   .nai-ac-chip[aria-pressed]  可切换 —— 按下就整颗填充（和面板页签的 active 一个路子）
+//   .nai-ac-stepper             一个分段控件 —— 减/值/加是一颗胶囊的三段，不是三个独立块
+//   .nai-autocomplete-count     纯信息 —— 不给填充不给描边，别长得像按钮
+//
+// 原生 checkbox 一律不用：面板全局把 input[type=checkbox] 重置成 appearance:none 再自绘，
+// 弹窗这边留着系统勾选框，两处并排就是两套控件语言。
+function bindAutocompleteToggleChip(chip, initial, onChange) {
+  if (!chip) return;
+  chip.setAttribute('aria-pressed', initial ? 'true' : 'false');
+
+  // mousedown 必须吃掉：默认行为会让输入框失焦，弹窗跟着关掉
+  chip.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = chip.getAttribute('aria-pressed') !== 'true';
+    chip.setAttribute('aria-pressed', next ? 'true' : 'false');
+    onChange(next);
+  });
+  chip.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+}
+
+function persistAutocompleteSettings() {
+  try {
+    localStorage.setItem('nai-ac-settings', JSON.stringify(settings));
+  } catch (error) {}
 }
 
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
@@ -268,18 +312,14 @@ function getSegmentContext() {
   };
 }
 
-// 解析当前上下文（权重、artist 前缀等）
+// 解析当前上下文（权重）。原来还回一个 hasArtist 用来决定 artist: 要不要预勾，
+// 现在画师一律预勾，正文里已经手打了前缀的情况在 applyAutocompleteResult 里单独判。
 function parseCurrentContext() {
   const context = getSegmentContext();
-  if (!context) return { weight: 1.0, hasArtist: false };
+  if (!context) return { weight: 1.0 };
 
-  const { segmentText: segment } = context;
-  const weightMatch = segment.match(/^(-?\d+\.?\d*)(?::|：){2}/);
-
-  return {
-    weight: weightMatch ? parseFloat(weightMatch[1]) : 1.0,
-    hasArtist: /artist(?::|：)/.test(segment),
-  };
+  const weightMatch = context.segmentText.match(/^(-?\d+\.?\d*)(?::|：){2}/);
+  return { weight: weightMatch ? parseFloat(weightMatch[1]) : 1.0 };
 }
 
 function showAutocomplete(editor, results, query) {
@@ -309,12 +349,14 @@ function showAutocomplete(editor, results, query) {
     list.innerHTML = results.map((tag, i) => {
       const isLibrary = tag.resultType === 'prompt-library';
       const isArtist = tag.category === '1';
-      const showArtistChecked = isArtist && context.hasArtist;
+      // 画师标签默认就勾上 artist:。NAI 里画师几乎总要这个前缀，每次手动勾没有意义。
+      // 已经手打了 artist: 的情况由 applyAutocompleteResult 里的 hasExplicitArtistPrefix 兜住，不会加两遍。
+      const showArtistChecked = isArtist;
       const weightControl = isLibrary ? '' : `
-        <div class="nai-autocomplete-weight">
-          <button class="nai-weight-btn nai-weight-down" data-index="${i}">-</button>
+        <div class="nai-ac-stepper nai-autocomplete-weight">
+          <button type="button" class="nai-weight-btn nai-weight-down" data-index="${i}" aria-label="降低权重">−</button>
           <span class="nai-weight-value" data-index="${i}">${context.weight.toFixed(1)}</span>
-          <button class="nai-weight-btn nai-weight-up" data-index="${i}">+</button>
+          <button type="button" class="nai-weight-btn nai-weight-up" data-index="${i}" aria-label="提高权重">+</button>
         </div>
       `;
       const countLabel = isLibrary ? `${tag.tags.length} tags` : formatCount(tag.postCount);
@@ -335,12 +377,15 @@ function showAutocomplete(editor, results, query) {
         </div>
         <div class="nai-autocomplete-meta">
           ${libraryBadge}
-          ${isArtist && !isLibrary ? `<label class="nai-artist-toggle" title="使用 artist: 前缀" data-index="${i}">
-            <input type="checkbox" class="nai-artist-check" data-index="${i}" ${showArtistChecked ? 'checked' : ''}>
-            <span>artist:</span>
-          </label>` : ''}
+          ${isArtist && !isLibrary ? `<button
+            type="button"
+            class="nai-ac-chip nai-artist-toggle"
+            data-index="${i}"
+            title="使用 artist: 前缀"
+            aria-pressed="${showArtistChecked ? 'true' : 'false'}"
+          >artist:</button>` : ''}
           ${weightControl}
-          <div class="nai-autocomplete-count">${countLabel}</div>
+          <span class="nai-autocomplete-count">${countLabel}</span>
         </div>
       </div>
     `;
@@ -350,35 +395,18 @@ function showAutocomplete(editor, results, query) {
       if (tag.resultType === 'prompt-library') return;
       tag.weight = context.weight;
       if (tag.category === '1') {
-        tag.useArtistPrefix = context.hasArtist;
+        tag.useArtistPrefix = true;
       }
     });
 
-    list.querySelectorAll('.nai-artist-check').forEach(chk => {
-      chk.addEventListener('mousedown', e => e.stopPropagation());
-      chk.addEventListener('click', e => e.stopPropagation());
-      chk.addEventListener('change', e => {
-        e.stopPropagation();
-        currentResults[+chk.dataset.index].useArtistPrefix = chk.checked;
-      });
-    });
-
-    list.querySelectorAll('.nai-artist-toggle').forEach(label => {
-      label.addEventListener('click', e => {
-        if (!e.target.classList.contains('nai-artist-check')) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      });
-
-      label.addEventListener('mousedown', e => {
-        if (e.target.classList.contains('nai-artist-check')) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const chk = label.querySelector('.nai-artist-check');
-        chk.checked = !chk.checked;
-        currentResults[+label.dataset.index].useArtistPrefix = chk.checked;
-      });
+    list.querySelectorAll('.nai-artist-toggle').forEach(chip => {
+      bindAutocompleteToggleChip(
+        chip,
+        chip.getAttribute('aria-pressed') === 'true',
+        (on) => {
+          currentResults[+chip.dataset.index].useArtistPrefix = on;
+        },
+      );
     });
 
     list.querySelectorAll('.nai-weight-btn').forEach(btn => {
@@ -502,9 +530,8 @@ function stopAutocompleteEvent(event) {
 
 function handleAutocompleteItemEvent(item, event) {
   if (
-    event.target.closest('.nai-weight-btn') ||
-    event.target.closest('.nai-artist-toggle') ||
-    event.target.closest('.nai-artist-check')
+    event.target.closest('.nai-ac-stepper') ||
+    event.target.closest('.nai-ac-chip')
   ) {
     return;
   }

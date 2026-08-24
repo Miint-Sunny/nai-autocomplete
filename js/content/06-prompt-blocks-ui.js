@@ -530,19 +530,21 @@ function getPromptBlockVisuals(editor) {
     const described = block.tags.map(describePromptBlockTag);
     const lead = described[0] || { semantic: 'other', known: true, weight: 1 };
     const unknown = described.some(item => !item.known);
-    const weight = described.length === 1 ? lead.weight : 1;
     const hint = described.length === 1 && lead.known
       ? `${lead.name}${lead.zh ? ` · ${lead.zh}` : ''} · ${flowFormatPosts(lead.posts)} post`
       : label;
     const startTokenIndex = promptBlocks
-      .slice(0, promptBlocks.findIndex(entry => entry.id === block.id))
+      .slice(0, index)
       .reduce((sum, entry) => sum + entry.tags.length, 0);
-    const startOffset = getTextOffsetForTokenIndex(tokens, startTokenIndex);
-    const endOffset = startOffset + block.tags.reduce((sum, tag, tagIndex) => (
-      sum + tag.length + (block.delimiters?.[tagIndex] || '').length
-    ), 0) - ((block.delimiters?.[block.tags.length - 1] || '').length);
+    const endTokenIndex = startTokenIndex + block.tags.length - 1;
+    // 模型可能比正文晚一拍（正在输入），对不上就干脆不画，别画到别人身上
+    if (!tokens[startTokenIndex] || !tokens[endTokenIndex]) return null;
 
-    const range = createRangeFromTextOffsets(editor, startOffset, endOffset);
+    const range = createRangeFromEditorTextOffsets(
+      editor,
+      getTextOffsetForTokenIndex(tokens, startTokenIndex),
+      getTextEndOffsetForTokenIndex(tokens, endTokenIndex),
+    );
     if (!range) return null;
 
     const rects = Array.from(range.getClientRects())
@@ -589,7 +591,6 @@ function getPromptBlockVisuals(editor) {
       libraryAlias: block.libraryAlias,
       semantic: lead.semantic,
       unknown,
-      weight,
       accent: promptBlockAccent(lead.semantic),
       rects,
       unionRect: {
@@ -628,13 +629,17 @@ function renderPromptBlockPanel(editor) {
 
   const uiScale = getPromptEditorUiScale(editor);
 
+  // 下划线是可以关的（设置里那个「TAG 下划线」），但成组的按钮和拖拽热区不受影响 ——
+  // 那是功能，不是装饰
+  const showHighlights = settings.highlightTags !== false;
+
   panel.innerHTML = visuals.map(block => `
-    ${block.rects.map(rect => `
+    ${showHighlights ? block.rects.map(rect => `
       <div
         class="nai-prompt-block-highlight ${block.locked ? 'is-locked' : ''} ${block.isGroup ? 'is-group' : ''} ${block.unknown ? 'is-unknown' : ''}"
         style="--nai-block-accent: ${block.accent}; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px;"
       ></div>
-    `).join('')}
+    `).join('') : ''}
     <div
       class="nai-prompt-block-drag-hitbox ${block.locked ? 'is-locked' : ''}"
       data-block-id="${block.id}"
@@ -642,11 +647,6 @@ function renderPromptBlockPanel(editor) {
       title="${escapeHtml(block.hint)}"
       style="--nai-block-accent: ${block.accent}; left: ${block.unionRect.left}px; top: ${block.unionRect.top}px; width: ${block.unionRect.width}px; height: ${block.unionRect.height}px;"
     ></div>
-    ${block.weight !== 1 ? `
-    <div
-      class="nai-prompt-block-weight"
-      style="--nai-block-accent: ${block.accent}; left: ${Math.min(window.innerWidth - 40, block.unionRect.left + block.unionRect.width - 6)}px; top: ${Math.max(2, block.unionRect.top - 7)}px; zoom: ${uiScale};"
-    >${escapeHtml(flowFormatWeight(block.weight))}</div>` : ''}
     ${block.isGroup ? `
     <div
       class="nai-prompt-block-anchor"
@@ -877,7 +877,7 @@ function showPromptBlockDropIndicator(editor, tokenIndex) {
   const indicator = createPromptBlockDropIndicator();
   const tokens = parsePromptTokens(getEditorText(editor));
   const offset = getTextOffsetForTokenIndex(tokens, Math.max(0, Math.min(tokenIndex, tokens.length)));
-  const range = createRangeFromTextOffsets(editor, offset, offset);
+  const range = createRangeFromEditorTextOffsets(editor, offset, offset);
   const fallbackRect = editor.getBoundingClientRect();
   const rect = range?.getBoundingClientRect?.() || fallbackRect;
   const left = Math.max(6, Math.min(window.innerWidth - 6, rect.left || fallbackRect.left));

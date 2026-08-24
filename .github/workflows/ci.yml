@@ -40,6 +40,9 @@ jobs:
       - name: Test tag flow model
         run: node scripts/test-flow.mjs
 
+      - name: Test prompt overlay offsets
+        run: node scripts/test-content.mjs
+
       - name: Test build integrity
         run: node scripts/test-build.mjs
 

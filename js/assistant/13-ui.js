@@ -11,8 +11,11 @@ function createUI() {
         <button class="nai-md3-close" type="button" data-action="close">&times;</button>
       </header>
 
+      <!-- 顺序 = 用词的流程：读图出词 → 生成 → 编辑 → 找素材，然后才是记录和配置。
+           原来第一个是「词库」，但它在面板里永远显示不出来（非 NAI 页被 CSS 藏掉，
+           NAI 页整个面板都是隐藏的），点了也只会被 setPage 弹回「反推」。
+           词库的入口在工作台侧栏，这里删掉。 -->
       <nav class="nai-md3-tabs">
-        <button type="button" data-page="library">${T.tabLibrary}</button>
         <button type="button" class="active" data-page="reverse">${T.tabReverse}</button>
         <button type="button" data-page="agent">${T.tabAgent}</button>
         <button type="button" data-page="flow">${T.tabFlow}</button>
@@ -55,28 +58,14 @@ function createUI() {
         <div class="nai-history-list"></div>
       </section>
 
+      <!-- 设置页顺序 = 用户实际配置的顺序：
+           不配就用不了的（模型服务）在最前，纯个性化的（外观）在最后。
+           几处原来隔着一整段的东西也归了位：
+             · 「启用备用模型」原来在生成选项末尾，控制的却是下一段的显隐 → 挪进备用模型段的段首
+             · 备用模型的思考强度原来和主模型的挤在一起 → 跟着它的模型走
+             · 悬浮球说明和玻璃说明原来都堆在外观段末尾 → 各自贴着自己那组
+             · 玻璃开关原来夹在三个悬浮球开关里，和强度滑块隔开 → 两者相邻 -->
       <section class="nai-md3-page nai-hidden" data-page="settings">
-        <div class="nai-md3-settings-section nai-md3-settings-appearance">
-          <div class="nai-md3-section-head">
-            <div class="nai-md3-section-title">${T.sectionAppearance}</div>
-            <div class="nai-md3-section-note">${T.sectionAppearanceHint}</div>
-          </div>
-          <div><label class="nai-md3-label">${T.themePreset}</label><select class="nai-md3-input" data-field="themePreset"></select></div>
-          <div class="nai-md3-switch-stack">
-            <label class="nai-md3-switch"><input data-field="showReverseFloatingBall" type="checkbox" /><span>${T.showReverseEntry}</span></label>
-            <label class="nai-md3-switch"><input data-field="showWorkbenchFloatingBall" type="checkbox" /><span>${T.showWorkbenchEntry}</span></label>
-            <label class="nai-md3-switch"><input data-field="showExternalFloatingBall" type="checkbox" /><span>${T.showExternalEntry}</span></label>
-            <label class="nai-md3-switch"><input data-field="glassEffect" type="checkbox" /><span>${T.glassEffect}</span></label>
-          </div>
-          <div class="nai-md3-slider-row">
-            <span class="nai-md3-slider-label">${T.glassStrength}</span>
-            <input class="nai-md3-slider" data-field="glassStrength" type="range" min="0" max="100" step="5" />
-            <span class="nai-md3-slider-value" data-field="glassStrengthValue">100%</span>
-          </div>
-          <div class="nai-md3-section-note">${T.showExternalEntryHint}</div>
-          <div class="nai-md3-section-note">${T.glassEffectHint}</div>
-        </div>
-
         <div class="nai-md3-settings-section">
           <div class="nai-md3-section-head">
             <div class="nai-md3-section-title">${T.sectionProvider}</div>
@@ -97,7 +86,7 @@ function createUI() {
               <datalist id="nai-primary-model-list"></datalist>
             </div>
             <div>
-              <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="\u5982\u4f55\u83b7\u53d6">i</button></label>
+              <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
               <input class="nai-md3-input" data-field="apiKey" type="password" />
             </div>
           </div>
@@ -106,8 +95,68 @@ function createUI() {
 
         <div class="nai-md3-settings-section">
           <div class="nai-md3-section-head">
+            <div class="nai-md3-section-title">${T.sectionSampling}</div>
+            <div class="nai-md3-section-note">${T.sectionSamplingHint}</div>
+          </div>
+          <div class="nai-md3-grid-2">
+            <div><label class="nai-md3-label">Temperature</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
+            <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="4096" step="1" /></div>
+          </div>
+          <label class="nai-md3-label">${T.reasoningEffort}</label><select class="nai-md3-input" data-field="reasoningEffort"></select>
+          <div class="nai-md3-section-note">${T.reasoningHint}</div>
+        </div>
+
+        <div class="nai-md3-settings-section">
+          <div class="nai-md3-section-head">
+            <div class="nai-md3-section-title">${T.sectionBehavior}</div>
+            <div class="nai-md3-section-note">${T.sectionBehaviorHint}</div>
+          </div>
+          <div class="nai-md3-switch-stack">
+            <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
+            <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
+          </div>
+          <div class="nai-booru-tag-types nai-hidden" data-booru-tag-types>
+            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="artist" /><span>artist</span></label>
+            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="character" /><span>character</span></label>
+            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="copyright" /><span>copyright</span></label>
+            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="general" /><span>general</span></label>
+            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="meta" /><span>meta</span></label>
+          </div>
+          <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
+        </div>
+
+        <div class="nai-md3-settings-section">
+          <div class="nai-md3-section-head">
+            <div class="nai-md3-section-title">${T.sectionFallback}</div>
+            <div class="nai-md3-section-note">${T.sectionFallbackHint}</div>
+          </div>
+          <label class="nai-md3-switch"><input data-field="enableFallbackModel" type="checkbox" /><span>${T.fallbackMode}</span></label>
+          <!-- 只藏字段，不藏上面那个开关 —— 否则关掉之后就再也打不开了 -->
+          <div class="nai-md3-fallback-fields nai-hidden" data-fallback-section>
+            <div class="nai-md3-grid-2">
+              <div><label class="nai-md3-label">${T.fallbackProvider}</label><select class="nai-md3-input" data-field="fallbackProviderPreset"></select></div>
+              <div><label class="nai-md3-label">${T.fallbackProtocol}</label><select class="nai-md3-input" data-field="fallbackProtocol"></select></div>
+            </div>
+            <label class="nai-md3-label">${T.fallbackEndpoint}</label><input class="nai-md3-input" data-field="fallbackEndpoint" type="text" />
+            <div class="nai-md3-grid-2">
+              <div>
+                <label class="nai-md3-label">${T.fallbackModel}</label>
+                <div class="nai-md3-input-row">
+                  <input class="nai-md3-input" data-field="fallbackModel" list="nai-fallback-model-list" type="text" />
+                  <button type="button" class="nai-md3-inline-action" data-action="fetch-fallback-models">${T.fetchModels}</button>
+                </div>
+                <datalist id="nai-fallback-model-list"></datalist>
+              </div>
+              <div><label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" /></div>
+            </div>
+            <label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select>
+          </div>
+        </div>
+
+        <div class="nai-md3-settings-section">
+          <div class="nai-md3-section-head">
             <div class="nai-md3-section-title">${T.sectionPrompt}</div>
-            <div class="nai-md3-section-note">预设与消息块编辑器</div>
+            <div class="nai-md3-section-note">${T.sectionPromptHint}</div>
           </div>
           <div class="nai-md3-grid-2" style="align-items:end">
             <div><label class="nai-md3-label">预设</label><select class="nai-md3-input" data-field="activePresetId"></select></div>
@@ -129,54 +178,25 @@ function createUI() {
           </div>
         </div>
 
-        <div class="nai-md3-settings-section">
+        <div class="nai-md3-settings-section nai-md3-settings-appearance">
           <div class="nai-md3-section-head">
-            <div class="nai-md3-section-title">${T.sectionBehavior}</div>
-            <div class="nai-md3-section-note">${T.sectionBehaviorHint}</div>
+            <div class="nai-md3-section-title">${T.sectionAppearance}</div>
+            <div class="nai-md3-section-note">${T.sectionAppearanceHint}</div>
           </div>
-          <div class="nai-md3-grid-2">
-            <div><label class="nai-md3-label">Temperature</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
-            <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="4096" step="1" /></div>
+          <div><label class="nai-md3-label">${T.themePreset}</label><select class="nai-md3-input" data-field="themePreset"></select></div>
+          <div class="nai-md3-switch-stack">
+            <label class="nai-md3-switch"><input data-field="showReverseFloatingBall" type="checkbox" /><span>${T.showReverseEntry}</span></label>
+            <label class="nai-md3-switch"><input data-field="showWorkbenchFloatingBall" type="checkbox" /><span>${T.showWorkbenchEntry}</span></label>
+            <label class="nai-md3-switch"><input data-field="showExternalFloatingBall" type="checkbox" /><span>${T.showExternalEntry}</span></label>
           </div>
-          <div class="nai-md3-grid-2">
-            <div><label class="nai-md3-label">${T.reasoningEffort}</label><select class="nai-md3-input" data-field="reasoningEffort"></select></div>
-            <div><label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select></div>
+          <div class="nai-md3-section-note">${T.showExternalEntryHint}</div>
+          <label class="nai-md3-switch"><input data-field="glassEffect" type="checkbox" /><span>${T.glassEffect}</span></label>
+          <div class="nai-md3-slider-row">
+            <span class="nai-md3-slider-label">${T.glassStrength}</span>
+            <input class="nai-md3-slider" data-field="glassStrength" type="range" min="0" max="100" step="5" />
+            <span class="nai-md3-slider-value" data-field="glassStrengthValue">100%</span>
           </div>
-          <div class="nai-md3-section-note">${T.reasoningHint}</div>
-          <label class="nai-md3-switch"><input data-field="sendImageAsDataUrl" type="checkbox" /><span>${T.sendImageAsDataUrl}</span></label>
-          <label class="nai-md3-switch"><input data-field="enableBooruTagContext" type="checkbox" /><span>${T.enableBooruTagContext}</span></label>
-          <div class="nai-booru-tag-types nai-hidden" data-booru-tag-types>
-            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="artist" /><span>artist</span></label>
-            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="character" /><span>character</span></label>
-            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="copyright" /><span>copyright</span></label>
-            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="general" /><span>general</span></label>
-            <label class="nai-md3-check-inline"><input type="checkbox" data-booru-type="meta" /><span>meta</span></label>
-          </div>
-          <label class="nai-md3-switch"><input data-field="defaultCodeFence" type="checkbox" /><span>${T.defaultCodeFence}</span></label>
-          <label class="nai-md3-switch"><input data-field="enableFallbackModel" type="checkbox" /><span>${T.fallbackMode}</span></label>
-        </div>
-
-        <div class="nai-md3-settings-section nai-hidden" data-fallback-section>
-          <div class="nai-md3-section-head">
-            <div class="nai-md3-section-title">${T.sectionFallback}</div>
-            <div class="nai-md3-section-note">${T.sectionFallbackHint}</div>
-          </div>
-          <div class="nai-md3-grid-2">
-            <div><label class="nai-md3-label">${T.fallbackProvider}</label><select class="nai-md3-input" data-field="fallbackProviderPreset"></select></div>
-            <div><label class="nai-md3-label">${T.fallbackProtocol}</label><select class="nai-md3-input" data-field="fallbackProtocol"></select></div>
-          </div>
-          <label class="nai-md3-label">${T.fallbackEndpoint}</label><input class="nai-md3-input" data-field="fallbackEndpoint" type="text" />
-          <div class="nai-md3-grid-2">
-            <div>
-              <label class="nai-md3-label">${T.fallbackModel}</label>
-              <div class="nai-md3-input-row">
-                <input class="nai-md3-input" data-field="fallbackModel" list="nai-fallback-model-list" type="text" />
-                <button type="button" class="nai-md3-inline-action" data-action="fetch-fallback-models">${T.fetchModels}</button>
-              </div>
-              <datalist id="nai-fallback-model-list"></datalist>
-            </div>
-            <div><label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" /></div>
-          </div>
+          <div class="nai-md3-section-note">${T.glassEffectHint}</div>
         </div>
 
         <div class="nai-md3-actions nai-md3-settings-actions"><button type="button" data-action="test-connection">${T.testConnection}</button><button type="button" class="nai-md3-primary" data-action="save-settings">${T.saveSettings}</button></div>
@@ -201,33 +221,33 @@ function createUI() {
           <nav class="nai-workbench-sidebar" aria-label="工作台窗口">
             <div class="nai-workbench-nav-main">
               <button type="button" class="nai-workbench-nav-item is-active" data-workbench-page="library" data-action="workbench-open-library" title="词库">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">#</span>
-                <span class="nai-workbench-nav-text">词库</span>
-              </button>
-              <button type="button" class="nai-workbench-nav-item" data-workbench-page="presets" data-action="workbench-open-presets" title="预设">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">≡</span>
-                <span class="nai-workbench-nav-text">预设</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('library')}</span>
+                <span class="nai-workbench-nav-text">${T.tabLibrary}</span>
               </button>
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="agent" data-action="workbench-open-agent" title="写词">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">~</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('agent')}</span>
                 <span class="nai-workbench-nav-text">${T.tabAgent}</span>
               </button>
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="flow" data-action="workbench-open-flow" title="改词">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">≈</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('flow')}</span>
                 <span class="nai-workbench-nav-text">${T.tabFlow}</span>
               </button>
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="artists" data-action="workbench-open-artists" title="画师库">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">&amp;</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('artists')}</span>
                 <span class="nai-workbench-nav-text">${T.tabArtists}</span>
               </button>
+              <button type="button" class="nai-workbench-nav-item" data-workbench-page="presets" data-action="workbench-open-presets" title="预设">
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('presets')}</span>
+                <span class="nai-workbench-nav-text">预设</span>
+              </button>
               <button type="button" class="nai-workbench-nav-item" data-workbench-page="settings" data-action="workbench-open-settings" title="设置">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">*</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('settings')}</span>
                 <span class="nai-workbench-nav-text">设置</span>
               </button>
             </div>
             <div class="nai-workbench-nav-bottom">
               <button type="button" class="nai-workbench-nav-item is-collapse" data-action="workbench-toggle-sidebar" aria-expanded="true" title="收起侧边栏">
-                <span class="nai-workbench-nav-icon" aria-hidden="true">&lt;</span>
+                <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('collapse')}</span>
                 <span class="nai-workbench-nav-text">收起</span>
               </button>
             </div>
@@ -340,39 +360,10 @@ function createUI() {
                   <div class="nai-library-page-title">工作台设置</div>
                 </div>
               </div>
+              <!-- 顺序和面板设置页一致：模型服务 → 生成参数 → 发送与输出 → 备用模型 → 提示词 → 外观。
+                   两边曾经各排各的（这边是外观打头），同一个设置在两个界面里位置对不上。
+                   「启用备用模型」也从生成选项挪进了备用模型段的段首。 -->
               <div class="nai-library-settings-stack">
-                <div class="nai-library-settings-group">
-                  <div class="nai-library-settings-title">外观</div>
-                  <div class="nai-library-settings-grid">
-                    <label class="nai-library-field">
-                      <span>颜色预设</span>
-                      <select data-field="libraryThemePreset"></select>
-                    </label>
-                    <div class="nai-library-check-stack">
-                      <label class="nai-library-check">
-                        <input data-field="libraryShowReverseFloatingBall" type="checkbox" />
-                        <span>${T.showReverseEntry}</span>
-                      </label>
-                      <label class="nai-library-check">
-                        <input data-field="libraryShowWorkbenchFloatingBall" type="checkbox" />
-                        <span>${T.showWorkbenchEntry}</span>
-                      </label>
-                      <label class="nai-library-check">
-                        <input data-field="libraryShowExternalFloatingBall" type="checkbox" />
-                        <span>${T.showExternalEntry}</span>
-                      </label>
-                      <label class="nai-library-check">
-                        <input data-field="libraryGlassEffect" type="checkbox" />
-                        <span>${T.glassEffect}</span>
-                      </label>
-                      <div class="nai-md3-slider-row">
-                        <span class="nai-md3-slider-label">${T.glassStrength}</span>
-                        <input class="nai-md3-slider" data-field="libraryGlassStrength" type="range" min="0" max="100" step="5" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 <div class="nai-library-settings-group">
                   <div class="nai-library-settings-title">主模型</div>
                   <div class="nai-library-settings-grid">
@@ -407,28 +398,7 @@ function createUI() {
                 </div>
 
                 <div class="nai-library-settings-group">
-                  <div class="nai-library-settings-title">提示词</div>
-                  <label class="nai-library-field">
-                    <span>预设</span>
-                    <select data-field="libraryActivePresetId"></select>
-                  </label>
-                  <label class="nai-library-field">
-                    <span>${T.rolePrompt}</span>
-                    <textarea data-field="libraryRolePrompt" rows="2"></textarea>
-                  </label>
-                  <div class="nai-library-settings-grid">
-                    <label class="nai-library-field">
-                      <span>${T.roleLibrary}</span>
-                      <select data-field="libraryRoleLibrarySelect"></select>
-                    </label>
-                    <div class="nai-library-settings-actions is-bottom">
-                      <button type="button" data-action="library-apply-role-library">${T.applyRoleLibrary}</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="nai-library-settings-group">
-                  <div class="nai-library-settings-title">生成选项</div>
+                  <div class="nai-library-settings-title">${T.sectionSampling}</div>
                   <div class="nai-library-settings-grid">
                     <label class="nai-library-field">
                       <span>Temperature</span>
@@ -439,6 +409,10 @@ function createUI() {
                       <input data-field="libraryMaxTokens" type="number" min="64" max="4096" step="1" />
                     </label>
                   </div>
+                </div>
+
+                <div class="nai-library-settings-group">
+                  <div class="nai-library-settings-title">${T.sectionBehavior}</div>
                   <label class="nai-library-check">
                     <input data-field="librarySendImageAsDataUrl" type="checkbox" />
                     <span>${T.sendImageAsDataUrl}</span>
@@ -451,14 +425,14 @@ function createUI() {
                     <input data-field="libraryDefaultCodeFence" type="checkbox" />
                     <span>${T.defaultCodeFence}</span>
                   </label>
-                  <label class="nai-library-check">
-                    <input data-field="libraryEnableFallbackModel" type="checkbox" />
-                    <span>${T.fallbackMode}</span>
-                  </label>
                 </div>
 
                 <div class="nai-library-settings-group">
                   <div class="nai-library-settings-title">备用模型</div>
+                  <label class="nai-library-check">
+                    <input data-field="libraryEnableFallbackModel" type="checkbox" />
+                    <span>${T.fallbackMode}</span>
+                  </label>
                   <div class="nai-library-settings-grid">
                     <label class="nai-library-field">
                       <span>${T.fallbackProvider}</span>
@@ -486,6 +460,59 @@ function createUI() {
                   </div>
                   <div class="nai-library-settings-actions">
                     <button type="button" data-action="library-fetch-fallback-models">${T.fetchModels}</button>
+                  </div>
+                </div>
+
+                <div class="nai-library-settings-group">
+                  <div class="nai-library-settings-title">提示词</div>
+                  <label class="nai-library-field">
+                    <span>预设</span>
+                    <select data-field="libraryActivePresetId"></select>
+                  </label>
+                  <label class="nai-library-field">
+                    <span>${T.rolePrompt}</span>
+                    <textarea data-field="libraryRolePrompt" rows="2"></textarea>
+                  </label>
+                  <div class="nai-library-settings-grid">
+                    <label class="nai-library-field">
+                      <span>${T.roleLibrary}</span>
+                      <select data-field="libraryRoleLibrarySelect"></select>
+                    </label>
+                    <div class="nai-library-settings-actions is-bottom">
+                      <button type="button" data-action="library-apply-role-library">${T.applyRoleLibrary}</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="nai-library-settings-group">
+                  <div class="nai-library-settings-title">外观</div>
+                  <div class="nai-library-settings-grid">
+                    <label class="nai-library-field">
+                      <span>颜色预设</span>
+                      <select data-field="libraryThemePreset"></select>
+                    </label>
+                    <div class="nai-library-check-stack">
+                      <label class="nai-library-check">
+                        <input data-field="libraryShowReverseFloatingBall" type="checkbox" />
+                        <span>${T.showReverseEntry}</span>
+                      </label>
+                      <label class="nai-library-check">
+                        <input data-field="libraryShowWorkbenchFloatingBall" type="checkbox" />
+                        <span>${T.showWorkbenchEntry}</span>
+                      </label>
+                      <label class="nai-library-check">
+                        <input data-field="libraryShowExternalFloatingBall" type="checkbox" />
+                        <span>${T.showExternalEntry}</span>
+                      </label>
+                      <label class="nai-library-check">
+                        <input data-field="libraryGlassEffect" type="checkbox" />
+                        <span>${T.glassEffect}</span>
+                      </label>
+                      <div class="nai-md3-slider-row">
+                        <span class="nai-md3-slider-label">${T.glassStrength}</span>
+                        <input class="nai-md3-slider" data-field="libraryGlassStrength" type="range" min="0" max="100" step="5" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

@@ -2,22 +2,48 @@
 .nai-autocomplete-container {
   position: fixed;
   z-index: 999999;
-  min-width: 260px;
-  max-width: 360px;
-  max-height: 300px;
-  background: var(--md-sys-color-surface-container);
-  border-radius: 6px;
-  box-shadow: var(--md-sys-elevation-3);
-  border: 1px solid var(--md-sys-color-outline-variant);
+  min-width: 240px;
+  max-width: 344px;
+  max-height: 268px;
+  /* 材质照 STYLE.md 第 5 节「面板 / 弹窗」那行：左上角辉光 + 竖向双层渐变
+     + panel 级阴影 + rim + glass blur。这里不是自己配一套，是把面板那份配方
+     用第一套 token 复述一遍 —— 只有这样两个浮层才是同一种玻璃。
+     单色平铺看起来就是另一种材质，别改回去。 */
+  border-radius: var(--nai-md3-radius-md);
+  /* 外圈是浅色 rim，不是发丝深线；里面再套一圈更淡的（见下面的 ::before）——
+     和面板一样的双层包边。chip 那种发丝深线只用在控件上，卡片边缘用会像另一种材质。 */
+  border: 1px solid var(--nai-md3-panel-border);
+  background:
+    radial-gradient(circle at top left, var(--nai-md3-glass-glow), transparent 38%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--md-sys-color-surface-container-high) var(--nai-md3-glass-level), transparent),
+      color-mix(in srgb, var(--md-sys-color-surface-container) var(--nai-md3-glass-level), transparent));
+  box-shadow: var(--md-sys-elevation-3), var(--nai-md3-glass-rim);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-  backdrop-filter: none;
+  /* 补全弹窗直接挂在 body 上，是顶层浮层、不嵌在任何已模糊的父级里，
+     属于第 4 节允许加 backdrop-filter 的那一类（那节的清单已经从 4 处改成 5 处）。
+     里面的头/脚/开关只稀释背景、不各自模糊 —— 嵌套模糊会糊出深色块。 */
+  backdrop-filter: var(--nai-md3-glass-blur);
+  -webkit-backdrop-filter: var(--nai-md3-glass-blur);
   opacity: 0;
   transform: none;
   transition: opacity 0.08s linear;
   pointer-events: none;
+}
+
+/* 内圈。和面板 .nai-md3-panel::before 同一条 —— Apple 的玻璃边缘是外亮内柔两层，
+   只有一层的话边缘会显得硬。 */
+.nai-autocomplete-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid var(--nai-md3-panel-inner-border);
+  border-radius: inherit;
+  opacity: 0.85;
 }
 
 .nai-autocomplete-container.visible {
@@ -26,76 +52,128 @@
   pointer-events: auto;
 }
 
-/* Header */
+/* 外围结构：一整块连续材质，靠留白和内嵌圆角分组，不用横线切块。
+   面板整块没有一条全幅分隔线（4 条都在词库抽屉里），Apple 的 popover / Spotlight
+   也是这样 —— 头尾曾经是各带背景和 1px 分隔线的「标题栏 + 状态栏」，
+   把卡片切成三条，一眼就不是同一个东西。
+   左内边距统一 12px：标题、行首色点、脚注文字落在同一条竖线上。 */
 .nai-autocomplete-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
-  padding: 6px 11px;
-  background: var(--md-sys-color-surface-container-high);
-  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  gap: 8px;
+  min-height: 26px;
+  padding: 7px 12px 4px;
+  background: transparent;
 }
 
 .nai-autocomplete-title {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   font-weight: 700;
-  color: var(--md-sys-color-on-surface-variant);
-  letter-spacing: 0;
-  text-transform: none;
+  color: var(--nai-md3-ink-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-/* Slash Toggle */
-.nai-slash-toggle {
+.nai-autocomplete-toggles {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 22px;
-  padding: 0 7px;
-  background: var(--md-sys-color-surface);
+  gap: 5px;
+}
+
+/* 可切换胶囊。头部两个开关和行内的 artist: 都是它 ——
+   按下就整颗填充，和面板页签 .nai-md3-tabs button.active 一个路子。
+   原生 checkbox 一个都不留：面板全局把它重置成 appearance:none 再自绘，
+   弹窗这边留着系统勾选框的话，两处并排就是两套控件语言。 */
+.nai-ac-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--nai-md3-glass-edge);
   border-radius: 999px;
+  background: var(--nai-md3-chip-bg);
+  color: var(--nai-md3-ink-label);
+  font-family: inherit;
   font-size: 10px;
+  font-weight: 700;
   line-height: 1;
-  color: var(--md-sys-color-on-surface-variant);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   cursor: pointer;
+  flex: 0 0 auto;
+  /* 凸起靠的是阴影，不只是填充色。面板的按钮一直有 chip-shadow，
+     弹窗这边以前是平的 + 不透明的暗填充 —— 一个凸一个凹就是这么来的。 */
+  box-shadow: var(--nai-md3-chip-shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.nai-slash-toggle:hover {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+.nai-ac-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 28%, var(--nai-md3-glass-edge));
+  box-shadow: var(--nai-md3-chip-hover-shadow);
 }
 
-.nai-slash-toggle input {
-  width: 12px;
-  height: 12px;
-  accent-color: var(--md-sys-color-primary);
-  cursor: pointer;
+/* 按下 = 整颗填充，和面板 .nai-md3-tabs button.active 同一条规则。
+   artist: 不再单独用画师红：深色主题的 --md-sys-color-on-primary 是深色
+   （它们的主色是浅色系），压在红底上根本看不清。分类身份由行首那颗色点负责。 */
+.nai-ac-chip[aria-pressed="true"] {
+  background: var(--nai-md3-primary-fill);
+  color: var(--md-sys-color-on-primary);
+  border-color: transparent;
+}
+
+/* 没按下时用画师色，一眼看出这颗是管 artist: 的 */
+.nai-artist-toggle {
+  color: var(--nai-category-artist);
+}
+
+/* 分段控件：减 / 值 / 加是一颗胶囊的三段。
+   原来是两个按钮加一段裸文字并排，看上去是三个不相干的东西。 */
+.nai-ac-stepper {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--nai-md3-glass-edge);
+  border-radius: 999px;
+  background: var(--nai-md3-chip-bg);
+  box-shadow: var(--nai-md3-chip-shadow);
+  overflow: hidden;
 }
 
 .nai-autocomplete-hint {
   font-size: 10px;
-  color: var(--md-sys-color-outline);
+  color: var(--nai-md3-ink-muted);
 }
 
 .nai-autocomplete-hint kbd {
   display: inline-block;
-  padding: 1px 4px;
+  padding: 1px 5px;
   margin: 0 2px;
-  background: var(--md-sys-color-surface);
-  border-radius: 4px;
+  background: var(--nai-md3-chip-bg);
+  border: 1px solid var(--nai-md3-glass-edge);
+  border-radius: 999px;
+  box-shadow: var(--nai-md3-chip-shadow);
   font-size: 9px;
+  font-weight: 700;
   font-family: inherit;
 }
 
 /* Results List */
 .nai-autocomplete-list {
   flex: 1 1 auto;
-  max-height: 236px;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 6px 7px 10px;
+  padding: 6px 5px;
+  /* 边缘淡出宽度刚好等于上下内边距：没滚动时落在空白上看不见，
+     一滚起来内容就从头尾化开 —— 这是 Apple 的 scroll edge，替掉那两条横线 */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 6px, #000 calc(100% - 6px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 6px, #000 calc(100% - 6px), transparent 100%);
 }
 
 .nai-autocomplete-list::-webkit-scrollbar {
@@ -119,10 +197,10 @@
 .nai-autocomplete-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 50px;
-  padding: 8px 10px;
-  border-radius: 5px;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 7px;
+  border-radius: var(--nai-md3-radius-2xs);
   cursor: pointer;
   transition: none;
 }
@@ -200,11 +278,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  min-height: 20px;
-  padding: 0 7px;
+  min-width: 34px;
+  min-height: 18px;
+  padding: 0 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: 0;
@@ -213,10 +291,10 @@
 }
 
 .nai-autocomplete-translation {
-  margin-top: 3px;
-  font-size: 11px;
-  line-height: 1.25;
-  color: var(--md-sys-color-on-surface-variant);
+  margin-top: 1px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--nai-md3-ink-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,102 +302,64 @@
 
 .nai-autocomplete-meta {
   flex: 0 0 auto;
-  align-self: stretch;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 50px;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
-/* Post Count Badge */
+/* post 数是只读信息，不是控件。以前它和加减按钮长得一模一样 ——
+   同样的外观却点不动，这才是最难受的地方。 */
 .nai-autocomplete-count {
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  min-height: 20px;
-  padding: 0 7px;
-  border-radius: 999px;
-  font-size: 11px;
+  min-width: 32px;
+  text-align: right;
+  font-size: 10px;
   line-height: 1;
   font-weight: 700;
-  color: var(--nai-ac-count-fg, var(--md-sys-color-outline));
-  background: var(--nai-ac-count-bg, var(--md-sys-color-surface));
+  font-variant-numeric: tabular-nums;
+  color: var(--nai-ac-count-fg, var(--nai-md3-ink-muted));
 }
 
 /* Weight Controls */
-.nai-autocomplete-weight {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
-}
-
 .nai-weight-btn {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: none;
-  border-radius: 4px;
-  background: var(--nai-ac-weight-btn-bg, var(--md-sys-color-surface));
-  color: var(--md-sys-color-on-surface);
+  border-radius: 0;
+  background: transparent;
+  color: var(--nai-md3-ink-label);
   cursor: pointer;
-  font-size: 14px;
+  font-family: inherit;
+  font-size: 12px;
   line-height: 1;
-  font-weight: bold;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.1s;
+  transition: background-color 0.1s;
 }
 
 .nai-weight-btn:hover {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary) 26%, transparent);
+  color: var(--md-sys-color-on-surface);
 }
 
 .nai-weight-value {
-  min-width: 26px;
+  min-width: 22px;
   text-align: center;
-  font-size: 11px;
-  line-height: 20px;
-  font-weight: 700;
-  color: var(--md-sys-color-primary);
-}
-
-/* Artist Toggle */
-.nai-artist-toggle {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-height: 20px;
-  padding: 0 6px;
-  background: var(--md-sys-color-surface);
-  border-radius: 4px;
   font-size: 10px;
-  line-height: 1;
-  color: var(--nai-category-artist);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.nai-artist-toggle:hover {
-  background: color-mix(in srgb, var(--nai-category-artist) 22%, transparent);
-}
-
-.nai-artist-check {
-  width: 12px;
-  height: 12px;
-  accent-color: var(--nai-category-artist);
-  cursor: pointer;
+  line-height: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-primary);
 }
 
 /* Empty State */
 .nai-autocomplete-empty {
   padding: 24px 16px;
   text-align: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--nai-md3-ink-muted);
   font-size: 13px;
 }
 
@@ -333,7 +373,7 @@
 .nai-autocomplete-loading {
   padding: 16px;
   text-align: center;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--nai-md3-ink-muted);
   font-size: 12px;
 }
 
@@ -359,13 +399,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 30px;
-  padding: 7px 12px 8px;
-  background: var(--md-sys-color-surface-container-high);
-  border-top: 1px solid var(--md-sys-color-outline-variant);
+  min-height: 20px;
+  padding: 3px 12px 8px;
+  background: transparent;
   font-size: 10px;
   line-height: 1;
-  color: var(--md-sys-color-outline);
+  color: var(--nai-md3-ink-muted);
 }
 
 .nai-autocomplete-count-info {
@@ -457,48 +496,35 @@
   height: 16px;
 }
 
-/* 三层视觉，别混：
-     底部色条 = 单个 tag 的分类（每个 tag 都有，所以必须轻）
-     填充块   = 成组（词库条目，稀疏，可以重）
-     红虚线   = 词典里查不到，最该被看见的一类 */
+/* 只画一条直下划线。原来是三层视觉（色条 + 填充块 + 红框 + 权重气泡），
+   叠在正文上噪点太大，而且气泡会压到上一行。所有状态现在都只是同一条线换粗细和样式。
+   顺序有讲究：查不到词典的放最后，让它盖过成组和锁定。
+
+   用 border-bottom 而不是 box-shadow，是因为「查不到」要画虚线 —— 画师现在也是红的
+   （danbooru 自己就这么分类），只靠颜色分不开这两种，得靠实线 / 虚线。
+   box-sizing 必须是 border-box，否则这条边会把面板撑高 2px。 */
 .nai-prompt-block-highlight {
   position: fixed;
   pointer-events: none;
-  border-radius: 4px;
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--nai-block-accent) 68%, transparent);
+  box-sizing: border-box;
+  border-radius: 0;
+  border-bottom: 2px solid color-mix(in srgb, var(--nai-block-accent) 72%, transparent);
   transition: none;
 }
 
 .nai-prompt-block-highlight.is-group {
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--nai-block-accent) 18%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 60%, transparent);
-}
-
-.nai-prompt-block-highlight.is-unknown {
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px var(--nai-flow-src-unknown, #e5484d);
+  border-bottom-width: 3px;
+  border-bottom-color: color-mix(in srgb, var(--nai-block-accent) 88%, transparent);
 }
 
 .nai-prompt-block-highlight.is-locked {
-  background: color-mix(in srgb, var(--nai-block-accent) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nai-block-accent) 78%, transparent);
+  border-bottom-width: 3px;
+  border-bottom-color: color-mix(in srgb, var(--nai-block-accent) 88%, transparent);
   cursor: default;
 }
 
-/* 权重只在 ≠1 时出现，所以实际上很稀疏 */
-.nai-prompt-block-weight {
-  position: fixed;
-  pointer-events: none;
-  border-radius: 999px;
-  padding: 0 5px;
-  background: color-mix(in srgb, var(--nai-block-accent) 82%, transparent);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 14px;
-  font-variant-numeric: tabular-nums;
-  box-shadow: var(--md-sys-elevation-2);
+.nai-prompt-block-highlight.is-unknown {
+  border-bottom: 2px dashed color-mix(in srgb, var(--nai-flow-src-unknown, #e5484d) 88%, transparent);
 }
 
 .nai-prompt-block-anchor {

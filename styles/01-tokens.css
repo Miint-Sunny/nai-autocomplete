@@ -21,7 +21,7 @@ html[data-nai-theme="sunrise"] {
 
   /* Category Colors */
   --nai-category-general: #7aa7dd;
-  --nai-category-artist: #d98d78;
+  --nai-category-artist: #c8362f;
   --nai-category-copyright: #8f90d6;
   --nai-category-character: #6ca885;
   --nai-category-meta: #c9a048;
@@ -29,6 +29,80 @@ html[data-nai-theme="sunrise"] {
   /* Elevation */
   --md-sys-elevation-2: 0 8px 20px rgba(172, 126, 89, 0.12);
   --md-sys-elevation-3: 0 16px 34px rgba(172, 126, 89, 0.16), 0 4px 10px rgba(109, 77, 54, 0.08);
+}
+
+/* 毛玻璃档位 —— 这是 04-assistant-md3.css 里那条链的第二份。
+   必须复制而不能共用：自定义属性在「声明它的那个元素」上就把 var() 代换掉了，
+   所以派生值（blur / level）要和它依赖的档位（radius / floor）落在同一个元素上，
+   否则主题改了 radius，blur 还是基础值。面板那份挂在 .nai-md3-root 上，
+   补全弹窗挂在 body 上、不在那棵树里，只能在 <html> 上再算一遍。
+
+   amount 由 content 脚本从面板设置同步过来（applyGlassPreset），两边永远同一个值。 */
+:root {
+  --nai-md3-glass-amount: 1;
+  --nai-md3-glass-radius: 18px;
+  --nai-md3-glass-radius-soft: 12px;
+  --nai-md3-glass-saturate: 0.08;
+  --nai-md3-glass-floor: 72%;
+  --nai-md3-glass-floor-soft: 58%;
+  --nai-md3-glass-rim-color: rgba(255, 255, 255, 0.16);
+
+  --nai-md3-glass-blur:
+    blur(calc(var(--nai-md3-glass-radius) * var(--nai-md3-glass-amount)))
+    saturate(calc(1 + var(--nai-md3-glass-saturate) * var(--nai-md3-glass-amount)));
+  --nai-md3-glass-level: calc(100% - (100% - var(--nai-md3-glass-floor)) * var(--nai-md3-glass-amount));
+  --nai-md3-glass-level-soft: calc(100% - (100% - var(--nai-md3-glass-floor-soft)) * var(--nai-md3-glass-amount));
+  --nai-md3-glass-rim: inset 0 1px 0 var(--nai-md3-glass-rim-color);
+  /* 面板材质的左上角辉光。面板那份是主题写死的实色，这边跟着主色走，
+     所有主题自动成立，不用再维护第三份配色。 */
+  --nai-md3-glass-glow: color-mix(in srgb, var(--md-sys-color-primary) 20%, transparent);
+
+  /* 控件填充。面板里的按钮/页签是「提亮的半透明白」，补全弹窗以前用的是不透明的
+     surface —— 比卡片还暗，两边并排看就是一个凸一个凹。值和 04-assistant-md3.css 那份一致。 */
+  /* 卡片外围那圈「包线」。面板用的是**带色调的浅色 rim**，不是 outline-variant 那种深色发丝线 ——
+     深色主题上一条深线压在玻璃边缘，看着就是另一种材质。值和 04-assistant-md3.css 那份一致。 */
+  --nai-md3-panel-border: rgba(255, 255, 255, 0.96);
+  --nai-md3-panel-inner-border: rgba(255, 255, 255, 0.5);
+
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.74);
+  --nai-md3-chip-shadow: 0 6px 16px rgba(156, 124, 100, 0.08);
+  --nai-md3-chip-hover-shadow: 0 10px 20px rgba(156, 124, 100, 0.12);
+
+  /* 圆角档位，值和 04-assistant-md3.css 那份一致（STYLE.md 第 3 节的表就是它）。
+     容器一律走变量，不要再硬编码 —— 补全弹窗以前是写死的 6px。 */
+  --nai-md3-radius-xl: 28px;
+  --nai-md3-radius-lg: 22px;
+  --nai-md3-radius-md: 18px;
+  --nai-md3-radius-sm: 14px;
+  --nai-md3-radius-xs: 12px;
+  --nai-md3-radius-2xs: 10px;
+
+  /* 玻璃越透，透过来的东西越杂，次要文字越压不住。两级墨色跟着 amount 走：
+     amount=0（实心）时等于各主题原本的颜色，观感零变化。和面板那份同一套公式。 */
+  --nai-md3-ink-label: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) calc(45% + var(--nai-md3-glass-amount) * 55%),
+    var(--md-sys-color-on-surface-variant)
+  );
+  --nai-md3-ink-muted: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) calc(var(--nai-md3-glass-amount) * 42%),
+    var(--md-sys-color-on-surface-variant)
+  );
+
+  /* 描边也得跟着透 —— 不透明描边压在半透明填充上就是一圈黑边（见 STYLE.md 6.1） */
+  --nai-md3-glass-edge: color-mix(
+    in srgb,
+    var(--md-sys-color-outline-variant) calc(100% - var(--nai-md3-glass-amount) * 42%),
+    transparent
+  );
+}
+
+/* 关掉玻璃：一次性回到实心 + 无模糊，和面板的 [data-glass="off"] 对齐 */
+html[data-nai-glass="off"] {
+  --nai-md3-glass-amount: 0;
+  --nai-md3-glass-blur: none;
+  --nai-md3-glass-rim: inset 0 0 0 0 transparent;
 }
 
 html[data-nai-theme="porcelain"] {
@@ -77,6 +151,12 @@ html[data-nai-theme="rose"] {
 }
 
 html[data-nai-theme="ember"] {
+  --nai-md3-panel-border: rgba(255, 214, 186, 0.18);
+  --nai-md3-panel-inner-border: rgba(255, 228, 208, 0.08);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.06);
+  --nai-md3-chip-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  --nai-md3-chip-hover-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
+
   --md-sys-color-surface: #181413;
   --md-sys-color-surface-container: #231d1b;
   --md-sys-color-surface-container-high: #2c2421;
@@ -91,12 +171,18 @@ html[data-nai-theme="ember"] {
   --md-sys-color-error: #ffb4ab;
 
   --nai-category-general: #8dc2ff;
-  --nai-category-artist: #ffae88;
+  --nai-category-artist: #ff6f63;
   --nai-category-copyright: #b7a7ff;
   --nai-category-character: #7cd9a6;
 }
 
 html[data-nai-theme="midnight"] {
+  --nai-md3-panel-border: rgba(194, 222, 255, 0.16);
+  --nai-md3-panel-inner-border: rgba(214, 234, 255, 0.08);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.06);
+  --nai-md3-chip-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  --nai-md3-chip-hover-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
+
   --md-sys-color-surface: #0f1721;
   --md-sys-color-surface-container: #16202c;
   --md-sys-color-surface-container-high: #1c2937;
@@ -111,12 +197,18 @@ html[data-nai-theme="midnight"] {
   --md-sys-color-error: #ffb4ab;
 
   --nai-category-general: #8fc0ff;
-  --nai-category-artist: #ff9e8f;
+  --nai-category-artist: #ff6b74;
   --nai-category-copyright: #c0a8ff;
   --nai-category-character: #79d8b2;
 }
 
 html[data-nai-theme="moss"] {
+  --nai-md3-panel-border: rgba(208, 236, 210, 0.14);
+  --nai-md3-panel-inner-border: rgba(218, 241, 220, 0.08);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.055);
+  --nai-md3-chip-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+  --nai-md3-chip-hover-shadow: 0 12px 22px rgba(0, 0, 0, 0.22);
+
   --md-sys-color-surface: #121814;
   --md-sys-color-surface-container: #19221c;
   --md-sys-color-surface-container-high: #223028;
@@ -131,7 +223,7 @@ html[data-nai-theme="moss"] {
   --md-sys-color-error: #ffb4ab;
 
   --nai-category-general: #85bdff;
-  --nai-category-artist: #ffb07c;
+  --nai-category-artist: #ff7068;
   --nai-category-copyright: #b8b1ff;
   --nai-category-character: #89d59a;
 }
@@ -139,6 +231,12 @@ html[data-nai-theme="moss"] {
 /* 星海鎏金 — sampled from the live novelai.net/image palette
    (deep navy #0e0f21 + signature cream-gold #f5f3c2). */
 html[data-nai-theme="novelai"] {
+  --nai-md3-panel-border: rgba(199, 205, 242, 0.16);
+  --nai-md3-panel-inner-border: rgba(214, 220, 255, 0.07);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.06);
+  --nai-md3-chip-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  --nai-md3-chip-hover-shadow: 0 12px 22px rgba(0, 0, 0, 0.26);
+
   --md-sys-color-surface: #0e0f21;
   --md-sys-color-surface-container: #15172f;
   --md-sys-color-surface-container-high: #1d2347;
@@ -153,7 +251,7 @@ html[data-nai-theme="novelai"] {
   --md-sys-color-error: #ff6b85;
 
   --nai-category-general: #8fbcff;
-  --nai-category-artist: #f6b48a;
+  --nai-category-artist: #ff6b6b;
   --nai-category-copyright: #c3a8ff;
   --nai-category-character: #86d6a2;
   --nai-category-meta: #f5f3c2;
@@ -174,6 +272,26 @@ html[data-nai-theme="novelai"] {
 
 /* 流光玻璃 · 浅 — Apple 系统配色（systemBlue #007aff / secondarySystemBackground #f2f2f7）。 */
 html[data-nai-theme="liquid-light"] {
+  --nai-md3-panel-border: rgba(255, 255, 255, 0.86);
+  --nai-md3-panel-inner-border: rgba(255, 255, 255, 0.6);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.72);
+  --nai-md3-chip-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  --nai-md3-chip-hover-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+
+  --nai-md3-radius-xl: 26px;
+  --nai-md3-radius-lg: 20px;
+  --nai-md3-radius-md: 14px;
+  --nai-md3-radius-sm: 10px;
+  --nai-md3-radius-xs: 10px;
+  --nai-md3-radius-2xs: 8px;
+
+  --nai-md3-glass-radius: 30px;
+  --nai-md3-glass-radius-soft: 18px;
+  --nai-md3-glass-saturate: 0.55;
+  --nai-md3-glass-floor: 68%;
+  --nai-md3-glass-floor-soft: 52%;
+  --nai-md3-glass-rim-color: rgba(255, 255, 255, 0.9);
+
   --md-sys-color-surface: #f2f2f7;
   --md-sys-color-surface-container: #ffffff;
   --md-sys-color-surface-container-high: #ffffff;
@@ -190,7 +308,7 @@ html[data-nai-theme="liquid-light"] {
   --nai-md3-primary-fill: #007aff;
 
   --nai-category-general: #007aff;
-  --nai-category-artist: #ff9500;
+  --nai-category-artist: #ff3b30;
   --nai-category-copyright: #5856d6;
   --nai-category-character: #34c759;
   --nai-category-meta: #8e8e93;
@@ -207,6 +325,26 @@ html[data-nai-theme="liquid-light"] {
 
 /* 流光玻璃 · 深 — Apple 深色系统配色（systemBlue #0a84ff / systemBackground #000000）。 */
 html[data-nai-theme="liquid-dark"] {
+  --nai-md3-panel-border: rgba(255, 255, 255, 0.16);
+  --nai-md3-panel-inner-border: rgba(255, 255, 255, 0.07);
+  --nai-md3-chip-bg: rgba(255, 255, 255, 0.1);
+  --nai-md3-chip-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  --nai-md3-chip-hover-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+
+  --nai-md3-radius-xl: 26px;
+  --nai-md3-radius-lg: 20px;
+  --nai-md3-radius-md: 14px;
+  --nai-md3-radius-sm: 10px;
+  --nai-md3-radius-xs: 10px;
+  --nai-md3-radius-2xs: 8px;
+
+  --nai-md3-glass-radius: 30px;
+  --nai-md3-glass-radius-soft: 18px;
+  --nai-md3-glass-saturate: 0.45;
+  --nai-md3-glass-floor: 76%;
+  --nai-md3-glass-floor-soft: 62%;
+  --nai-md3-glass-rim-color: rgba(255, 255, 255, 0.2);
+
   --md-sys-color-surface: #000000;
   --md-sys-color-surface-container: #1c1c1e;
   --md-sys-color-surface-container-high: #2c2c2e;
@@ -223,7 +361,7 @@ html[data-nai-theme="liquid-dark"] {
   --nai-md3-primary-fill: #0a84ff;
 
   --nai-category-general: #64d2ff;
-  --nai-category-artist: #ff9f0a;
+  --nai-category-artist: #ff453a;
   --nai-category-copyright: #bf5af2;
   --nai-category-character: #30d158;
   --nai-category-meta: #98989f;

@@ -1,5 +1,7 @@
 const ASSISTANT_SETTINGS_KEY = 'nai-llm-assistant-settings';
 const DEFAULT_THEME = 'novelai';
+// 和面板的 DEFAULT_SETTINGS.glassStrength 对齐
+const DEFAULT_GLASS_STRENGTH = 100;
 const PROMPT_BLOCK_STORAGE_PREFIX = 'nai-ac-prompt-blocks';
 const PROMPT_LIBRARY_KEY = 'nai-shared-prompt-library';
 const PRESET_PROMPT_LIBRARY_CATEGORIES = [
@@ -21,6 +23,7 @@ const CONTENT_SCRIPT_VERSION = '1.5.16';
 // 全局设置
 let settings = {
   convertSlashToSpace: false, // 下划线与空格互转
+  highlightTags: false,       // 输入框里给每个 TAG 画分类下划线（默认关，补全弹窗头部可开）
 };
 
 let allTags = [];
@@ -124,16 +127,30 @@ function getEditorText(editor) {
   return getEditorNodeText(editor).replace(/\u200b/g, '').trim();
 }
 
+// 每个 token 除了 tag 和分隔符，还记下它在原文里的真实起止位置（start/end 是
+// trim 之后那段 tag，tokenEnd 连分隔符一起算）。
+//
+// 覆盖层原来是拿 tag.length + delimiter.length 一路累加推算偏移的，两种情况必然对不上：
+//   1. `1girl , solo` —— tag 被 trim 掉的那个空格没人算，少一格
+//   2. `a,,b` 或者空行 —— 空 token 连同它的分隔符一起被 if (tag) 丢掉，凭空少一整截
+// 两个误差都是累加的，所以行数越多高亮歪得越离谱。位置只能从原文量，不能算。
 function parsePromptTokens(text) {
   const source = String(text || '');
   const tokens = [];
   let current = '';
+  let currentStart = 0;
   let index = 0;
+
+  const pushToken = (raw, rawStart, delimiter, tokenEnd) => {
+    const tag = raw.trim();
+    if (!tag) return;
+    const start = rawStart + (raw.length - raw.trimStart().length);
+    tokens.push({ tag, delimiter, start, end: start + tag.length, tokenEnd });
+  };
 
   while (index < source.length) {
     const char = source[index];
     if (isPromptSegmentSeparator(char)) {
-      const tag = current.trim();
       let delimiter = char;
       index += 1;
 
@@ -147,21 +164,17 @@ function parsePromptTokens(text) {
         break;
       }
 
-      if (tag) {
-        tokens.push({ tag, delimiter });
-      }
+      pushToken(current, currentStart, delimiter, index);
       current = '';
       continue;
     }
 
+    if (!current) currentStart = index;
     current += char;
     index += 1;
   }
 
-  const lastTag = current.trim();
-  if (lastTag) {
-    tokens.push({ tag: lastTag, delimiter: '' });
-  }
+  pushToken(current, currentStart, '', source.length);
 
   return tokens;
 }

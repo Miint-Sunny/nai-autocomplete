@@ -123,6 +123,155 @@ function createTextareaPseudoRange(textarea, startOffset, endOffset) {
   };
 }
 
+// getEditorText() 的偏移和 DOM 文本节点里的偏移不是一套坐标：
+// getEditorNodeText 会给 <br> 和块级元素补一个 \n、把宏节点整个换成 data-macro-expansion，
+// getEditorText 再去掉 \u200b 并 trim 掉首尾空白 —— 这些字符在文本节点里根本不存在。
+// 而 createRangeFromTextOffsets 只走文本节点，拿 getEditorText 的偏移直接喂它，
+// 每经过一个换行就整体错开一格，行数越多偏得越离谱。
+//
+// 所以这里按 getEditorNodeText 的规则重走一遍 DOM，边走边记下每段真实文本对应的
+// (节点, 节点内偏移)，合成出来的字符（换行、宏展开）只记到元素边界。改 getEditorNodeText
+// 的时候这里必须跟着改，两边是同一套规则的两个视角。
+function buildEditorTextMap(editor) {
+  if (!editor) return null;
+
+  const runs = [];
+  let text = '';
+
+  const pushText = (raw, node) => {
+    let index = 0;
+    while (index < raw.length) {
+      if (raw[index] === '\u200b') {
+        index += 1;
+        continue;
+      }
+      let end = index;
+      while (end < raw.length && raw[end] !== '\u200b') end += 1;
+      runs.push({ start: text.length, length: end - index, node, nodeOffset: index });
+      text += raw.slice(index, end);
+      index = end;
+    }
+  };
+
+  const pushSynthetic = (raw, element) => {
+    if (!raw.length) return;
+    runs.push({ start: text.length, length: raw.length, element });
+    text += raw;
+  };
+
+  const visit = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      pushText(node.textContent || '', node);
+      return;
+    }
+    if (!(node instanceof HTMLElement)) return;
+
+    const macroExpansion = getMacroExpansion(node);
+    if (macroExpansion) {
+      // 宏节点屏幕上显示的文本和展开文本长度不同，只能整块贴到元素两侧
+      pushSynthetic(macroExpansion.replace(/\u200b/g, ''), node);
+      return;
+    }
+
+    if (node.tagName === 'BR') {
+      pushSynthetic('\n', node);
+      return;
+    }
+
+    const isBlock = /^(P|DIV|LI)$/.test(node.tagName) && !node.classList.contains('macro-node');
+    Array.from(node.childNodes).forEach(visit);
+    if (isBlock) pushSynthetic('\n', node);
+  };
+
+  Array.from(editor.childNodes).forEach(visit);
+
+  // getEditorText 最后 trim 了一次，逻辑偏移是从 trim 之后算起的。
+  // text 原样带出来，测试拿它和 getEditorText(editor) 对一遍 —— 两边必须一模一样。
+  return { runs, text, length: text.trim().length, leading: text.length - text.trimStart().length };
+}
+
+function elementBoundaryPoint(element, after) {
+  const parent = element?.parentNode;
+  if (!parent) return null;
+  const index = Array.prototype.indexOf.call(parent.childNodes, element);
+  if (index === -1) return null;
+  return { node: parent, offset: after ? index + 1 : index };
+}
+
+// side='before' 取第 offset 个字符之前的位置，side='after' 取第 offset-1 个字符之后的位置
+function locateEditorTextPoint(map, offset, side) {
+  const target = side === 'after' ? offset - 1 : offset;
+  if (target < 0) {
+    const first = map.runs.find(run => run.node);
+    return first ? { node: first.node, offset: first.nodeOffset } : null;
+  }
+
+  for (const run of map.runs) {
+    if (target >= run.start + run.length) continue;
+    if (run.node) {
+      const inside = run.nodeOffset + (target - run.start);
+      return { node: run.node, offset: side === 'after' ? inside + 1 : inside };
+    }
+    return elementBoundaryPoint(run.element, side === 'after');
+  }
+
+  for (let i = map.runs.length - 1; i >= 0; i -= 1) {
+    const run = map.runs[i];
+    if (run.node) return { node: run.node, offset: run.nodeOffset + run.length };
+  }
+  return null;
+}
+
+// 唯一接受 getEditorText() 坐标的取范围入口。别拿这套偏移去喂 createRangeFromTextOffsets，
+// 那个吃的是 Range.toString() 坐标（自动补全那条链路用的是它，两边不能混）。
+function createRangeFromEditorTextOffsets(editor, startOffset, endOffset) {
+  if (!editor) return null;
+
+  const start = Math.max(0, startOffset);
+  const end = Math.max(start, endOffset);
+
+  if (isPlainTextPromptEditor(editor)) {
+    const value = String(editor.value || '');
+    const visible = [];
+    for (let i = 0; i < value.length; i += 1) {
+      if (value[i] !== '\u200b') visible.push(i);
+    }
+    let head = 0;
+    let tail = visible.length;
+    while (head < tail && /\s/.test(value[visible[head]])) head += 1;
+    while (tail > head && /\s/.test(value[visible[tail - 1]])) tail -= 1;
+    const indices = visible.slice(head, tail);
+    if (!indices.length) return createTextareaPseudoRange(editor, 0, 0);
+
+    const clampedStart = Math.min(start, indices.length);
+    const clampedEnd = Math.min(end, indices.length);
+    const valueStart = clampedStart < indices.length
+      ? indices[clampedStart]
+      : indices[indices.length - 1] + 1;
+    const valueEnd = clampedEnd > 0
+      ? indices[clampedEnd - 1] + 1
+      : valueStart;
+    return createTextareaPseudoRange(editor, valueStart, Math.max(valueStart, valueEnd));
+  }
+
+  const map = buildEditorTextMap(editor);
+  if (!map?.runs.length) return null;
+
+  const startPoint = locateEditorTextPoint(map, Math.min(start, map.length) + map.leading, 'before');
+  const endPoint = locateEditorTextPoint(map, Math.min(end, map.length) + map.leading, 'after');
+  if (!startPoint || !endPoint) return null;
+
+  try {
+    const range = document.createRange();
+    range.setStart(startPoint.node, clampDomOffset(startPoint.node, startPoint.offset));
+    range.setEnd(endPoint.node, clampDomOffset(endPoint.node, endPoint.offset));
+    if (range.collapsed && start !== end) return null;
+    return range;
+  } catch (error) {
+    return null;
+  }
+}
+
 function buildTextareaSegmentContext(editor) {
   const value = editor.value || '';
   const caretOffset = Number.isFinite(editor.selectionStart) ? editor.selectionStart : value.length;

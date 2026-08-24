@@ -20,6 +20,7 @@
 - 常用标签候选列表
 - 本地缓存标签数据
 - 支持下划线与空格转换开关
+- 可给每个 TAG 画分类下划线（画师 / 角色 / 场景……，词典里查不到的画红虚线），默认关，在补全弹窗头部开
 - 支持提示词区块分组、锁定与拖拽重排
 - 支持将区块保存为词库条目，并通过 `char:xxx` / `style:xxx` 一类格式复用
 
@@ -245,11 +246,12 @@ node scripts/check-theme-tokens.mjs   # 主题变量完整性 + CSS 变量自引
 node scripts/test-llm.mjs             # LLM 服务
 node scripts/test-agent.mjs           # 提示词 Agent 与图片预算
 node scripts/test-flow.mjs            # TAG 流模型与分类
+node scripts/test-content.mjs         # 输入框覆盖层的分词偏移
 node scripts/test-build.mjs           # 打包不改动源码
 node scripts/package.mjs              # 发布包完整性
 ```
 
-测试用 `node:vm` 加载**真正上线的那份分片**，不是为测试另写的副本。样式改动光跑脚本不够，必须实际渲染出来截图看（见 [STYLE.md](./STYLE.md) 第 7 节）。
+测试用 `node:vm` 加载**真正上线的那份分片**，不是为测试另写的副本。样式改动光跑脚本不够，必须实际渲染出来截图看（见 [STYLE.md](./STYLE.md) 第 8 节）。
 
 ### 为什么要打包？
 

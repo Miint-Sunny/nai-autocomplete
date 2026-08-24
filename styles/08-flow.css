@@ -25,7 +25,7 @@
 
   /* 来源色跟着自动补全那套走；不在 NovelAI 站内时用兜底值 */
   --nai-flow-src-general: rgba(138, 143, 152, 0.4);
-  --nai-flow-src-artist: var(--nai-category-artist, #d98d78);
+  --nai-flow-src-artist: var(--nai-category-artist, #ff6b6b);
   --nai-flow-src-character: var(--nai-category-character, #6ca885);
   --nai-flow-src-copyright: var(--nai-category-copyright, #8f90d6);
   --nai-flow-src-meta: var(--nai-category-meta, #c9a048);

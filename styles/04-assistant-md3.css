@@ -459,9 +459,9 @@
   opacity: 0.88;
 }
 
+/* NAI 出图页只用工作台抽屉，面板整个不出现（页签里那条「词库」规则跟着按钮一起删了） */
 .nai-md3-root[data-novelai-image-page="true"] .nai-md3-panel,
-.nai-md3-root[data-novelai-image-page="true"] .nai-md3-tabs [data-page="agent"],
-.nai-md3-root[data-novelai-image-page="false"] .nai-md3-tabs [data-page="library"] {
+.nai-md3-root[data-novelai-image-page="true"] .nai-md3-tabs [data-page="agent"] {
   display: none;
 }
 
@@ -689,12 +689,24 @@
 .nai-workbench-nav-icon {
   width: 24px;
   height: 24px;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--nai-lib-muted);
-  font-size: 15px;
   line-height: 1;
+}
+
+/* 18px 是收起态那一列的舒服尺寸；再大就顶满 24px 的槽，再小认不出形状 */
+.nai-workbench-nav-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* 选中项的图标跟着文字走，不然亮起来的只有文字，图标还是灰的 */
+.nai-workbench-nav-item.is-active .nai-workbench-nav-icon {
+  color: inherit;
 }
 
 .nai-workbench-nav-text {
@@ -1694,6 +1706,11 @@
 }
 
 .nai-md3-switch-stack {
+  margin-top: 12px;
+}
+
+/* 「启用备用模型」的开关常显在段首，下面这块才是被它控制的字段 */
+.nai-md3-fallback-fields {
   margin-top: 12px;
 }
 

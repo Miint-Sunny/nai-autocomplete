@@ -113,18 +113,30 @@ V5 提示词一半是自然语言，认错了整个流就散架。口径：≥6 
  主体   主体     构图         构图           其他            场景   场景
 ```
 
-三层视觉，各管各的：
+**只有一条直下划线**，所有状态都是同一条线换粗细和样式：
 
-| 视觉 | 含义 | 密度 |
-|---|---|---|
-| 底部色条 | 单个 tag 的语义分类 | 每个 tag 都有，所以必须轻 |
-| 填充块 | 成组（词库条目） | 稀疏，可以重 |
-| 红框 | 词典里查不到 | 最该被看见的一类 |
-| 角标数字 | 权重 ≠ 1 | 只在有权重时出现 |
+| 视觉 | 含义 |
+|---|---|
+| 2px 实线，语义色 | 单个 tag 的语义分类 |
+| 3px 实线，语义色 | 成组（词库条目）或已锁定 |
+| 2px **虚线**，红色 | 词典里查不到，盖过上面两种 |
 
-改动前只有**成组的**才画高亮，颜色还是六色轮换按组序号取 —— 带不了任何信息。现在每个 tag 都上色，hover 显示中文与 post 量，按住 Alt 每个 tag 都能拖着换位置（原来只有成组的能拖）。
+一开始做的是四层（色条 + 填充块 + 红框 + 权重气泡），叠在正文上噪点太大，权重气泡还会压到上一行；而且 NAI 的数值权重本来就写在正文里（`0.7::teshima nari::`），气泡是重复的。全部收成一条线。
 
-**词库的保存 / 取消区块 / 锁定按钮原样保留** —— 那是另一条工作流，不该被这次改动波及。
+「查不到」画**虚线**不是随手选的：`--nai-category-artist` 现在是红色（danbooru 自己就这么分类），和「查不到」的红只靠颜色分不开，得靠实线 / 虚线。所以这条线用 `border-bottom` 而不是 `box-shadow` —— 后者画不了虚线；`box-sizing` 必须跟着改成 `border-box`，不然这条边会把矩形撑高 2px。
+
+这层装饰可以整个关掉 —— 补全弹窗头部的「TAG 下划线」，存在 `localStorage['nai-ac-settings'].highlightTags`，**默认关**。**关掉的只有下划线**：词库的保存 / 取消区块 / 锁定按钮和拖拽热区照常，那是功能不是装饰。
+
+hover 显示中文与 post 量，按住 Alt 每个 tag 都能拖着换位置（原来只有成组的能拖）。
+
+### 偏移：两套坐标不能混
+
+覆盖层要把「第几个 tag」换算成屏幕上的矩形，中间隔着两次换算，两次都出过错（都是**累加**误差，行数越多歪得越离谱）：
+
+1. **tag 在正文里的位置**必须由 [parsePromptTokens](./js/content/01-config-and-segments.js) 边扫边记（`start` / `end` / `tokenEnd`），不能拿 `tag.length + delimiter.length` 累加 —— 被 `trim()` 掉的空格和开头那个空 token 都不进账。
+2. **正文偏移换成 DOM 位置**必须走 [createRangeFromEditorTextOffsets](./js/content/01-editor-adapter.js)。`getEditorText()` 会给 `<br>` 和块级元素补 `\n`、把宏节点换成展开文本、再去掉 `\u200b` 并 trim —— 这些字符在文本节点里根本不存在。而自动补全那条链路用的 `createRangeFromTextOffsets` 吃的是 `Range.toString()` 坐标（只有文本节点），两套坐标混用，每个换行错一格。
+
+改 `getEditorNodeText` 的时候 `buildEditorTextMap` 必须跟着改，两边是同一套规则的两个视角。[scripts/test-content.mjs](./scripts/test-content.mjs) 守着这条：每个 tag 圈到 DOM 上必须还是它自己。
 
 覆盖层直接挂在 `body` 上、不在 `.nai-md3-root` 里，所以语义色板在 `:root` 也有一份字面值兜底；面板里那份跟着主题 token 走。
 
@@ -151,8 +163,11 @@ V5 提示词一半是自然语言，认错了整个流就散架。口径：≥6 
 
 ```bash
 node scripts/test-flow.mjs
+node scripts/test-content.mjs
 ```
 
-[scripts/lib/flow-sandbox.mjs](./scripts/lib/flow-sandbox.mjs) 把 `js/flow/*.js` 按上线时同样的顺序装进 `node:vm`。模型和分类是纯逻辑，全部可测；渲染与指针交互靠浏览器里的合成事件验证（见 STYLE.md 第 7 节的验证方法）。
+[scripts/lib/flow-sandbox.mjs](./scripts/lib/flow-sandbox.mjs) 把 `js/flow/*.js` 按上线时同样的顺序装进 `node:vm`。模型和分类是纯逻辑，全部可测；渲染与指针交互靠浏览器里的合成事件验证（见 STYLE.md 第 8 节的验证方法）。
+
+[scripts/lib/content-sandbox.mjs](./scripts/lib/content-sandbox.mjs) 同样装 `js/flow/*` + `js/content/*`（content bundle 的 epilogue 才调 `init()`，只加载分片没有副作用），另外配一份最小 DOM 替身：`nodeType` / `tagName` / `childNodes` / `classList.contains` / `dataset` / `parentNode`，外加一个只记端点的 Range。覆盖层的偏移就是拿它守的。
 
 一个测试期的坑：合成 PointerEvent 没有真实指针，`setPointerCapture` 会抛 `NotFoundError`。真实使用时捕获是必要的（拖到画布外仍要收到 move/up），所以不能省，只能 try/catch 兜住。

@@ -191,11 +191,18 @@ function rebuildPromptBlocksFromTokens(tokens) {
   return nextBlocks;
 }
 
+// 偏移直接取 parsePromptTokens 量好的位置，别再自己累加长度（见那边的注释）
 function getTextOffsetForTokenIndex(tokens, tokenIndex) {
-  if (tokenIndex <= 0) return 0;
-  return tokens
-    .slice(0, tokenIndex)
-    .reduce((sum, token) => sum + token.tag.length + (token.delimiter?.length || 0), 0);
+  // 别对 0 走捷径：正文开头就是逗号的话，第一个 tag 并不在 0
+  const token = tokens[Math.max(0, tokenIndex)];
+  if (token) return token.start;
+  const last = tokens[tokens.length - 1];
+  return last ? last.tokenEnd : 0;
+}
+
+function getTextEndOffsetForTokenIndex(tokens, tokenIndex) {
+  const token = tokens[tokenIndex];
+  return token ? token.end : 0;
 }
 
 function replaceEditorText(editor, text) {
@@ -233,17 +240,37 @@ function applyThemePreset(themePreset) {
   document.documentElement.dataset.naiTheme = themePreset || DEFAULT_THEME;
 }
 
+// 玻璃强度本来只写在面板根节点（.nai-md3-root）的 inline 变量上，但补全弹窗挂在 body 上、
+// 不在那棵树里，读不到。所以把同一个 amount 再写一份到 <html>，两边永远同一个值。
+// 判定跟面板的 resolveGlassAmount 保持一致：开关关掉 = 0，强度 0 也等于关。
+function applyGlassPreset(assistantSettings) {
+  const strength = Number(assistantSettings?.glassStrength);
+  const amount = assistantSettings?.glassEffect === false
+    ? 0
+    : (Number.isFinite(strength)
+        ? Math.min(100, Math.max(0, strength))
+        : DEFAULT_GLASS_STRENGTH) / 100;
+
+  document.documentElement.dataset.naiGlass = amount > 0 ? 'on' : 'off';
+  document.documentElement.style.setProperty('--nai-md3-glass-amount', String(amount));
+}
+
+function applyAssistantAppearance(assistantSettings) {
+  applyThemePreset(assistantSettings?.themePreset || DEFAULT_THEME);
+  applyGlassPreset(assistantSettings);
+}
+
 function syncThemeFromStorage() {
   try {
     chrome.storage.local.get([ASSISTANT_SETTINGS_KEY], (data) => {
-      applyThemePreset(data?.[ASSISTANT_SETTINGS_KEY]?.themePreset || DEFAULT_THEME);
+      applyAssistantAppearance(data?.[ASSISTANT_SETTINGS_KEY]);
     });
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local' || !changes[ASSISTANT_SETTINGS_KEY]) return;
-      applyThemePreset(changes[ASSISTANT_SETTINGS_KEY].newValue?.themePreset || DEFAULT_THEME);
+      applyAssistantAppearance(changes[ASSISTANT_SETTINGS_KEY].newValue);
     });
   } catch (error) {
-    applyThemePreset(DEFAULT_THEME);
+    applyAssistantAppearance(null);
   }
 }
