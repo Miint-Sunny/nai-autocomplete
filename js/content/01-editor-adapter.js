@@ -417,6 +417,11 @@ function replacePromptEditorSegment(context, start, includeTail, text, options =
     : createRangeForCurrentTextSegment(context, start, includeTail, options);
   if (!range || range.isTextareaRange) return false;
 
+  // 端点落在游离节点上时，addRange 无效、execCommand 直接写进空气，却什么都不报。
+  // 与其假装写成功了（调用方会照常收起弹窗），不如明确失败 ——
+  // 静默的「点了没反应」是最难查的那一类。
+  if (range.startContainer?.isConnected === false) return false;
+
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);

@@ -18,7 +18,18 @@ const CONFIG = {
   MIN_QUERY_LENGTH: 1,
   DEBOUNCE_DELAY: 150,
 };
-const CONTENT_SCRIPT_VERSION = '1.5.16';
+// 兜底值。真正显示的以 manifest 为准（见 contentScriptVersion）——
+// 这个常量曾经停在 1.5.16 而 manifest 已经到 1.6.0，
+// 而它正是用户判断「扩展重载有没有生效」的唯一依据，不能再让它走散。
+const CONTENT_SCRIPT_VERSION = '1.6.1';
+
+function contentScriptVersion() {
+  try {
+    return chrome?.runtime?.getManifest?.().version || CONTENT_SCRIPT_VERSION;
+  } catch (error) {
+    return CONTENT_SCRIPT_VERSION;
+  }
+}
 
 // 全局设置
 let settings = {

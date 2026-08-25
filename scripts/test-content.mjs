@@ -64,6 +64,58 @@ function assertTokenRanges(editor, label) {
   return tokens;
 }
 
+// ═══════════════════════════ 0. 缓存上下文的活性 ═══════════════════════════
+//
+// 回归：补全弹窗渲染时把 caretNode / scope 这些**活的 DOM 引用**缓存了下来。
+// 编辑器（ProseMirror / React）在「弹窗出现」到「点条目」之间重建一次文本节点，
+// 旧引用就成了游离节点 —— 拿它建 Range 加不进 selection，execCommand 静默写进空气，
+// 用户看到的是「点了没反应」，控制台不报任何错。
+// 所以用之前必须验活性，死了要退回当场取的那份。
+
+group('缓存上下文的活性');
+
+const isPromptContextAlive = box.get('isPromptContextAlive');
+
+test('节点都还挂在文档上就是活的', () => {
+  assert.equal(isPromptContextAlive({
+    editor: { isConnected: true },
+    caretNode: { isConnected: true },
+    scope: { isConnected: true },
+  }), true);
+});
+
+test('caretNode 被编辑器换掉了就不能再用', () => {
+  assert.equal(isPromptContextAlive({
+    editor: { isConnected: true },
+    caretNode: { isConnected: false },
+    scope: { isConnected: true },
+  }), false, 'ProseMirror 重绘后就是这个形状');
+});
+
+test('scope 游离了同样不能用', () => {
+  assert.equal(isPromptContextAlive({
+    editor: { isConnected: true },
+    caretNode: { isConnected: true },
+    scope: { isConnected: false },
+  }), false);
+});
+
+test('整个编辑器被 React 卸载重挂也要认出来', () => {
+  assert.equal(isPromptContextAlive({
+    editor: { isConnected: false },
+    caretNode: { isConnected: true },
+  }), false);
+});
+
+test('textarea 那条路没有 caretNode / scope，不能误判成死的', () => {
+  assert.equal(isPromptContextAlive({ editor: { isConnected: true } }), true);
+});
+
+test('没有上下文就是没有', () => {
+  assert.equal(isPromptContextAlive(null), false);
+  assert.equal(isPromptContextAlive(undefined), false);
+});
+
 // ═══════════════════════════ 1. token 在原文里的位置 ═══════════════════════════
 
 group('token 位置');

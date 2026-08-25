@@ -382,9 +382,10 @@ async function savePromptLibraryFromDialog() {
       console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', error);
     });
 
-  try {
-    chrome.runtime?.sendMessage?.({ type: 'nai-prompt-library-updated' });
-  } catch (error) {}
+  // 不用再往外发消息通知助手面板：词库是写进 chrome.storage.local 的，
+  // 助手侧的 storage.onChanged 已经在同步了。
+  // 而且 runtime.sendMessage **到不了同一个页面里的别的 content script**（实测过），
+  // 这条消息从来没送达过，只留下一个没人收的 lastError。
 }
 
 async function savePromptLibrarySelectionFromDialog() {
@@ -449,9 +450,10 @@ async function savePromptLibrarySelectionFromDialog() {
       console.warn('[NAI-AC] 官方 Prompt Chunk 同步失败，本地词库已保留:', error);
     });
 
-  try {
-    chrome.runtime?.sendMessage?.({ type: 'nai-prompt-library-updated' });
-  } catch (error) {}
+  // 不用再往外发消息通知助手面板：词库是写进 chrome.storage.local 的，
+  // 助手侧的 storage.onChanged 已经在同步了。
+  // 而且 runtime.sendMessage **到不了同一个页面里的别的 content script**（实测过），
+  // 这条消息从来没送达过，只留下一个没人收的 lastError。
 }
 
 function hidePromptBlockDropIndicator() {

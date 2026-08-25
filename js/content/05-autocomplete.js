@@ -609,9 +609,33 @@ function applyAutocompleteResult(item) {
   selectTag(item);
 }
 
+// 弹窗渲染那一刻缓存进 lastAutocompleteContext 的是**活的 DOM 引用**（editor / caretNode / scope）。
+// 从「弹窗出现」到「点条目」之间编辑器只要重绘过一次，这些引用就指向游离节点 ——
+// ProseMirror 和 React 每次事务都会重建文本节点，所以在 novelai.net 上是常态。
+//
+// 拿游离节点建出来的 Range 加不进 selection，execCommand 一声不吭地写进空气：
+// 用户看到的就是「点了没反应」，控制台一个字都不报。所以用之前先验一遍活性，
+// 死了就整份换成当场取的那份。
+//
+// 用 `=== false` 判定：textarea 那条路的上下文没有 caretNode / scope，不能当成死的。
+function isDetachedNode(node) {
+  return Boolean(node) && node.isConnected === false;
+}
+
+function isPromptContextAlive(context) {
+  if (!context) return false;
+  return !isDetachedNode(context.editor)
+    && !isDetachedNode(context.caretNode)
+    && !isDetachedNode(context.scope);
+}
+
+function livingAutocompleteContext() {
+  return isPromptContextAlive(lastAutocompleteContext) ? lastAutocompleteContext : null;
+}
+
 function selectPromptLibrary(entry) {
   if (!activeEditor || !entry) return;
-  const context = lastAutocompleteContext || getSegmentContext();
+  const context = livingAutocompleteContext() || getSegmentContext();
   if (!context) return;
 
   const chunkQueryMatch = context.segmentText.match(/(^|[\s,，|])(@[\p{L}\p{N}_ '"\-./()]*$)/u);
@@ -632,10 +656,13 @@ function selectPromptLibrary(entry) {
 function selectTag(tag) {
   if (!activeEditor || !tag) return;
 
-  const context = lastAutocompleteContext || getSegmentContext();
+  // 缓存那份还活着才用它；节点已经被编辑器换掉了就直接用当场取的（见上面的说明）
+  const cached = livingAutocompleteContext();
+  const context = cached || getSegmentContext();
   if (!context) return;
 
-  const freshContext = getSegmentContext();
+  // 只有走缓存那份时才需要补刷 —— 当场取的本来就是最新的
+  const freshContext = cached ? getSegmentContext() : null;
   if (freshContext) {
     context.segmentTailText = freshContext.segmentTailText;
     context.nodeSegmentTailText = freshContext.nodeSegmentTailText;

@@ -1,6 +1,7 @@
 async function init() {
-  document.documentElement.dataset.naiAcVersion = CONTENT_SCRIPT_VERSION;
-  console.log(`[NAI-AC] 扩展已加载 ${CONTENT_SCRIPT_VERSION}`);
+  const version = contentScriptVersion();
+  document.documentElement.dataset.naiAcVersion = version;
+  console.log(`[NAI-AC] 扩展已加载 ${version}`);
 
   try {
     const saved = localStorage.getItem('nai-ac-settings');
