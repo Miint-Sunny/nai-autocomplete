@@ -168,6 +168,8 @@ const T = {
   naiDialectHint: 'V5 是混写：锚定的 danbooru tag + 自然语言句子。V4.5 回到纯 tag 路线：danbooru 查证优先，自然语言只作补充。写词的档位措辞、附带的规则核对和内置反推预设会跟着切。',
   statusAgentRunning: '正在按 skill 写提示词...',
   statusAgentDone: '写完了。用回复里的按钮填入或复制。',
+  statusAgentTruncated: '输出被 max_tokens 截断了，这一版没写完 —— 去设置里把 Max Tokens 调大，或把思考模式调低（思考过程也吃这个额度）。',
+  agentMetaTruncated: '⚠ 被 max_tokens 截断',
   statusAgentNeedRequest: '请先描述要画的画面。',
   statusAgentCancelled: '已取消本次写作。',
   saveSettings: '\u4fdd\u5b58\u8bbe\u7f6e',

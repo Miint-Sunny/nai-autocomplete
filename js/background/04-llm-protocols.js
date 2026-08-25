@@ -9,7 +9,9 @@
 const ANTHROPIC_THINKING_BUDGET = { low: 1024, medium: 4096, high: 8192 };
 const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_TEMPERATURE = 0.4;
-const DEFAULT_MAX_TOKENS = 700;
+// 调用方没传 maxTokens 时的兜底。700 是当年只有「反推」一条链路时定的，
+// 写词那条随便一版多角色提示词就超了。上限不是预算，给宽不额外计费。
+const DEFAULT_MAX_TOKENS = 2000;
 
 function dataUrlToImageSource(dataUrl) {
   if (typeof dataUrl !== 'string') return null;

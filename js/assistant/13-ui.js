@@ -123,7 +123,7 @@ function createUI() {
           </div>
           <div class="nai-md3-grid-2">
             <div><label class="nai-md3-label">Temperature</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
-            <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="4096" step="1" /></div>
+            <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="32000" step="1" /></div>
           </div>
           <label class="nai-md3-label">${T.reasoningEffort}</label><select class="nai-md3-input" data-field="reasoningEffort"></select>
           <div class="nai-md3-section-note">${T.reasoningHint}</div>
@@ -446,7 +446,7 @@ function createUI() {
                     </label>
                     <label class="nai-library-field">
                       <span>Max Tokens</span>
-                      <input data-field="libraryMaxTokens" type="number" min="64" max="4096" step="1" />
+                      <input data-field="libraryMaxTokens" type="number" min="64" max="32000" step="1" />
                     </label>
                   </div>
                 </div>

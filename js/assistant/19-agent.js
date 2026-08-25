@@ -327,6 +327,8 @@ function readAgentInputs(host) {
 
 function describeAgentRun(response) {
   const parts = [`skill：${getActiveAgentSkill().name}`, activeAgentMode().label];
+  // 截断放在最前面 —— meta 行很长，挂在末尾会被读漏
+  if (response.truncated) parts.unshift(T.agentMetaTruncated);
   if (state.agent.characterCount) parts.push(`${state.agent.characterCount} 个角色栏`);
   if (response.prefiltered?.length) parts.push(`预检 ${response.prefiltered.length} 个 tag`);
   const queries = (response.toolSteps || []).reduce((total, step) => total + (step.queries?.length || 0), 0);
@@ -453,7 +455,7 @@ async function runAgentWrite() {
     state.agent.conversation.push(agentAssistantEntry(response.text, describeAgentRun(response)));
     trimAgentConversation();
     saveAgentConversation();
-    setStatus(T.statusAgentDone, false);
+    setStatus(response.truncated ? T.statusAgentTruncated : T.statusAgentDone, Boolean(response.truncated));
   } catch (error) {
     revertUserTurn();
     setStatus(error instanceof Error ? error.message : String(error), true);

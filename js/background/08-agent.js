@@ -12,6 +12,26 @@ const AGENT_MAX_STEPS = 4;
 // 快捷填入栏位的数量，不是 NovelAI 的模型上限 —— 这条得反复跟模型说清楚
 const AGENT_MAX_CHARACTER_SLOTS = 6;
 
+// 写一版提示词要的输出额度。反推那种一句话的额度（几百）在这儿根本不够：
+// 五个角色栏 + 主提示词 + 自然语言段，正常产出就有 1000~1200 token。
+//
+// 开了思考的模型还要再翻一倍 —— OpenAI 兼容那条路上 **reasoning_tokens 和正文吃同一个
+// max_completion_tokens**，实测一次五角色请求单步思考就 4046，2000 的额度会在正文开始前
+// 就用光，然后 API 返回 finish_reason: "length" 加一个空字符串，不报错。
+// （Anthropic 不受这条影响：它的 thinking budget 是另加在 max_tokens 之上的，
+//   见 04-llm-protocols.js 的 ANTHROPIC_ADAPTER。）
+//
+// 这是**上限不是预算**，多给的额度不生成就不计费，所以宁可给宽。
+// 但也别无脑给到天上：一部分老模型的输出硬上限就是 4096，超了会直接报错。
+const AGENT_MIN_OUTPUT_TOKENS = 4000;
+const AGENT_MIN_OUTPUT_TOKENS_THINKING = 8000;
+
+function agentOutputTokens(config) {
+  const thinking = config?.reasoningEffort && config.reasoningEffort !== 'off';
+  const floor = thinking ? AGENT_MIN_OUTPUT_TOKENS_THINKING : AGENT_MIN_OUTPUT_TOKENS;
+  return Math.max(Number(config?.maxTokens) || 0, floor);
+}
+
 let agentTagIndex = null;
 
 function storageGetLocal(keys) {
@@ -234,10 +254,13 @@ function buildAgentHistoryMessages(history) {
     .map((entry) => ({ role: entry.role, content: entry.text }));
 }
 
+// artists 管的是**单个画师条目**，不是整条画师串。画师库按家族分页，
+// 一页上百个画师是常态 —— 截断的一页比不发更糟：模型会以为那一页就只有这几个。
+// 120 是「保证任意一页整页进来」的量，和面板侧的 AGENT_CHARACTER_SOURCE_LIMIT 对齐。
 const AGENT_CONTEXT_LIMITS = {
   prompt: 4000,
   previous: 4000,
-  artists: 24,
+  artists: 120,
   characters: 16,
 };
 
@@ -444,8 +467,7 @@ async function runPromptAgent(payload, options = {}) {
   const chain = await runConfigChain(
     configs,
     (config) => runLlmToolLoop({
-      // Agent 的输出比反推长得多，700 的默认额度不够写完一版提示词。
-      config: { ...config, messages, maxTokens: Math.max(Number(config.maxTokens) || 0, 2000) },
+      config: { ...config, messages, maxTokens: agentOutputTokens(config) },
       tools: [AGENT_TAG_TOOL],
       maxSteps: numberOr(payload.maxSteps, AGENT_MAX_STEPS),
       executeTool: (call) => executeAgentTool(call, index, { allowDanbooruLookup: payload.allowDanbooruLookup }),
@@ -460,8 +482,13 @@ async function runPromptAgent(payload, options = {}) {
   if (!chain.ok) return formatChainFailure(chain, startedAt, now);
 
   const result = chain.value;
+  // 正文是空的时候 runLlmRequest 已经会抛明确的错（见 buildEmptyResultError）。
+  // 但**写到一半被 max_tokens 砍断**时正文非空，一路静默返回，用户拿到半条提示词
+  // 还以为模型就写成这样 —— 这里把它透上去，面板好提醒一句。
+  const finishReason = result.result?.finishReason || '';
   return {
     ok: true,
+    truncated: finishReason === 'length' || finishReason === 'max_tokens',
     text: result.text,
     providerLabel: result.providerLabel,
     usedModel: result.model,

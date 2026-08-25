@@ -57,8 +57,8 @@ function newSandbox({ tags = TAG_INDEX } = {}) {
   return box;
 }
 
-function reply(text) {
-  return jsonResponse({ choices: [{ message: { content: text }, finish_reason: 'stop' }] });
+function reply(text, { finishReason = 'stop' } = {}) {
+  return jsonResponse({ choices: [{ message: { content: text }, finish_reason: finishReason }] });
 }
 
 function toolReply(queries, id = 'call_1') {
@@ -189,15 +189,57 @@ test('Agent 的输出额度要够写完一版提示词', async () => {
   const calls = box.mockFetch(() => reply('done'));
   await box.get('runPromptAgent')(agentPayload({ primary: llmConfig({ maxTokens: 700 }) }), FAST);
 
-  assert.ok(calls[0].body.max_tokens >= 2000, `实际 ${calls[0].body.max_tokens}`);
+  assert.ok(calls[0].body.max_tokens >= 4000, `实际 ${calls[0].body.max_tokens}`);
+});
+
+// 回归：OpenAI 兼容那条路上 reasoning_tokens 和正文吃同一个额度，
+// 实测五角色请求单步思考就 4046 —— 4000 会在正文开始前就用光，
+// 然后返回 finish_reason: length 加一个空字符串，一声不吭。
+test('开了思考的模型要留出更多额度', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    primary: llmConfig({ maxTokens: 700, reasoningEffort: 'high' }),
+  }), FAST);
+
+  assert.ok(calls[0].body.max_tokens >= 8000, `实际 ${calls[0].body.max_tokens}`);
+});
+
+test('思考显式关掉时不必多给', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    primary: llmConfig({ maxTokens: 700, reasoningEffort: 'off' }),
+  }), FAST);
+
+  assert.equal(calls[0].body.max_tokens, 4000);
 });
 
 test('用户自己调大过 max_tokens 就不覆盖', async () => {
   const box = newSandbox();
   const calls = box.mockFetch(() => reply('done'));
-  await box.get('runPromptAgent')(agentPayload({ primary: llmConfig({ maxTokens: 8000 }) }), FAST);
+  await box.get('runPromptAgent')(agentPayload({ primary: llmConfig({ maxTokens: 12000 }) }), FAST);
 
-  assert.equal(calls[0].body.max_tokens, 8000);
+  assert.equal(calls[0].body.max_tokens, 12000);
+});
+
+// 正文为空时 runLlmRequest 已经会抛错；写到一半被砍断时正文非空，
+// 以前一路静默返回，用户拿到半条提示词还以为模型就写成这样。
+test('被 max_tokens 砍断时要把截断透上去', async () => {
+  const box = newSandbox();
+  box.mockFetch(() => reply('1girl, school uniform, standing at the', { finishReason: 'length' }));
+  const result = await box.get('runPromptAgent')(agentPayload(), FAST);
+
+  assert.equal(result.ok, true, '有正文就照常返回，不是报错');
+  assert.equal(result.truncated, true);
+});
+
+test('正常写完不会误报截断', async () => {
+  const box = newSandbox();
+  box.mockFetch(() => reply('done'));
+  const result = await box.get('runPromptAgent')(agentPayload(), FAST);
+
+  assert.equal(result.truncated, false);
 });
 
 test('缺 skill 或缺需求时不发请求', async () => {
@@ -291,14 +333,28 @@ test('画师和角色都有条数上限', async () => {
   const calls = box.mockFetch(() => reply('done'));
   await box.get('runPromptAgent')(agentPayload({
     context: {
-      artists: Array.from({ length: 60 }, (_, i) => ({ tag: `artist_${i}` })),
+      artists: Array.from({ length: 200 }, (_, i) => ({ tag: `artist_${i}` })),
       characters: Array.from({ length: 40 }, (_, i) => ({ name: `char_${i}`, prompt: 'x' })),
     },
   }), FAST);
 
   const user = calls[0].body.messages[1].content[0].text;
-  assert.equal((user.match(/- artist_/g) || []).length, 24);
+  assert.equal((user.match(/- artist_/g) || []).length, 120);
   assert.equal((user.match(/- char_/g) || []).length, 16);
+});
+
+// 画师库按家族分页，一页上百个是常态。截断的一页比不发更糟 ——
+// 模型会以为那一页就只有这几个画师，于是「用我库里的画师」就成了在残页里挑。
+test('整整一页画师要能全进来，不能砍掉尾巴', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch(() => reply('done'));
+  await box.get('runPromptAgent')(agentPayload({
+    context: { artists: Array.from({ length: 114 }, (_, i) => ({ tag: `artist_${i}` })) },
+  }), FAST);
+
+  const user = calls[0].body.messages[1].content[0].text;
+  assert.equal((user.match(/- artist_/g) || []).length, 114, '一个都不能少');
+  assert.match(user, /artist_113/, '最后一个也要在');
 });
 
 // ═══════════════════════════ 5. 生成方式与角色栏 ═══════════════════════════
