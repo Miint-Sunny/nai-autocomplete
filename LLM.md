@@ -117,6 +117,21 @@ Anthropic 不受第二条影响：它的 `budget_tokens` 是**另加**在 `max_t
 | Responses（通用） | assistant 历史消息的内容类型是 `output_text`，不是 `input_text` —— 全写成 `input_text` 会被严格实现拒掉（写词对话流带上历史后踩到） |
 | Anthropic | 开 extended thinking 时**不接受 `temperature`**，且 `max_tokens` 必须大于 `budget_tokens` |
 | Anthropic 协议（含兼容层） | 自定义工具要写 `type: 'custom'`。官方省掉也认，但严格按 schema 反序列化的服务端会拒掉整个请求，报 `tools[0]: missing field \`type\`` —— 只有写词挂工具，所以症状是「反推能用、写词一点就报错」 |
+| DeepSeek | 同时提供 **OpenAI 兼容**（`https://api.deepseek.com`，预设走这条）和 **Anthropic 兼容**（`https://api.deepseek.com/anthropic`）两套接口。选后者时协议要跟着改成 Anthropic Messages，上一行那条坑就适用 |
+
+### 模型列表别只靠 `<datalist>`
+
+`<datalist>` 展开时**会按输入框当前的值过滤**。选服务商预设时模型框已经被填成预设的
+`defaultModel`，于是抓完模型会出现两种都像「没抓到」的情况：
+
+- 那个 id **不在**返回列表里 → 下拉一条不剩
+- 那个 id **恰好在**列表里 → 下拉只剩它自己
+
+DeepSeek 撞的是后一种：它返回 `deepseek-v4-flash` / `-pro` / `-flash-vision-exp` 三个，
+预填的正是第三个，另外两个都不含这个子串，被过滤光 ——
+用户看到的就是「获取不到模型，只能抓到 DeepSeek-V4-Flash-Vision-Exp」。
+
+所以抓完之后把模型**摆成可点的胶囊**（`renderModelChips`），不再指望那个看不见又会过滤的下拉。
 | Anthropic | 不接受相邻的两条同角色消息，要合并 |
 | Anthropic | 没有 JSON 模式。用预填 `{` 逼它进对象，解析时补回来；开了思考不能预填 |
 | Anthropic | 工具字段是 `input_schema` 不是 `parameters`；回填要用 `tool_use` / `tool_result` 块 |

@@ -89,6 +89,7 @@ function createUI() {
             <button type="button" class="nai-md3-inline-action" data-action="fetch-models">${T.fetchModels}</button>
           </div>
           <datalist id="nai-primary-model-list"></datalist>
+          <div class="nai-model-chips" data-field="modelChips" data-kind="primary"></div>
           <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
           <input class="nai-md3-input" data-field="apiKey" type="password" />
           <div class="nai-md3-help-note nai-hidden" data-field="keyHelp"></div>
@@ -111,6 +112,7 @@ function createUI() {
               <button type="button" class="nai-md3-inline-action" data-action="fetch-fallback-models">${T.fetchModels}</button>
             </div>
             <datalist id="nai-fallback-model-list"></datalist>
+            <div class="nai-model-chips" data-field="fallbackModelChips" data-kind="fallback"></div>
             <label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" />
             <label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select>
           </div>
@@ -392,6 +394,7 @@ function createUI() {
                     <span>${T.model}</span>
                     <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
                     <datalist id="nai-library-primary-model-list"></datalist>
+                    <div class="nai-model-chips" data-field="libraryModelChips" data-kind="primary"></div>
                   </label>
                   <label class="nai-library-field">
                     <span>API Key</span>
@@ -427,6 +430,7 @@ function createUI() {
                     <span>${T.fallbackModel}</span>
                     <input data-field="libraryFallbackModel" list="nai-library-fallback-model-list" type="text" />
                     <datalist id="nai-library-fallback-model-list"></datalist>
+                    <div class="nai-model-chips" data-field="libraryFallbackModelChips" data-kind="fallback"></div>
                   </label>
                   <label class="nai-library-field">
                     <span>${T.fallbackApiKey}</span>
@@ -619,6 +623,8 @@ function createUI() {
   ui.settings.allowDanbooruLookup = root.querySelector('[data-field="allowDanbooruLookup"]');
   ui.settings.agentNai5Rules = root.querySelector('[data-field="agentNai5Rules"]');
   ui.settings.naiDialect = root.querySelector('[data-field="naiDialect"]');
+  ui.settings.modelChips = root.querySelector('[data-field="modelChips"]');
+  ui.settings.fallbackModelChips = root.querySelector('[data-field="fallbackModelChips"]');
   ui.settings.sendImageAsDataUrl = root.querySelector('[data-field="sendImageAsDataUrl"]');
   ui.settings.enableBooruTagContext = root.querySelector('[data-field="enableBooruTagContext"]');
   ui.settings.defaultCodeFence = root.querySelector('[data-field="defaultCodeFence"]');
@@ -654,6 +660,8 @@ function createUI() {
   ui.library.allowDanbooruLookup = ui.library.drawer?.querySelector('[data-field="libraryAllowDanbooruLookup"]');
   ui.library.agentNai5Rules = ui.library.drawer?.querySelector('[data-field="libraryAgentNai5Rules"]');
   ui.library.naiDialect = ui.library.drawer?.querySelector('[data-field="libraryNaiDialect"]');
+  ui.library.modelChips = ui.library.drawer?.querySelector('[data-field="libraryModelChips"]');
+  ui.library.fallbackModelChips = ui.library.drawer?.querySelector('[data-field="libraryFallbackModelChips"]');
   ui.library.sendImageAsDataUrl = ui.library.drawer?.querySelector('[data-field="librarySendImageAsDataUrl"]');
   ui.library.enableBooruTagContext = ui.library.drawer?.querySelector('[data-field="libraryEnableBooruTagContext"]');
   ui.library.defaultCodeFence = ui.library.drawer?.querySelector('[data-field="libraryDefaultCodeFence"]');
@@ -804,7 +812,8 @@ function createUI() {
     else if (action === 'copy') {
       const copied = await copyText(state.lastResult);
       setStatus(copied ? T.statusCopied : T.statusCopyFailed, !copied);
-    } else if (action === 'fetch-models') await fetchModelsFor('primary');
+    } else if (action === 'pick-model') applyModelChip(actionTarget);
+    else if (action === 'fetch-models') await fetchModelsFor('primary');
     else if (action === 'fetch-fallback-models') await fetchModelsFor('fallback');
     else if (action === 'test-connection') await testConnection();
     else if (action === 'wrap-code') await wrapCurrentResult();

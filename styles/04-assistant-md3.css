@@ -1650,6 +1650,41 @@
   white-space: nowrap;
 }
 
+/* 抓回来的模型直接摆成可点的胶囊。不能只靠 <datalist> ——
+   它不可见，展开时还会按输入框当前的值过滤，预填了默认模型就等于把别的都藏了。
+   外观全部沿用 .nai-md3-inline-action，这里只管布局。 */
+.nai-model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.nai-model-chips:empty {
+  display: none;
+}
+
+.nai-md3-root button.nai-model-chip {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 400;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* 当前选中的那颗按下 —— 和页签 active 同一个路子 */
+.nai-md3-root button.nai-model-chip.is-active {
+  border-color: transparent;
+  background: var(--nai-md3-tab-active-bg, var(--nai-md3-primary-fill));
+  color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+}
+
+.nai-model-chips-rest {
+  align-self: center;
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+}
+
 .nai-md3-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -119,24 +119,65 @@ function populateLibraryModelSuggestions(kind, models) {
   }
 }
 
-// 抓回来的列表只进了 <datalist>，而 datalist 展开时**会按输入框当前的值过滤**。
-// 选服务商预设时模型框已经被填成了预设的 defaultModel，一旦那个 id 不在返回列表里，
-// 下拉就一条都不剩 —— 用户看到的是「获取不到模型，只能抓到预设那个默认值」。
-// 所以对不上时必须直说，并且把抓到的报几个出来，别让人对着空下拉猜。
+// 抓回来的模型只进 <datalist> 是不够的：datalist 展开时**会按输入框当前的值过滤**。
+// 而选服务商预设时模型框已经被填成了预设的 defaultModel，于是：
+//   · 那个 id 不在返回列表里 → 下拉一条不剩，看起来像「没抓到」
+//   · 那个 id 恰好**在**列表里 → 下拉只剩它自己
+// DeepSeek 撞的是后一种：它返回 deepseek-v4-flash / -pro / -flash-vision-exp 三个，
+// 而输入框里预填的正是第三个，另外两个都不含这个子串，于是被过滤光 ——
+// 用户看到的就是「获取不到模型，只能抓到 DeepSeek-V4-Flash-Vision-Exp」。
+//
+// 所以抓完之后把模型**直接摆成可点的胶囊**，不再指望那个看不见又会过滤的下拉。
+const MODEL_CHIP_LIMIT = 24;
+
+function renderModelChips(container, models, currentModel) {
+  if (!container) return;
+  if (!models.length) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const current = String(currentModel || '').trim();
+  const shown = models.slice(0, MODEL_CHIP_LIMIT);
+  const rest = models.length - shown.length;
+
+  container.innerHTML = shown
+    .map((model) => `<button type="button" class="nai-md3-inline-action nai-model-chip${model === current ? ' is-active' : ''}" data-action="pick-model" data-model="${escapeHtml(model)}">${escapeHtml(model)}</button>`)
+    .join('') + (rest > 0 ? `<span class="nai-model-chips-rest">还有 ${rest} 个，可在输入框里直接打</span>` : '');
+}
+
+// 胶囊点了就填进对应的那个模型框（面板 / 抽屉、主 / 备用四种组合）
+function applyModelChip(target) {
+  const model = target?.dataset?.model;
+  const container = target?.closest?.('.nai-model-chips');
+  if (!model || !container) return;
+
+  const inDrawer = Boolean(container.closest('.nai-library-drawer'));
+  const isFallback = container.dataset.kind === 'fallback';
+  const group = inDrawer ? ui.library : ui.settings;
+  const input = isFallback ? group.fallbackModel : group.model;
+  if (!input) return;
+
+  input.value = model;
+  container.querySelectorAll('.nai-model-chip').forEach((chip) => {
+    chip.classList.toggle('is-active', chip.dataset.model === model);
+  });
+  setStatus(`已选择模型 ${model}${isFallback ? '（备用）' : ''}，别忘了保存设置。`, false);
+}
+
 function describeModelFetch(models, currentModel, kind) {
   const suffix = kind === 'fallback' ? '（备用）' : '';
   if (!models.length) return { text: `该服务未返回可用模型${suffix}。`, isError: true };
 
   const current = String(currentModel || '').trim();
   if (current && !models.includes(current)) {
-    const sample = models.slice(0, 4).join('、');
     return {
-      text: `已加载 ${models.length} 个模型候选${suffix}，但当前填的「${current}」不在其中 —— 清空模型框再点开就能看到全部。例如：${sample}${models.length > 4 ? ' 等' : ''}。`,
+      text: `已加载 ${models.length} 个模型候选${suffix}，但当前填的「${current}」不在其中 —— 从下面的列表里挑一个。`,
       isError: true,
     };
   }
 
-  return { text: `已加载 ${models.length} 个模型候选${suffix}。`, isError: false };
+  return { text: `已加载 ${models.length} 个模型候选${suffix}，在下面直接点选。`, isError: false };
 }
 
 async function fetchModelsFor(kind) {
@@ -160,6 +201,7 @@ async function fetchModelsFor(kind) {
     const models = Array.isArray(response.models) ? response.models : [];
     const input = kind === 'fallback' ? ui.settings.fallbackModel : ui.settings.model;
     populateModelSuggestions(kind, models);
+    renderModelChips(kind === 'fallback' ? ui.settings.fallbackModelChips : ui.settings.modelChips, models, input?.value);
     const report = describeModelFetch(models, input?.value, kind);
     setStatus(report.text, report.isError);
   } catch (error) {
@@ -188,6 +230,7 @@ async function fetchLibraryModelsFor(kind) {
     const models = Array.isArray(response.models) ? response.models : [];
     const input = kind === 'fallback' ? ui.library.fallbackModel : ui.library.model;
     populateLibraryModelSuggestions(kind, models);
+    renderModelChips(kind === 'fallback' ? ui.library.fallbackModelChips : ui.library.modelChips, models, input?.value);
     const report = describeModelFetch(models, input?.value, kind);
     setStatus(report.text, report.isError);
   } catch (error) {
