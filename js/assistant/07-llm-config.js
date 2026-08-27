@@ -505,6 +505,7 @@ function syncProviderFieldsForGroup(uiGroup, kind, connectionKey) {
   state.settings.endpoint = nextConnection.endpoint;
   state.settings.model = nextConnection.model;
   state.settings.apiKey = nextConnection.apiKey;
+  updateEndpointWarnings();
 }
 
 function syncProviderFields(kind) {
@@ -513,6 +514,60 @@ function syncProviderFields(kind) {
 
 function syncLibraryProviderFields(kind) {
   syncProviderFieldsForGroup(ui.library, kind, kind === 'fallback' ? 'fallbackProviderConnections' : 'providerConnections');
+}
+
+// ⚠ 这两段和 js/background/03-llm-errors.js 里的**逐字一致**，
+// 由 scripts/test-build.mjs 守着。两个 bundle 互相够不到，只能各存一份：
+// 后台用它把错误提示说清楚，这里用它在**配置的时候**就拦下来 ——
+// 等发出去才报错，用户已经浪费了一次请求，而且看到的是服务端那句看不懂的 schema 错。
+const PROTOCOL_ENDPOINT_SHAPES = {
+  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions' },
+  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses' },
+  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages' },
+};
+
+function detectProtocolEndpointMismatch(protocol, endpoint) {
+  const expected = PROTOCOL_ENDPOINT_SHAPES[protocol];
+  if (!expected || !endpoint) return '';
+
+  let pathname = '';
+  try {
+    pathname = new URL(endpoint).pathname;
+  } catch (error) {
+    return '';
+  }
+
+  if (expected.tail.test(pathname)) return '';
+
+  // 只在地址明显长着**另一种**协议的样子时才说话。自建网关的路径千奇百怪，
+  // 认不出来就闭嘴，别对着正常配置乱报。
+  const looksLike = Object.entries(PROTOCOL_ENDPOINT_SHAPES)
+    .find(([id, shape]) => id !== protocol && shape.tail.test(pathname));
+  if (!looksLike) return '';
+
+  return `接口协议选的是「${expected.label}」，但 Endpoint 是 ${pathname}，那是「${looksLike[1].label}」的地址。`
+    + `两者必须配套：要么把协议改成「${looksLike[1].label}」，要么把 Endpoint 换成以 ${expected.want} 结尾的那条。`;
+}
+
+// 四处「协议 + Endpoint」：面板和抽屉 × 主模型和备用
+function endpointWarningTargets() {
+  return [
+    { protocol: ui.settings.protocol, endpoint: ui.settings.endpoint, warn: ui.settings.endpointWarn },
+    { protocol: ui.settings.fallbackProtocol, endpoint: ui.settings.fallbackEndpoint, warn: ui.settings.fallbackEndpointWarn },
+    { protocol: ui.library.protocol, endpoint: ui.library.endpoint, warn: ui.library.endpointWarn },
+    { protocol: ui.library.fallbackProtocol, endpoint: ui.library.fallbackEndpoint, warn: ui.library.fallbackEndpointWarn },
+  ];
+}
+
+function updateEndpointWarnings() {
+  endpointWarningTargets().forEach(({ protocol, endpoint, warn }) => {
+    if (!warn) return;
+    const message = protocol && endpoint
+      ? detectProtocolEndpointMismatch(protocol.value, endpoint.value.trim())
+      : '';
+    warn.textContent = message;
+    warn.classList.toggle('nai-hidden', !message);
+  });
 }
 
 function buildRequestConfig(target, messages) {

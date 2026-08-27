@@ -90,6 +90,28 @@ test('manifest 版本不会被打包重置', () => {
 });
 
 // content 和 assistant 是两个互相看不见的 IIFE，词库归一化各有一份。
+// 后台用它把错误提示说清楚，面板用它在配置的时候就拦下来。两个 bundle
+// 互相够不到，只能各存一份 —— 走散了就会出现「面板说没问题、发出去却报错」。
+group('两份协议错配检测不能走散');
+
+test('background 和 assistant 里的实现逐字一致', () => {
+  const files = [
+    'js/background/03-llm-errors.js',
+    'js/assistant/07-llm-config.js',
+  ];
+
+  const bodies = files.map((file) => {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const start = source.indexOf('const PROTOCOL_ENDPOINT_SHAPES = {');
+    assert.ok(start >= 0, `${file} 里没有 PROTOCOL_ENDPOINT_SHAPES`);
+    const fnStart = source.indexOf('function detectProtocolEndpointMismatch', start);
+    assert.ok(fnStart >= 0, `${file} 里没有 detectProtocolEndpointMismatch`);
+    return source.slice(start, source.indexOf('\n}', fnStart) + 2);
+  });
+
+  assert.equal(bodies[0], bodies[1], '两份错配检测的实现已经走散');
+});
+
 // 两份都会往 storage 里写回同一份词库 —— 哪一份少认一个字段，
 // 用户在那一侧存一次词条，字段就静悄悄没了。别名就是这么一个字段。
 group('两份词库归一化不能走散');

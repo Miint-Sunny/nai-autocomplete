@@ -1650,6 +1650,19 @@
   white-space: nowrap;
 }
 
+/* 配置层面的警告（目前只有「协议和 Endpoint 配错对」）。
+   贴着它说的那个字段，不是丢进状态条 —— 状态条要滚上去才看得见，
+   而这条的意义就在于**填的时候**就拦住。 */
+.nai-md3-config-warn {
+  margin-top: 6px;
+  border-radius: var(--nai-md3-radius-2xs);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--md-sys-color-error) 12%, transparent);
+  color: var(--md-sys-color-error);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 /* 抓回来的模型直接摆成可点的胶囊。不能只靠 <datalist> ——
    它不可见，展开时还会按输入框当前的值过滤，预填了默认模型就等于把别的都藏了。
    外观全部沿用 .nai-md3-inline-action，这里只管布局。 */

@@ -54,6 +54,7 @@ function applySettingsToInputs() {
   if (ui.settings.glassStrength) ui.settings.glassStrength.value = String(state.settings.glassStrength ?? DEFAULT_SETTINGS.glassStrength);
   applyLibrarySettingsToInputs();
   updateFallbackSettingsVisibility();
+  updateEndpointWarnings();
   requestAnimationFrame(() => autoResizeAllTextareas());
 }
 

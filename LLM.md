@@ -200,9 +200,19 @@ node scripts/test-llm.mjs
 最迷惑的地方是**只有写词会报**：不带 tools 时 `system` 被忽略、`content` 数组 OpenAI 也认，
 反推照常能过 —— 看着像「写词坏了」，其实是地址和协议对不上。
 
-`detectProtocolEndpointMismatch` 在 schema 类的 400 上直接把这句说出来。
-判据只看路径尾巴（`/chat/completions` / `/responses` / `/messages`），
+`detectProtocolEndpointMismatch` 判据只看路径尾巴（`/chat/completions` / `/responses` / `/messages`），
 **认不出来就闭嘴** —— 自建网关和中转站的路径千奇百怪，宁可不提示也不能对着正常配置乱报。
+
+它在**两个地方**用：
+
+- **设置页**（`js/assistant/07-llm-config.js`）：协议或 Endpoint 一改就重算，警告贴在
+  Endpoint 下方。这才是真正的修复 —— 等请求发出去才报错的话，用户已经白等一次，
+  看到的还是服务端那句看不懂的 schema 错。
+- **后台**（`js/background/03-llm-errors.js`）：schema 类的 400 上把这句当 hint 顶上去，
+  兜住那些设置页没拦住的情况（比如手改过 storage）。
+
+两个 bundle 互相够不到，所以**各存一份逐字一致的实现**，由
+`scripts/test-build.mjs` 的「两份协议错配检测不能走散」守着（改坏一处会红）。
 
 ## 9.5 工具循环撞到步数上限
 

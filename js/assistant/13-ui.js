@@ -81,6 +81,7 @@ function createUI() {
           <label class="nai-md3-label">${T.serviceProvider}</label><select class="nai-md3-input" data-field="providerPreset"></select>
           <label class="nai-md3-label">${T.protocol}</label><select class="nai-md3-input" data-field="protocol"></select>
           <label class="nai-md3-label">API Endpoint</label><input class="nai-md3-input" data-field="endpoint" type="text" />
+          <div class="nai-md3-config-warn nai-hidden" data-field="endpointWarn"></div>
           <!-- 模型和 API Key 各占整行：并排两半时模型名（deepseek-reasoner 一类）
                被「获取模型」挤到只剩一截，看不出选的是哪个 -->
           <label class="nai-md3-label">${T.model}</label>
@@ -106,6 +107,7 @@ function createUI() {
             <label class="nai-md3-label">${T.fallbackProvider}</label><select class="nai-md3-input" data-field="fallbackProviderPreset"></select>
             <label class="nai-md3-label">${T.fallbackProtocol}</label><select class="nai-md3-input" data-field="fallbackProtocol"></select>
             <label class="nai-md3-label">${T.fallbackEndpoint}</label><input class="nai-md3-input" data-field="fallbackEndpoint" type="text" />
+            <div class="nai-md3-config-warn nai-hidden" data-field="fallbackEndpointWarn"></div>
             <label class="nai-md3-label">${T.fallbackModel}</label>
             <div class="nai-md3-input-row">
               <input class="nai-md3-input" data-field="fallbackModel" list="nai-fallback-model-list" type="text" />
@@ -390,6 +392,7 @@ function createUI() {
                     <span>API Endpoint</span>
                     <input data-field="libraryEndpoint" type="text" />
                   </label>
+                  <div class="nai-md3-config-warn nai-hidden" data-field="libraryEndpointWarn"></div>
                   <label class="nai-library-field">
                     <span>${T.model}</span>
                     <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
@@ -426,6 +429,7 @@ function createUI() {
                     <span>${T.fallbackEndpoint}</span>
                     <input data-field="libraryFallbackEndpoint" type="text" />
                   </label>
+                  <div class="nai-md3-config-warn nai-hidden" data-field="libraryFallbackEndpointWarn"></div>
                   <label class="nai-library-field">
                     <span>${T.fallbackModel}</span>
                     <input data-field="libraryFallbackModel" list="nai-library-fallback-model-list" type="text" />
@@ -594,6 +598,8 @@ function createUI() {
   ui.settings.protocol = root.querySelector('[data-field="protocol"]');
   ui.settings.themePreset = root.querySelector('[data-field="themePreset"]');
   ui.settings.endpoint = root.querySelector('[data-field="endpoint"]');
+  ui.settings.endpointWarn = root.querySelector('[data-field="endpointWarn"]');
+  ui.settings.fallbackEndpointWarn = root.querySelector('[data-field="fallbackEndpointWarn"]');
   ui.settings.model = root.querySelector('[data-field="model"]');
   ui.settings.modelList = root.querySelector('#nai-primary-model-list');
   ui.settings.apiKey = root.querySelector('[data-field="apiKey"]');
@@ -648,6 +654,8 @@ function createUI() {
   ui.library.providerPreset = ui.library.drawer?.querySelector('[data-field="libraryProviderPreset"]');
   ui.library.protocol = ui.library.drawer?.querySelector('[data-field="libraryProtocol"]');
   ui.library.endpoint = ui.library.drawer?.querySelector('[data-field="libraryEndpoint"]');
+  ui.library.endpointWarn = ui.library.drawer?.querySelector('[data-field="libraryEndpointWarn"]');
+  ui.library.fallbackEndpointWarn = ui.library.drawer?.querySelector('[data-field="libraryFallbackEndpointWarn"]');
   ui.library.model = ui.library.drawer?.querySelector('[data-field="libraryModel"]');
   ui.library.modelList = ui.library.drawer?.querySelector('#nai-library-primary-model-list');
   ui.library.apiKey = ui.library.drawer?.querySelector('[data-field="libraryApiKey"]');
@@ -690,6 +698,18 @@ function createUI() {
   fillSelectOptions(ui.library.fallbackProviderPreset, PROVIDER_PRESETS);
   fillSelectOptions(ui.library.fallbackProtocol, PROTOCOL_OPTIONS);
   renderPromptLibraryOptions();
+
+  // 协议和 Endpoint 只要一动就重算警告。等请求发出去才报错的话，
+  // 用户已经白等一次，看到的还是服务端那句看不懂的 schema 错。
+  [
+    ui.settings.protocol, ui.settings.endpoint,
+    ui.settings.fallbackProtocol, ui.settings.fallbackEndpoint,
+    ui.library.protocol, ui.library.endpoint,
+    ui.library.fallbackProtocol, ui.library.fallbackEndpoint,
+  ].filter(Boolean).forEach((field) => {
+    field.addEventListener('change', updateEndpointWarnings);
+    field.addEventListener('input', updateEndpointWarnings);
+  });
 
   ui.settings.providerPreset.addEventListener('change', () => syncProviderFields('primary'));
   ui.settings.fallbackProviderPreset.addEventListener('change', () => syncProviderFields('fallback'));
