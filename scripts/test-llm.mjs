@@ -153,33 +153,33 @@ test('anthropic：system 抽到顶层，图片转 base64 source', () => {
   assert.equal(request.options.headers['anthropic-version'], '2023-06-01');
 });
 
-// 回归：写词会挂 search_tags 工具。三种协议发出去的 tools[0] 都必须带 type ——
-// 少了它，严格按 schema 反序列化的服务端（中转站、自建网关、第三方兼容层）
-// 会整个拒掉，报 `tools[0]: missing field \`type\``。
-// 症状很有迷惑性：反推不挂工具所以照常能用，只有写词一点就报错。
-test('三种协议的工具定义都要带 type', () => {
+// OpenAI 两条协议的工具定义带 type，这是它们各自 spec 的形状
+test('OpenAI 系两条协议的工具定义带 type', () => {
   const box = newSandbox();
   const tool = { name: 'search_tags', description: '查证 tag', parameters: { type: 'object', properties: {} } };
-  const cases = [
+
+  for (const [protocol, config] of [
     ['openai-chat', openaiConfig({ tools: [tool] })],
     ['responses', responsesConfig({ tools: [tool] })],
-    ['anthropic-messages', anthropicConfig({ tools: [tool] })],
-  ];
-
-  for (const [protocol, config] of cases) {
+  ]) {
     const body = JSON.parse(box.get('getProtocolAdapter')(protocol).buildRequest(config).options.body);
-    assert.ok(body.tools?.[0], `${protocol}：没发 tools`);
-    assert.ok('type' in body.tools[0], `${protocol}：tools[0] 缺 type`);
+    assert.equal(body.tools?.[0]?.type, 'function', `${protocol}`);
   }
 });
 
-test('anthropic 的自定义工具用 type: custom + input_schema', () => {
+// 回归：Anthropic 的**自定义**工具不带 type，这是官方 spec 的形状。
+// v1.6.3 曾按一条 `tools[0]: missing field \`type\`` 的报告给它加过 type: 'custom'，
+// 拿 DeepSeek 的 Anthropic 兼容接口实测直接被拒：
+//   unknown variant `custom`, expected `web_search_20250305` …
+// —— 在它眼里 type 是**内置工具**的判别字段。各家兼容层的 schema 并不一致，
+// 没有哪种写法能同时满足，所以贴着官方 spec 走，别为某一家把标准形状改掉。
+test('anthropic 的自定义工具不带 type，用 input_schema', () => {
   const box = newSandbox();
   const body = JSON.parse(box.get('getProtocolAdapter')('anthropic-messages').buildRequest(anthropicConfig({
     tools: [{ name: 'search_tags', description: '查证 tag', parameters: { type: 'object', properties: {} } }],
   })).options.body);
 
-  assert.equal(body.tools[0].type, 'custom');
+  assert.equal('type' in body.tools[0], false, 'type 是内置工具的判别字段，自定义工具带上会被拒');
   assert.equal(body.tools[0].name, 'search_tags');
   assert.ok(body.tools[0].input_schema, 'Anthropic 用 input_schema，不是 parameters');
 });
@@ -772,21 +772,47 @@ test('工具本身抛错要回喂给模型，而不是炸掉整轮', async () =>
   assert.match(calls[1].body.messages.at(-1).content, /CSV 没加载/);
 });
 
-test('模型死循环调工具时有硬闸', async () => {
+// 回归：步数用完不能整轮判失败。前面每一步查到的东西都还在 messages 里，
+// 模型只是没在限定步数内收口 —— 查证型任务尤其容易，实测拿 DeepSeek 跑一次写词，
+// 4 步里发了 30+ 次查询，以前到这儿全部丢掉，用户只拿到一句「没收敛」。
+// 现在收口再问一次：去掉工具、并明说到此为止。
+test('步数用完时收口再问一次，而不是把整轮丢掉', async () => {
   const box = newSandbox();
-  box.mockFetch(() => jsonResponse({
-    choices: [{ message: { content: '', tool_calls: [{ id: 'c', type: 'function', function: { name: 'search_tags', arguments: '{}' } }] } }],
-  }));
+  const calls = box.mockFetch((call) => (call.body.tools
+    ? jsonResponse({ choices: [{ message: { content: '', tool_calls: [{ id: 'c', type: 'function', function: { name: 'search_tags', arguments: '{}' } }] } }] })
+    : jsonResponse({ choices: [{ message: { content: '手上的材料够了，这是结果' }, finish_reason: 'stop' }] })));
 
-  const error = await captureError(() => box.get('runLlmToolLoop')({
+  const result = await box.get('runLlmToolLoop')({
     config: openaiConfig(),
     tools: [SEARCH_TOOL],
     maxSteps: 3,
     executeTool: async () => ({ matches: [] }),
-  }, FAST_RETRY));
+  }, FAST_RETRY);
 
-  assert.match(error.message, /超过 3 步/);
-  assert.equal(error.failoverable, false);
+  assert.equal(result.text, '手上的材料够了，这是结果');
+  assert.equal(result.stoppedBy, 'max-steps');
+  assert.equal(calls.length, 4, '3 步工具 + 1 次收口');
+  assert.equal(calls.at(-1).body.tools, undefined, '收口那次不能再挂工具');
+});
+
+// 光把 tools 拿掉不够：实测 DeepSeek 会把工具调用的原始标记当正文吐出来
+// （`<｜｜DSML｜｜tool_calls>…`），因为它「还想调」却没得调。
+test('收口那次要明说别再调工具', async () => {
+  const box = newSandbox();
+  const calls = box.mockFetch((call) => (call.body.tools
+    ? jsonResponse({ choices: [{ message: { content: '', tool_calls: [{ id: 'c', type: 'function', function: { name: 'search_tags', arguments: '{}' } }] } }] })
+    : jsonResponse({ choices: [{ message: { content: '结果' }, finish_reason: 'stop' }] })));
+
+  await box.get('runLlmToolLoop')({
+    config: openaiConfig(),
+    tools: [SEARCH_TOOL],
+    maxSteps: 2,
+    executeTool: async () => ({ matches: [] }),
+  }, FAST_RETRY);
+
+  const lastMessage = calls.at(-1).body.messages.at(-1);
+  assert.equal(lastMessage.role, 'user');
+  assert.match(lastMessage.content, /不要再调用任何工具/);
 });
 
 test('anthropic 的工具往返转成 tool_use / tool_result', () => {

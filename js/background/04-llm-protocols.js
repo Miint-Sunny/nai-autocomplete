@@ -413,13 +413,16 @@ const ANTHROPIC_ADAPTER = {
     if (budget) body.thinking = { type: 'enabled', budget_tokens: budget };
     else body.temperature = pickTemperature(config);
 
-    // type: 'custom' 是官方文档里自定义工具的**显式**写法。Anthropic 自己省掉也认，
-    // 但严格按 schema 反序列化的服务端（中转站、自建网关、声称兼容 Anthropic 协议的第三方）
-    // 会直接拒掉整个请求，报 `tools[0]: missing field \`type\``。
-    // 只有写词会挂工具，所以症状是「反推能用、写词一点就报错」。
+    // 自定义工具**不带 type** —— 这是 Anthropic 官方 spec 的形状。
+    //
+    // v1.6.3 曾按一条 `tools[0]: missing field \`type\`` 的报告加过 type: 'custom'，
+    // 那是错的：拿 DeepSeek 的 Anthropic 兼容接口实测，加了之后它报
+    // `unknown variant \`custom\`, expected \`web_search_20250305\` …` ——
+    // 在它眼里 type 是**内置工具**的判别字段，自定义工具带上就无法匹配。
+    // 也就是说各家兼容层对 tools 的 schema 并不一致，没有一种写法能同时满足。
+    // 既然如此就贴着官方 spec 走，别为某一家的实现把标准形状改掉。
     if (Array.isArray(config.tools) && config.tools.length) {
       body.tools = config.tools.map((tool) => ({
-        type: 'custom',
         name: tool.name,
         description: tool.description || '',
         input_schema: tool.parameters || { type: 'object', properties: {} },

@@ -116,7 +116,8 @@ Anthropic 不受第二条影响：它的 `budget_tokens` 是**另加**在 `max_t
 | Responses (xAI) | 只认 `low` / `high` 两档，中档往上取 |
 | Responses（通用） | assistant 历史消息的内容类型是 `output_text`，不是 `input_text` —— 全写成 `input_text` 会被严格实现拒掉（写词对话流带上历史后踩到） |
 | Anthropic | 开 extended thinking 时**不接受 `temperature`**，且 `max_tokens` 必须大于 `budget_tokens` |
-| Anthropic 协议（含兼容层） | 自定义工具要写 `type: 'custom'`。官方省掉也认，但严格按 schema 反序列化的服务端会拒掉整个请求，报 `tools[0]: missing field \`type\`` —— 只有写词挂工具，所以症状是「反推能用、写词一点就报错」 |
+| Anthropic 协议 | 自定义工具**不带 `type`**（官方 spec 的形状）。v1.6.3 曾按一条 `tools[0]: missing field \`type\`` 的报告加过 `type: 'custom'`，拿 DeepSeek 的 Anthropic 兼容接口实测直接被拒：`unknown variant \`custom\`, expected \`web_search_20250305\`…` —— 在它眼里 `type` 是**内置工具**的判别字段。**各家兼容层的 tools schema 并不一致，没有哪种写法能同时满足**，所以贴着官方 spec 走 |
+| DeepSeek 的 Anthropic 兼容层 | `/anthropic/v1/messages` 没有 `/models`（拉模型列表返回 404，要用 OpenAI 兼容那条拉）。另外它的 `max_tokens` 卡得比预期紧：工具循环攒了几十条 tool_result 之后，4000 会在正文开始前就用光并返回空正文，16000 才写得出来 |
 | DeepSeek | 同时提供 **OpenAI 兼容**（`https://api.deepseek.com`，预设走这条）和 **Anthropic 兼容**（`https://api.deepseek.com/anthropic`）两套接口。选后者时协议要跟着改成 Anthropic Messages，上一行那条坑就适用 |
 
 ### 模型列表别只靠 `<datalist>`
@@ -184,6 +185,28 @@ node scripts/test-llm.mjs
 
 - 沙箱里造出来的对象属于另一个 realm，`assert.deepStrictEqual` 会因为原型不同判不等。测试里用 `deepEqual()` 包装（走一遍 JSON 再比）。
 - 测重试时传 `sleep: async (ms) => slept.push(ms)`，既跑得快又能断言真实等了多久。
+
+## 9.5 工具循环撞到步数上限
+
+以前直接抛「工具调用超过 N 步仍未收敛」，**把整轮丢掉**。实测拿 DeepSeek 跑一次写词，
+4 步里发了 30+ 次查询 —— 全部作废，用户只拿到一句「没收敛」。
+
+现在收口再问一次：**去掉 tools，并追加一条 user 消息明说到此为止**。
+两件事缺一不可 —— 只把 tools 拿掉的话，DeepSeek 会把工具调用的原始标记当正文吐出来
+（`<｜｜DSML｜｜tool_calls>…`），因为它「还想调」却没得调。
+
+`stoppedBy: 'max-steps'` 用来和正常收尾（`'final'`）区分。
+
+拿真 Key 验一遍：
+
+```bash
+cp .env.example .env   # 填 NAI_API_KEY
+node scripts/check-provider.mjs            # 列出服务商
+node scripts/check-provider.mjs deepseek   # 真实调用跑一遍
+```
+
+跑的是真正上线的那份代码，只把 fetch 换成真网络请求。**改协议层之前先用它跑一遍** ——
+这一层的错误只有真服务端会告诉你，推断不出来。
 
 ## 10. 加一家服务商 / 加一个协议
 

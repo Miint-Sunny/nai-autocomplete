@@ -443,8 +443,39 @@ async function runLlmToolLoop(spec, options = {}) {
     spec.onStep?.({ step, toolCalls: result.toolCalls, steps });
   }
 
-  throw new LlmError(LLM_ERROR.BAD_REQUEST, `工具调用超过 ${maxSteps} 步仍未收敛。`, {
-    hint: '模型可能在反复调用同一个工具，检查工具描述是否含糊。',
-    failoverable: false,
+  // 步数用完不等于这一轮没结果：前面每一步查到的东西都还在 messages 里，
+  // 模型只是没在限定步数内收口（查证型任务尤其容易 —— 它会一个词一个词地核）。
+  //
+  // 以前这里直接抛错，等于把已经花掉的 token 和几十次查询全丢掉，
+  // 用户只拿到一句「没收敛」。现在收口再问一次。
+  //
+  // 光把 tools 拿掉不够 —— 实测 DeepSeek 会把工具调用的原始标记当正文吐出来
+  // （`<｜｜DSML｜｜tool_calls>…`），因为它「还想调」却没得调。
+  // 必须同时用一句 user 消息明说到此为止，它才会真的收口给结果。
+  messages.push({
+    role: 'user',
+    content: '查证到此为止，不要再调用任何工具，也不要输出任何工具调用格式的内容。'
+      + '现在直接给出最终结果，就用你手上已经查到的材料；仍然拿不准的词在结果里标注一下即可。',
   });
+
+  const finalResult = await runLlmRequest({ ...config, messages, tools: [] }, options);
+  totalDuration += finalResult.durationMs || 0;
+  if (finalResult.usage) {
+    sawUsage = true;
+    for (const key of Object.keys(totalUsage)) totalUsage[key] += finalResult.usage[key] || 0;
+  }
+
+  return {
+    text: finalResult.text,
+    messages,
+    steps,
+    result: finalResult,
+    stoppedBy: 'max-steps',
+    usage: sawUsage ? totalUsage : null,
+    durationMs: totalDuration,
+    attempt: finalResult.attempt,
+    providerLabel: finalResult.providerLabel,
+    model: finalResult.model,
+    endpoint: finalResult.endpoint,
+  };
 }
