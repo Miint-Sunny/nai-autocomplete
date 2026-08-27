@@ -1,6 +1,12 @@
 # NovelAI Prompt Autocomplete
 
-## > 正在全力维护skill中 需要有关skill的更多反馈 https://github.com/Miint-Sunny/nai5-prompting
+> ## 正在全力维护skill中 需要有关skill的更多反馈 https://github.com/Miint-Sunny/nai5-prompting
+
+已知问题：
+- 显示json字段错误，初步推断是因为skill升级导致的。
+- 使用DeepSeek API时获取不到模型，只能抓到 DeepSeek-V4-Flash-Vision-Exp
+
+
 
 一个基于 Chrome Manifest V3 的 NovelAI 浏览器扩展：
 
