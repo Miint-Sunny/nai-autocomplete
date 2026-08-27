@@ -51,6 +51,16 @@ const LLM_ERROR_HINTS = {
   [LLM_ERROR.CONFIG]: '服务商配置不完整。',
 };
 
+// 400 的兜底 hint 说的是「图片 / 思考档位」，那是最常见的两种。
+// 但服务端回的是请求体 schema 错误时（缺字段、类型不对、tools 形状不符），
+// 那条 hint 纯属误导 —— 它会把人往「调思考档位」上带，而真正的问题在请求怎么拼的。
+function pickErrorHint(kind, message) {
+  if (kind === LLM_ERROR.BAD_REQUEST && /deserialize|missing field|tools\[|invalid.*schema|反序列化|缺少字段/i.test(String(message || ''))) {
+    return '服务端按 schema 校验请求体时失败了，和图片或思考档位无关。多半是这家对某个字段的形状要求和我们发的不一致 —— 把这条原文报到 issue 里最有用。';
+  }
+  return LLM_ERROR_HINTS[kind] ?? '';
+}
+
 class LlmError extends Error {
   constructor(kind, message, detail = {}) {
     super(message);
@@ -60,7 +70,7 @@ class LlmError extends Error {
     this.retryable = detail.retryable ?? policy.retryable;
     this.failoverable = detail.failoverable ?? policy.failoverable;
     this.status = detail.status ?? null;
-    this.hint = detail.hint ?? LLM_ERROR_HINTS[this.kind] ?? '';
+    this.hint = detail.hint ?? pickErrorHint(this.kind, message);
     this.retryAfterMs = detail.retryAfterMs ?? null;
     this.providerLabel = detail.providerLabel ?? '';
     this.model = detail.model ?? '';

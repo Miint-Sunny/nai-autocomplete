@@ -153,6 +153,51 @@ test('anthropic：system 抽到顶层，图片转 base64 source', () => {
   assert.equal(request.options.headers['anthropic-version'], '2023-06-01');
 });
 
+// 回归：写词会挂 search_tags 工具。三种协议发出去的 tools[0] 都必须带 type ——
+// 少了它，严格按 schema 反序列化的服务端（中转站、自建网关、第三方兼容层）
+// 会整个拒掉，报 `tools[0]: missing field \`type\``。
+// 症状很有迷惑性：反推不挂工具所以照常能用，只有写词一点就报错。
+test('三种协议的工具定义都要带 type', () => {
+  const box = newSandbox();
+  const tool = { name: 'search_tags', description: '查证 tag', parameters: { type: 'object', properties: {} } };
+  const cases = [
+    ['openai-chat', openaiConfig({ tools: [tool] })],
+    ['responses', responsesConfig({ tools: [tool] })],
+    ['anthropic-messages', anthropicConfig({ tools: [tool] })],
+  ];
+
+  for (const [protocol, config] of cases) {
+    const body = JSON.parse(box.get('getProtocolAdapter')(protocol).buildRequest(config).options.body);
+    assert.ok(body.tools?.[0], `${protocol}：没发 tools`);
+    assert.ok('type' in body.tools[0], `${protocol}：tools[0] 缺 type`);
+  }
+});
+
+test('anthropic 的自定义工具用 type: custom + input_schema', () => {
+  const box = newSandbox();
+  const body = JSON.parse(box.get('getProtocolAdapter')('anthropic-messages').buildRequest(anthropicConfig({
+    tools: [{ name: 'search_tags', description: '查证 tag', parameters: { type: 'object', properties: {} } }],
+  })).options.body);
+
+  assert.equal(body.tools[0].type, 'custom');
+  assert.equal(body.tools[0].name, 'search_tags');
+  assert.ok(body.tools[0].input_schema, 'Anthropic 用 input_schema，不是 parameters');
+});
+
+// 400 的兜底 hint 说的是图片和思考档位。请求体 schema 校验失败时那条纯属误导 ——
+// 会把人往「调思考档位」上带，而真正的问题在请求怎么拼的。
+test('schema 类的 400 不给「图片 / 思考档位」那条误导 hint', () => {
+  const box = newSandbox();
+  const LlmError = box.get('LlmError');
+  const schemaError = new LlmError('bad_request', '未能将 JSON 主体反序列化为目标类型： tools[0]： 缺少字段 \'type\'');
+  const plainError = new LlmError('bad_request', '请求失败：HTTP 400');
+
+  assert.equal(/调成关闭再试/.test(schemaError.hint), false, '别把人往「调思考档位」上带');
+  assert.match(schemaError.hint, /schema/);
+  assert.match(schemaError.hint, /无关/, '要明说和图片、思考档位都没关系');
+  assert.match(plainError.hint, /调成关闭再试/, '普通 400 保留原来的常见原因');
+});
+
 test('anthropic：连续同角色的消息要合并（API 不接受相邻同角色）', () => {
   const box = newSandbox();
   const body = JSON.parse(box.get('getProtocolAdapter')('anthropic-messages').buildRequest(anthropicConfig({

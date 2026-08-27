@@ -119,6 +119,26 @@ function populateLibraryModelSuggestions(kind, models) {
   }
 }
 
+// 抓回来的列表只进了 <datalist>，而 datalist 展开时**会按输入框当前的值过滤**。
+// 选服务商预设时模型框已经被填成了预设的 defaultModel，一旦那个 id 不在返回列表里，
+// 下拉就一条都不剩 —— 用户看到的是「获取不到模型，只能抓到预设那个默认值」。
+// 所以对不上时必须直说，并且把抓到的报几个出来，别让人对着空下拉猜。
+function describeModelFetch(models, currentModel, kind) {
+  const suffix = kind === 'fallback' ? '（备用）' : '';
+  if (!models.length) return { text: `该服务未返回可用模型${suffix}。`, isError: true };
+
+  const current = String(currentModel || '').trim();
+  if (current && !models.includes(current)) {
+    const sample = models.slice(0, 4).join('、');
+    return {
+      text: `已加载 ${models.length} 个模型候选${suffix}，但当前填的「${current}」不在其中 —— 清空模型框再点开就能看到全部。例如：${sample}${models.length > 4 ? ' 等' : ''}。`,
+      isError: true,
+    };
+  }
+
+  return { text: `已加载 ${models.length} 个模型候选${suffix}。`, isError: false };
+}
+
 async function fetchModelsFor(kind) {
   const config = getModelListConfig(kind);
   if (!config.endpoint || !config.apiKey) {
@@ -138,13 +158,10 @@ async function fetchModelsFor(kind) {
     }
 
     const models = Array.isArray(response.models) ? response.models : [];
+    const input = kind === 'fallback' ? ui.settings.fallbackModel : ui.settings.model;
     populateModelSuggestions(kind, models);
-    setStatus(
-      models.length
-        ? `\u5df2\u52a0\u8f7d ${models.length} \u4e2a\u6a21\u578b\u5019\u9009${kind === 'fallback' ? '\uff08\u5907\u7528\uff09' : ''}\u3002`
-        : `\u8be5\u670d\u52a1\u672a\u8fd4\u56de\u53ef\u7528\u6a21\u578b${kind === 'fallback' ? '\uff08\u5907\u7528\uff09' : ''}\u3002`,
-      !models.length
-    );
+    const report = describeModelFetch(models, input?.value, kind);
+    setStatus(report.text, report.isError);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   }
@@ -169,13 +186,10 @@ async function fetchLibraryModelsFor(kind) {
     }
 
     const models = Array.isArray(response.models) ? response.models : [];
+    const input = kind === 'fallback' ? ui.library.fallbackModel : ui.library.model;
     populateLibraryModelSuggestions(kind, models);
-    setStatus(
-      models.length
-        ? `已加载 ${models.length} 个模型候选${kind === 'fallback' ? '（备用）' : ''}。`
-        : `该服务未返回可用模型${kind === 'fallback' ? '（备用）' : ''}。`,
-      !models.length
-    );
+    const report = describeModelFetch(models, input?.value, kind);
+    setStatus(report.text, report.isError);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   }

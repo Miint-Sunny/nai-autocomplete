@@ -413,8 +413,13 @@ const ANTHROPIC_ADAPTER = {
     if (budget) body.thinking = { type: 'enabled', budget_tokens: budget };
     else body.temperature = pickTemperature(config);
 
+    // type: 'custom' 是官方文档里自定义工具的**显式**写法。Anthropic 自己省掉也认，
+    // 但严格按 schema 反序列化的服务端（中转站、自建网关、声称兼容 Anthropic 协议的第三方）
+    // 会直接拒掉整个请求，报 `tools[0]: missing field \`type\``。
+    // 只有写词会挂工具，所以症状是「反推能用、写词一点就报错」。
     if (Array.isArray(config.tools) && config.tools.length) {
       body.tools = config.tools.map((tool) => ({
+        type: 'custom',
         name: tool.name,
         description: tool.description || '',
         input_schema: tool.parameters || { type: 'object', properties: {} },

@@ -116,6 +116,7 @@ Anthropic 不受第二条影响：它的 `budget_tokens` 是**另加**在 `max_t
 | Responses (xAI) | 只认 `low` / `high` 两档，中档往上取 |
 | Responses（通用） | assistant 历史消息的内容类型是 `output_text`，不是 `input_text` —— 全写成 `input_text` 会被严格实现拒掉（写词对话流带上历史后踩到） |
 | Anthropic | 开 extended thinking 时**不接受 `temperature`**，且 `max_tokens` 必须大于 `budget_tokens` |
+| Anthropic 协议（含兼容层） | 自定义工具要写 `type: 'custom'`。官方省掉也认，但严格按 schema 反序列化的服务端会拒掉整个请求，报 `tools[0]: missing field \`type\`` —— 只有写词挂工具，所以症状是「反推能用、写词一点就报错」 |
 | Anthropic | 不接受相邻的两条同角色消息，要合并 |
 | Anthropic | 没有 JSON 模式。用预填 `{` 逼它进对象，解析时补回来；开了思考不能预填 |
 | Anthropic | 工具字段是 `input_schema` 不是 `parameters`；回填要用 `tool_use` / `tool_result` 块 |
