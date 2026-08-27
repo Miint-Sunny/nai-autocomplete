@@ -2,9 +2,10 @@
 
 > ## 正在全力维护skill中 需要有关skill的更多反馈 https://github.com/Miint-Sunny/nai5-prompting
 
-已知问题：
-- 显示json字段错误，初步推断是因为skill升级导致的。
-- 使用DeepSeek API时获取不到模型，只能抓到 DeepSeek-V4-Flash-Vision-Exp
+已知问题（见 [issues](https://github.com/Miint-Sunny/nai-autocomplete/issues)）：
+
+- ~~写词报 `tools[0]: missing field 'type'`~~ —— **v1.6.3 已修**（[#1](https://github.com/Miint-Sunny/nai-autocomplete/issues/1)）。是 Anthropic 协议的工具定义少了 `type`，和 skill 无关；反推不挂工具，所以那会儿只有写词报错。
+- 使用 DeepSeek API 时获取不到模型，只能抓到 `DeepSeek-V4-Flash-Vision-Exp`（[#2](https://github.com/Miint-Sunny/nai-autocomplete/issues/2)）。v1.6.3 起会明确告诉你抓到了几个、以及当前填的模型在不在里面。
 
 
 
