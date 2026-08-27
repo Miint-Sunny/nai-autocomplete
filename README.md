@@ -2,13 +2,6 @@
 
 > ## 正在全力维护skill中 需要有关skill的更多反馈 https://github.com/Miint-Sunny/nai5-prompting
 
-已知问题（见 [issues](https://github.com/Miint-Sunny/nai-autocomplete/issues)）：
-
-- ~~写词报 `tools[0]: missing field 'type'`~~ —— **v1.6.3 已修**（[#1](https://github.com/Miint-Sunny/nai-autocomplete/issues/1)）。是 Anthropic 协议的工具定义少了 `type`，和 skill 无关；反推不挂工具，所以那会儿只有写词报错。
-- 使用 DeepSeek API 时获取不到模型，只能抓到 `DeepSeek-V4-Flash-Vision-Exp`（[#2](https://github.com/Miint-Sunny/nai-autocomplete/issues/2)）。v1.6.3 起会明确告诉你抓到了几个、以及当前填的模型在不在里面。
-
-
-
 一个基于 Chrome Manifest V3 的 NovelAI 浏览器扩展：
 
 - `NovelAI 标签自动补全`
@@ -265,14 +258,18 @@ node scripts/build-modular.mjs   # 改完分片先构建
 `.env` 已经在 `.gitignore` 里（仓库是公开的，别删那几行）：
 
 ```bash
-cp .env.example .env   # 填 NAI_API_KEY
-node scripts/live-check.mjs
+cp .env.example .env              # 填 NAI_API_KEY
+node scripts/check-provider.mjs            # 不带参数：列出可选的服务商
+node scripts/check-provider.mjs deepseek   # 用它跑一遍
 ```
 
 跑的是 `js/background/` 里真正上线的那份代码，只把 fetch 换成真网络请求 ——
-会拉一次模型列表、打印将要发出去的请求体形状（`tools[0]` 有没有 `type` 之类），
-再跑一次真实的写词。输出里的 Key 一律打码，可以直接贴进 issue。
-**不进 CI**，只在本地手动跑。
+会拉一次模型列表、打印将要发出去的请求体形状，再跑一次真实的写词（带工具）。
+服务商和 Endpoint 取自扩展自己那份 `PROVIDER_PRESETS`，不在脚本里重抄一遍。
+输出里的 Key 一律打码，可以直接贴进 issue。**不进 CI**，只在本地手动跑。
+
+**改 LLM 协议层之前先用它跑一遍** —— 协议层的对错只有真服务端能判定，
+单元测试只能守住「发出去的形状是不是我以为的那个」，守不住「这个形状对不对」。
 
 改完跑这一串（CI 跑的也是它）：
 
