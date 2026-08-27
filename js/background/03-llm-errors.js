@@ -51,14 +51,57 @@ const LLM_ERROR_HINTS = {
   [LLM_ERROR.CONFIG]: '服务商配置不完整。',
 };
 
+// 协议和 Endpoint 必须配套。只改了协议下拉、没换地址（或反过来）时，
+// 我们会按 A 协议拼好 body 发给 B 协议的解析器 —— 服务端报的是某个字段的
+// schema 错误，看不出真正的病因在配置上。
+//
+// 实测最典型的一种：Anthropic 协议 + DeepSeek 的 /chat/completions，
+// 得到 `tools[0]: missing field \`type\``。而且**只有写词会报**：
+// 不带 tools 时 system 被忽略、content 数组 OpenAI 也认，反推照常能过，
+// 于是看起来像是「写词坏了」，其实是地址和协议对不上。
+const PROTOCOL_ENDPOINT_SHAPES = {
+  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions' },
+  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses' },
+  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages' },
+};
+
+function detectProtocolEndpointMismatch(protocol, endpoint) {
+  const expected = PROTOCOL_ENDPOINT_SHAPES[protocol];
+  if (!expected || !endpoint) return '';
+
+  let pathname = '';
+  try {
+    pathname = new URL(endpoint).pathname;
+  } catch (error) {
+    return '';
+  }
+
+  if (expected.tail.test(pathname)) return '';
+
+  // 只在地址明显长着**另一种**协议的样子时才说话。自建网关的路径千奇百怪，
+  // 认不出来就闭嘴，别对着正常配置乱报。
+  const looksLike = Object.entries(PROTOCOL_ENDPOINT_SHAPES)
+    .find(([id, shape]) => id !== protocol && shape.tail.test(pathname));
+  if (!looksLike) return '';
+
+  return `接口协议选的是「${expected.label}」，但 Endpoint 是 ${pathname}，那是「${looksLike[1].label}」的地址。`
+    + `两者必须配套：要么把协议改成「${looksLike[1].label}」，要么把 Endpoint 换成以 ${expected.want} 结尾的那条。`;
+}
+
 // 400 的兜底 hint 说的是「图片 / 思考档位」，那是最常见的两种。
 // 但服务端回的是请求体 schema 错误时（缺字段、类型不对、tools 形状不符），
 // 那条 hint 纯属误导 —— 它会把人往「调思考档位」上带，而真正的问题在请求怎么拼的。
-function pickErrorHint(kind, message) {
-  if (kind === LLM_ERROR.BAD_REQUEST && /deserialize|missing field|tools\[|invalid.*schema|反序列化|缺少字段/i.test(String(message || ''))) {
-    return '服务端按 schema 校验请求体时失败了，和图片或思考档位无关。多半是这家对某个字段的形状要求和我们发的不一致 —— 把这条原文报到 issue 里最有用。';
-  }
-  return LLM_ERROR_HINTS[kind] ?? '';
+function pickErrorHint(kind, message, config) {
+  if (kind !== LLM_ERROR.BAD_REQUEST) return LLM_ERROR_HINTS[kind] ?? '';
+
+  const schemaError = /deserialize|missing field|unknown variant|invalid.*schema|反序列化|缺少字段/i.test(String(message || ''));
+  if (!schemaError) return LLM_ERROR_HINTS[kind] ?? '';
+
+  // 配错对是这类 schema 错误里最常见、也最难自己看出来的一种，能认出来就直接说
+  const mismatch = detectProtocolEndpointMismatch(config?.protocol, config?.endpoint);
+  if (mismatch) return mismatch;
+
+  return '服务端按 schema 校验请求体时失败了，和图片或思考档位无关。多半是这家对某个字段的形状要求和我们发的不一致 —— 把这条原文报到 issue 里最有用。';
 }
 
 class LlmError extends Error {
@@ -70,7 +113,7 @@ class LlmError extends Error {
     this.retryable = detail.retryable ?? policy.retryable;
     this.failoverable = detail.failoverable ?? policy.failoverable;
     this.status = detail.status ?? null;
-    this.hint = detail.hint ?? pickErrorHint(this.kind, message);
+    this.hint = detail.hint ?? pickErrorHint(this.kind, message, detail.config);
     this.retryAfterMs = detail.retryAfterMs ?? null;
     this.providerLabel = detail.providerLabel ?? '';
     this.model = detail.model ?? '';

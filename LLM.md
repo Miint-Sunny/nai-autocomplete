@@ -186,6 +186,24 @@ node scripts/test-llm.mjs
 - 沙箱里造出来的对象属于另一个 realm，`assert.deepStrictEqual` 会因为原型不同判不等。测试里用 `deepEqual()` 包装（走一遍 JSON 再比）。
 - 测重试时传 `sleep: async (ms) => slept.push(ms)`，既跑得快又能断言真实等了多久。
 
+## 9.4 协议和 Endpoint 必须配套
+
+只改了协议下拉、没换地址（或反过来）时，我们会按 A 协议拼好 body 发给 B 协议的解析器。
+服务端报的是某个字段的 schema 错误，**看不出真正的病因在配置上**。
+
+实测复现过的一种（就是 issue #1 的真身）：
+
+| 配置 | 结果 |
+|---|---|
+| 协议 `anthropic-messages` + Endpoint `api.deepseek.com/chat/completions` | `tools[0]: missing field \`type\`` |
+
+最迷惑的地方是**只有写词会报**：不带 tools 时 `system` 被忽略、`content` 数组 OpenAI 也认，
+反推照常能过 —— 看着像「写词坏了」，其实是地址和协议对不上。
+
+`detectProtocolEndpointMismatch` 在 schema 类的 400 上直接把这句说出来。
+判据只看路径尾巴（`/chat/completions` / `/responses` / `/messages`），
+**认不出来就闭嘴** —— 自建网关和中转站的路径千奇百怪，宁可不提示也不能对着正常配置乱报。
+
 ## 9.5 工具循环撞到步数上限
 
 以前直接抛「工具调用超过 N 步仍未收敛」，**把整轮丢掉**。实测拿 DeepSeek 跑一次写词，

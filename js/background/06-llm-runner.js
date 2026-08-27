@@ -84,6 +84,7 @@ async function runLlmRequest(config, options = {}) {
   const httpResult = await llmHttp(request, {
     ...options,
     secrets,
+    config,
     onRetry: (info) => {
       retries.push({ attempt: info.attempt, delayMs: info.delayMs, kind: info.error.kind, status: info.error.status });
       options.onRetry?.(info);

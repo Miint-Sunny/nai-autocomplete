@@ -153,6 +153,61 @@ test('anthropic：system 抽到顶层，图片转 base64 source', () => {
   assert.equal(request.options.headers['anthropic-version'], '2023-06-01');
 });
 
+// 回归：协议和 Endpoint 配错对。只改了协议下拉、没换地址时，
+// 我们按 A 协议拼 body 发给 B 协议的解析器，服务端报的是某个字段的 schema 错误，
+// 看不出真正的病因在配置上。
+//
+// 实测原样复现过用户报的那条：Anthropic 协议 + DeepSeek 的 /chat/completions →
+//   Failed to deserialize the JSON body into the target type: tools[0]: missing field `type`
+// 而且**只有写词会报** —— 不带 tools 时 system 被忽略、content 数组 OpenAI 也认，
+// 反推照常能过，于是看着像「写词坏了」。
+group('协议与 Endpoint 配错对');
+
+test('认出错配，并说清楚两边怎么改', () => {
+  const box = newSandbox();
+  const detect = box.get('detectProtocolEndpointMismatch');
+
+  const message = detect('anthropic-messages', 'https://api.deepseek.com/chat/completions');
+  assert.match(message, /Anthropic Messages API/);
+  assert.match(message, /OpenAI Chat Completions/);
+  assert.match(message, /\/messages/);
+});
+
+test('配套的组合一个字都不说', () => {
+  const box = newSandbox();
+  const detect = box.get('detectProtocolEndpointMismatch');
+
+  assert.equal(detect('openai-chat', 'https://api.deepseek.com/chat/completions'), '');
+  assert.equal(detect('anthropic-messages', 'https://api.anthropic.com/v1/messages'), '');
+  assert.equal(detect('responses', 'https://api.x.ai/v1/responses'), '');
+});
+
+// 自建网关和中转站的路径千奇百怪，认不出来就闭嘴 —— 宁可不提示，也不能对着正常配置乱报
+test('认不出来的路径不乱报', () => {
+  const box = newSandbox();
+  const detect = box.get('detectProtocolEndpointMismatch');
+
+  assert.equal(detect('anthropic-messages', 'https://my-gateway.example.com/v1/proxy'), '');
+  assert.equal(detect('openai-chat', 'https://relay.example.com/api'), '');
+  assert.equal(detect('openai-chat', '不是个网址'), '');
+  assert.equal(detect('openai-chat', ''), '');
+});
+
+test('schema 类的 400 优先报错配这条，而不是笼统的那句', () => {
+  const box = newSandbox();
+  const LlmError = box.get('LlmError');
+  const mismatched = new LlmError('bad_request', 'tools[0]: missing field `type`', {
+    config: { protocol: 'anthropic-messages', endpoint: 'https://api.deepseek.com/chat/completions' },
+  });
+  assert.match(mismatched.hint, /两者必须配套/);
+
+  // 配套但仍然 schema 报错时，退回原来那句笼统的
+  const plain = new LlmError('bad_request', 'tools[0]: unknown variant `custom`', {
+    config: { protocol: 'anthropic-messages', endpoint: 'https://api.anthropic.com/v1/messages' },
+  });
+  assert.match(plain.hint, /形状要求和我们发的不一致/);
+});
+
 // OpenAI 两条协议的工具定义带 type，这是它们各自 spec 的形状
 test('OpenAI 系两条协议的工具定义带 type', () => {
   const box = newSandbox();

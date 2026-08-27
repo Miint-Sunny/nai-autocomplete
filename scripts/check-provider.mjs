@@ -34,6 +34,24 @@ function readProviderPresets() {
 // （预设走 OpenAI 兼容那条）。这里补一个条目，好把两条路分别验一遍。
 const EXTRA_PRESETS = [
   {
+    // 复现用：协议改成了 Anthropic，Endpoint 还留着 DeepSeek 的 OpenAI 那条
+    //（在设置里只动了协议下拉、没动地址，或者反过来）。
+    id: 'mismatch',
+    label: '错配：Anthropic 协议 + OpenAI Endpoint（复现用）',
+    protocol: 'anthropic-messages',
+    endpoint: 'https://api.deepseek.com/chat/completions',
+    defaultModel: 'deepseek-v4-flash-vision-exp',
+  },
+  {
+    // 复现用：DeepSeek 文档给的 base_url 是 https://api.deepseek.com/anthropic，
+    // 直接把它填进 Endpoint 框是很自然的动作 —— 看那个裸路径后面挂的是什么处理器。
+    id: 'deepseek-anthropic-bare',
+    label: 'DeepSeek（Anthropic 裸 base_url，复现用）',
+    protocol: 'anthropic-messages',
+    endpoint: 'https://api.deepseek.com/anthropic',
+    defaultModel: 'deepseek-v4-flash-vision-exp',
+  },
+  {
     id: 'deepseek-anthropic',
     label: 'DeepSeek（Anthropic 兼容）',
     protocol: 'anthropic-messages',

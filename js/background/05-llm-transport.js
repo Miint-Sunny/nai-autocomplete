@@ -176,6 +176,8 @@ async function performLlmRequest(request, ctx) {
       throw new LlmError(classifyHttpStatus(response.status), redactSecrets(message, ctx.secrets), {
         status: response.status,
         retryAfterMs,
+        // 给 hint 用：认出「协议和 Endpoint 配错对」要看这两项
+        config: ctx.config,
       });
     }
 
@@ -204,6 +206,8 @@ async function llmHttp(request, options = {}) {
         onEvent: options.onEvent,
         secrets,
         now,
+        // 只给错误提示用（认「协议和 Endpoint 配错对」），不参与请求本身
+        config: options.config,
       });
       return { ...result, attempt };
     } catch (error) {
