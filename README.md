@@ -260,6 +260,20 @@ node scripts/package.mjs --zip
 node scripts/build-modular.mjs   # 改完分片先构建
 ```
 
+### 拿真 Key 做一次真实调用
+
+`.env` 已经在 `.gitignore` 里（仓库是公开的，别删那几行）：
+
+```bash
+cp .env.example .env   # 填 NAI_API_KEY
+node scripts/live-check.mjs
+```
+
+跑的是 `js/background/` 里真正上线的那份代码，只把 fetch 换成真网络请求 ——
+会拉一次模型列表、打印将要发出去的请求体形状（`tools[0]` 有没有 `type` 之类），
+再跑一次真实的写词。输出里的 Key 一律打码，可以直接贴进 issue。
+**不进 CI**，只在本地手动跑。
+
 改完跑这一串（CI 跑的也是它）：
 
 ```bash

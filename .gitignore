@@ -6,3 +6,9 @@ dist/
 # 构建产物（由 scripts/build-modular.mjs 生成，请勿手改）
 js/bundle/
 styles/bundle.css
+
+# 本地真实调用检查用的密钥（scripts/live-check.mjs 读它）。
+# 仓库是公开的，这几行别删 —— .env.example 是模板，可以提交。
+.env
+.env.*
+!.env.example
