@@ -17,6 +17,7 @@ const CHUNKS = [
   '01-constants.js',
   '02-presets-and-prompt-utils.js',
   '03-prompt-library-and-storage.js',
+  '07-llm-config.js',
   '15-st-preset-import.js',
   '18-agent-skills.js',
 ];
@@ -43,6 +44,7 @@ export function createAssistantSandbox(extraGlobals = {}) {
     parseFloat,
     encodeURIComponent,
     decodeURIComponent,
+    URL,
     ...extraGlobals,
   };
   sandbox.globalThis = sandbox;

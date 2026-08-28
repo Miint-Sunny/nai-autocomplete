@@ -282,6 +282,13 @@
   resize: vertical;
 }
 
+/* 同一行既报错也报「会补成什么」：补全是背着用户改地址，得摆出来。
+   提示态用普通墨色，别拿 error 色去说一件不是错的事。 */
+.nai-md3-config-warn.is-hint {
+  color: var(--nai-md3-ink-muted);
+  background: var(--nai-md3-section-bg);
+}
+
 /* 解析结果就地告诉用户会得到什么，不用先导进去再看 */
 .nai-import-box-status.is-ok {
   color: var(--md-sys-color-on-surface);

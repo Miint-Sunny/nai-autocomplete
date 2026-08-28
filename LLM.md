@@ -214,6 +214,34 @@ node scripts/test-llm.mjs
 两个 bundle 互相够不到，所以**各存一份逐字一致的实现**，由
 `scripts/test-build.mjs` 的「两份协议错配检测不能走散」守着（改坏一处会红）。
 
+## 9.45 Endpoint 只填 base URL 也认
+
+各家 SDK 和酒馆都是「给 base URL、客户端拼路径」，只有我们这儿一开始要求填完整地址 ——
+用户按习惯填半截，得到的是 404（issue #3 的后半段）。
+
+`completeEndpointPath`（`js/assistant/07-llm-config.js`）按协议补：
+
+| 协议 | 补什么 | 例子 |
+|---|---|---|
+| `openai-chat` | `/chat/completions` | `api.deepseek.com` → `api.deepseek.com/chat/completions` |
+| `responses` | `/responses` | `api.x.ai/v1` → `api.x.ai/v1/responses` |
+| `anthropic-messages` | `/v1/messages` | `api.anthropic.com` → `api.anthropic.com/v1/messages` |
+
+后缀取各家官方 SDK 的口径：OpenAI 系的 base 自带 `/v1`，客户端只补末段；Anthropic 的 base
+不带版本号，由客户端补 `/v1/messages`。**base 自己带了 `/v1` 就不重复补**
+（`/anthropic/v1` → `/anthropic/v1/messages`，不是 `/v1/v1/messages`）。
+
+三种情况**不补**：已经以本协议的路径结尾、长着另一种协议的样子（那是配错协议，交给 9.4 去报）、
+不是合法 URL。
+
+自建网关可能就认某个怪路径（`/v1/proxy` 会被当成 base 补上 `/chat/completions`），所以有开关：
+**设置 → LLM 服务 → 「Endpoint 只填到 base URL 就行」**，默认开，关掉就填什么发什么。
+
+补出来的地址**会显示在 Endpoint 下方**（和错配警告同一行，提示态用 `ink-muted` 不用 error 色）——
+背着用户改地址而不摆出来，就成了黑箱。
+
+守在 `scripts/test-endpoint.mjs`。
+
 ## 9.5 工具循环撞到步数上限
 
 以前直接抛「工具调用超过 N 步仍未收敛」，**把整轮丢掉**。实测拿 DeepSeek 跑一次写词，

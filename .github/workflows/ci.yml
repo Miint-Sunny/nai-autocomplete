@@ -52,6 +52,9 @@ jobs:
       - name: Test import pipeline
         run: node scripts/test-import.mjs
 
+      - name: Test endpoint resolution
+        run: node scripts/test-endpoint.mjs
+
       - name: Test build integrity
         run: node scripts/test-build.mjs
 

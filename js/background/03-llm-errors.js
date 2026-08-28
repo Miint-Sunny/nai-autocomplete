@@ -59,10 +59,13 @@ const LLM_ERROR_HINTS = {
 // 得到 `tools[0]: missing field \`type\``。而且**只有写词会报**：
 // 不带 tools 时 system 被忽略、content 数组 OpenAI 也认，反推照常能过，
 // 于是看起来像是「写词坏了」，其实是地址和协议对不上。
+// suffix 是「只给了 base URL 时该往后补什么」，取各家官方 SDK 的口径：
+// OpenAI 系的 base 自带 /v1（api.openai.com/v1）所以只补末段；Anthropic 的 base
+// 不带版本号（api.anthropic.com），由客户端补 /v1/messages。
 const PROTOCOL_ENDPOINT_SHAPES = {
-  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions' },
-  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses' },
-  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages' },
+  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions', suffix: '/chat/completions' },
+  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses', suffix: '/responses' },
+  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages', suffix: '/v1/messages' },
 };
 
 function detectProtocolEndpointMismatch(protocol, endpoint) {

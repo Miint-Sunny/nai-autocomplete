@@ -77,22 +77,28 @@ async function testConnection(draft) {
   }
 }
 
+// 「获取模型」和「测试连接」必须走同一份地址口径，否则会出现
+// 「模型抓得到、发请求却 404」这种只能靠猜的状态。
 function getModelListConfig(kind) {
   const isFallback = kind === 'fallback';
+  const protocol = isFallback ? ui.settings.fallbackProtocol.value : ui.settings.protocol.value;
+  const endpoint = (isFallback ? ui.settings.fallbackEndpoint.value : ui.settings.endpoint.value).trim();
   return {
     providerId: isFallback ? ui.settings.fallbackProviderPreset.value : ui.settings.providerPreset.value,
-    protocol: isFallback ? ui.settings.fallbackProtocol.value : ui.settings.protocol.value,
-    endpoint: (isFallback ? ui.settings.fallbackEndpoint.value : ui.settings.endpoint.value).trim(),
+    protocol,
+    endpoint: resolveEndpoint(protocol, endpoint, ui.settings.autoCompleteEndpoint?.checked),
     apiKey: (isFallback ? ui.settings.fallbackApiKey.value : ui.settings.apiKey.value).trim(),
   };
 }
 
 function getLibraryModelListConfig(kind) {
   const isFallback = kind === 'fallback';
+  const protocol = isFallback ? ui.library.fallbackProtocol?.value : ui.library.protocol?.value;
+  const endpoint = String(isFallback ? ui.library.fallbackEndpoint?.value || '' : ui.library.endpoint?.value || '').trim();
   return {
     providerId: isFallback ? ui.library.fallbackProviderPreset?.value : ui.library.providerPreset?.value,
-    protocol: isFallback ? ui.library.fallbackProtocol?.value : ui.library.protocol?.value,
-    endpoint: String(isFallback ? ui.library.fallbackEndpoint?.value || '' : ui.library.endpoint?.value || '').trim(),
+    protocol,
+    endpoint: resolveEndpoint(protocol, endpoint, ui.library.autoCompleteEndpoint?.checked),
     apiKey: String(isFallback ? ui.library.fallbackApiKey?.value || '' : ui.library.apiKey?.value || '').trim(),
   };
 }

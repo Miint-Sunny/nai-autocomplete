@@ -40,6 +40,7 @@ function applySettingsToInputs() {
   ui.settings.themePreset.value = state.settings.themePreset || DEFAULT_SETTINGS.themePreset;
   ui.settings.preferNaiMetadata.checked = state.settings.preferNaiMetadata !== false;
   ui.settings.allowDanbooruLookup.checked = state.settings.allowDanbooruLookup !== false;
+  if (ui.settings.autoCompleteEndpoint) ui.settings.autoCompleteEndpoint.checked = state.settings.autoCompleteEndpoint !== false;
   if (ui.settings.agentNai5Rules) ui.settings.agentNai5Rules.checked = state.settings.agentNai5Rules !== false;
   if (ui.settings.naiDialect) ui.settings.naiDialect.value = state.settings.naiDialect === 'v45' ? 'v45' : 'v5';
   ui.settings.sendImageAsDataUrl.checked = Boolean(state.settings.sendImageAsDataUrl);
@@ -99,6 +100,7 @@ function applyLibrarySettingsToInputs() {
     enableFallbackModel: 'enableFallbackModel',
     preferNaiMetadata: 'preferNaiMetadata',
     allowDanbooruLookup: 'allowDanbooruLookup',
+    autoCompleteEndpoint: 'autoCompleteEndpoint',
     agentNai5Rules: 'agentNai5Rules',
     sendImageAsDataUrl: 'sendImageAsDataUrl',
     enableBooruTagContext: 'enableBooruTagContext',
@@ -149,6 +151,7 @@ function readLibrarySettingsFromInputs() {
     themePreset: ui.library.themePreset?.value || DEFAULT_SETTINGS.themePreset,
     preferNaiMetadata: Boolean(ui.library.preferNaiMetadata?.checked),
     allowDanbooruLookup: Boolean(ui.library.allowDanbooruLookup?.checked),
+    autoCompleteEndpoint: Boolean(ui.library.autoCompleteEndpoint?.checked),
     agentNai5Rules: Boolean(ui.library.agentNai5Rules?.checked),
     naiDialect: ui.library.naiDialect?.value === 'v45' ? 'v45' : 'v5',
     sendImageAsDataUrl: Boolean(ui.library.sendImageAsDataUrl?.checked),
@@ -192,6 +195,7 @@ function readSettingsFromInputs() {
     themePreset: ui.settings.themePreset.value || DEFAULT_SETTINGS.themePreset,
     preferNaiMetadata: Boolean(ui.settings.preferNaiMetadata.checked),
     allowDanbooruLookup: Boolean(ui.settings.allowDanbooruLookup.checked),
+    autoCompleteEndpoint: Boolean(ui.settings.autoCompleteEndpoint?.checked ?? DEFAULT_SETTINGS.autoCompleteEndpoint),
     agentNai5Rules: Boolean(ui.settings.agentNai5Rules?.checked ?? DEFAULT_SETTINGS.agentNai5Rules),
     naiDialect: ui.settings.naiDialect?.value === 'v45' ? 'v45' : 'v5',
     sendImageAsDataUrl: Boolean(ui.settings.sendImageAsDataUrl.checked),

@@ -81,6 +81,8 @@ function createUI() {
           <label class="nai-md3-label">${T.protocol}</label><select class="nai-md3-input" data-field="protocol"></select>
           <label class="nai-md3-label">API Endpoint</label><input class="nai-md3-input" data-field="endpoint" type="text" />
           <div class="nai-md3-config-warn nai-hidden" data-field="endpointWarn"></div>
+          <label class="nai-md3-switch"><input data-field="autoCompleteEndpoint" type="checkbox" /><span>${T.autoCompleteEndpoint}</span></label>
+          <div class="nai-md3-section-note">${T.autoCompleteEndpointHint}</div>
           <!-- 模型和 API Key 各占整行：并排两半时模型名（deepseek-reasoner 一类）
                被「获取模型」挤到只剩一截，看不出选的是哪个 -->
           <label class="nai-md3-label">${T.model}</label>
@@ -392,6 +394,11 @@ function createUI() {
                     <input data-field="libraryEndpoint" type="text" />
                   </label>
                   <div class="nai-md3-config-warn nai-hidden" data-field="libraryEndpointWarn"></div>
+                  <label class="nai-md3-check-inline">
+                    <input data-field="libraryAutoCompleteEndpoint" type="checkbox" />
+                    <span>${T.autoCompleteEndpoint}</span>
+                  </label>
+                  <div class="nai-library-note">${T.autoCompleteEndpointHint}</div>
                   <label class="nai-library-field">
                     <span>${T.model}</span>
                     <input data-field="libraryModel" list="nai-library-primary-model-list" type="text" />
@@ -625,6 +632,7 @@ function createUI() {
   ui.settings.fallbackSection = root.querySelector('[data-fallback-section]');
   ui.settings.preferNaiMetadata = root.querySelector('[data-field="preferNaiMetadata"]');
   ui.settings.allowDanbooruLookup = root.querySelector('[data-field="allowDanbooruLookup"]');
+  ui.settings.autoCompleteEndpoint = root.querySelector('[data-field="autoCompleteEndpoint"]');
   ui.settings.agentNai5Rules = root.querySelector('[data-field="agentNai5Rules"]');
   ui.settings.naiDialect = root.querySelector('[data-field="naiDialect"]');
   ui.settings.modelChips = root.querySelector('[data-field="modelChips"]');
@@ -664,6 +672,7 @@ function createUI() {
   ui.library.maxTokens = ui.library.drawer?.querySelector('[data-field="libraryMaxTokens"]');
   ui.library.preferNaiMetadata = ui.library.drawer?.querySelector('[data-field="libraryPreferNaiMetadata"]');
   ui.library.allowDanbooruLookup = ui.library.drawer?.querySelector('[data-field="libraryAllowDanbooruLookup"]');
+  ui.library.autoCompleteEndpoint = ui.library.drawer?.querySelector('[data-field="libraryAutoCompleteEndpoint"]');
   ui.library.agentNai5Rules = ui.library.drawer?.querySelector('[data-field="libraryAgentNai5Rules"]');
   ui.library.naiDialect = ui.library.drawer?.querySelector('[data-field="libraryNaiDialect"]');
   ui.library.modelChips = ui.library.drawer?.querySelector('[data-field="libraryModelChips"]');
@@ -700,8 +709,10 @@ function createUI() {
   [
     ui.settings.protocol, ui.settings.endpoint,
     ui.settings.fallbackProtocol, ui.settings.fallbackEndpoint,
+    ui.settings.autoCompleteEndpoint,
     ui.library.protocol, ui.library.endpoint,
     ui.library.fallbackProtocol, ui.library.fallbackEndpoint,
+    ui.library.autoCompleteEndpoint,
   ].filter(Boolean).forEach((field) => {
     field.addEventListener('change', updateEndpointWarnings);
     field.addEventListener('input', updateEndpointWarnings);

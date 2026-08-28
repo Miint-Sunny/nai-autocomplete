@@ -527,10 +527,13 @@ function syncLibraryProviderFields(kind) {
 // 由 scripts/test-build.mjs 守着。两个 bundle 互相够不到，只能各存一份：
 // 后台用它把错误提示说清楚，这里用它在**配置的时候**就拦下来 ——
 // 等发出去才报错，用户已经浪费了一次请求，而且看到的是服务端那句看不懂的 schema 错。
+// suffix 是「只给了 base URL 时该往后补什么」，取各家官方 SDK 的口径：
+// OpenAI 系的 base 自带 /v1（api.openai.com/v1）所以只补末段；Anthropic 的 base
+// 不带版本号（api.anthropic.com），由客户端补 /v1/messages。
 const PROTOCOL_ENDPOINT_SHAPES = {
-  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions' },
-  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses' },
-  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages' },
+  'openai-chat': { tail: /\/chat\/completions\/?$/, label: 'OpenAI Chat Completions', want: '/chat/completions', suffix: '/chat/completions' },
+  responses: { tail: /\/responses\/?$/, label: 'Responses API', want: '/responses', suffix: '/responses' },
+  'anthropic-messages': { tail: /\/messages\/?$/, label: 'Anthropic Messages API', want: '/messages', suffix: '/v1/messages' },
 };
 
 function detectProtocolEndpointMismatch(protocol, endpoint) {
@@ -563,23 +566,74 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
     + `两者必须配套：要么把协议改成「${looksLike[1].label}」，要么把 Endpoint 换成以 ${expected.want} 结尾的那条。`;
 }
 
-// 四处「协议 + Endpoint」：面板和抽屉 × 主模型和备用
+// 只给 base URL 就把路径补上 —— 各家 SDK 和酒馆都是这个口径，
+// 只有我们这儿以前要求填完整地址（issue #3 的报告人就卡在这里）。
+//
+// 补的前提是「这个路径不可能已经是某个协议的接口地址」：
+//   · 已经以本协议的路径结尾 → 原样用
+//   · 长着**另一种**协议的样子 → 那是配错了协议，补路径只会更乱，交给警告去说
+// 剩下的才当 base URL 处理。自建网关那种怪路径也会被补，所以留了开关。
+function completeEndpointPath(protocol, endpoint) {
+  const shape = PROTOCOL_ENDPOINT_SHAPES[protocol];
+  const raw = String(endpoint || '').trim();
+  if (!shape || !raw) return raw;
+
+  let url;
+  try {
+    url = new URL(raw);
+  } catch (error) {
+    return raw;
+  }
+
+  if (shape.tail.test(url.pathname)) return raw;
+  const looksLikeAnother = Object.entries(PROTOCOL_ENDPOINT_SHAPES)
+    .some(([id, other]) => id !== protocol && other.tail.test(url.pathname));
+  if (looksLikeAnother) return raw;
+
+  const base = url.pathname.replace(/\/+$/, '');
+  // base 自己带了版本段就别再补一个：/anthropic/v1 + /v1/messages 会变成 /v1/v1/messages
+  const suffix = /\/v\d+$/.test(base) && shape.suffix.startsWith('/v1/')
+    ? shape.suffix.slice(3)
+    : shape.suffix;
+
+  url.pathname = `${base}${suffix}`;
+  return url.toString();
+}
+
+// 开关关掉就一个字符都不动 —— 自建网关可能就认那个怪路径。
+function resolveEndpoint(protocol, endpoint, autoComplete) {
+  return autoComplete === false ? String(endpoint || '').trim() : completeEndpointPath(protocol, endpoint);
+}
+
+// 四处「协议 + Endpoint」：面板和抽屉 × 主模型和备用。
+// 补全开关是各自那一份表单上的（面板一个、工作台一个），所以跟着一起带出来。
 function endpointWarningTargets() {
   return [
-    { protocol: ui.settings.protocol, endpoint: ui.settings.endpoint, warn: ui.settings.endpointWarn },
-    { protocol: ui.settings.fallbackProtocol, endpoint: ui.settings.fallbackEndpoint, warn: ui.settings.fallbackEndpointWarn },
-    { protocol: ui.library.protocol, endpoint: ui.library.endpoint, warn: ui.library.endpointWarn },
-    { protocol: ui.library.fallbackProtocol, endpoint: ui.library.fallbackEndpoint, warn: ui.library.fallbackEndpointWarn },
+    { protocol: ui.settings.protocol, endpoint: ui.settings.endpoint, warn: ui.settings.endpointWarn, toggle: ui.settings.autoCompleteEndpoint },
+    { protocol: ui.settings.fallbackProtocol, endpoint: ui.settings.fallbackEndpoint, warn: ui.settings.fallbackEndpointWarn, toggle: ui.settings.autoCompleteEndpoint },
+    { protocol: ui.library.protocol, endpoint: ui.library.endpoint, warn: ui.library.endpointWarn, toggle: ui.library.autoCompleteEndpoint },
+    { protocol: ui.library.fallbackProtocol, endpoint: ui.library.fallbackEndpoint, warn: ui.library.fallbackEndpointWarn, toggle: ui.library.autoCompleteEndpoint },
   ];
 }
 
+// 这行既报错也报「会补成什么」：补全是背着用户改地址，不摆出来就成了黑箱。
 function updateEndpointWarnings() {
-  endpointWarningTargets().forEach(({ protocol, endpoint, warn }) => {
+  endpointWarningTargets().forEach(({ protocol, endpoint, warn, toggle }) => {
     if (!warn) return;
-    const message = protocol && endpoint
-      ? detectProtocolEndpointMismatch(protocol.value, endpoint.value.trim())
-      : '';
+    if (!protocol || !endpoint) {
+      warn.textContent = '';
+      warn.classList.add('nai-hidden');
+      return;
+    }
+
+    const raw = endpoint.value.trim();
+    const autoComplete = toggle ? toggle.checked : true;
+    const resolved = resolveEndpoint(protocol.value, raw, autoComplete);
+    const mismatch = detectProtocolEndpointMismatch(protocol.value, resolved);
+    const message = mismatch || (resolved && resolved !== raw ? `会自动补成：${resolved}` : '');
+
     warn.textContent = message;
+    warn.classList.toggle('is-hint', Boolean(message) && !mismatch);
     warn.classList.toggle('nai-hidden', !message);
   });
 }
@@ -592,7 +646,7 @@ function buildRequestConfig(target, messages, settings = state.settings) {
     providerId: target.providerPreset,
     label: preset?.label || '\u81ea\u5b9a\u4e49',
     protocol: target.protocol,
-    endpoint: String(target.endpoint || '').trim(),
+    endpoint: resolveEndpoint(target.protocol, target.endpoint, settings.autoCompleteEndpoint),
     apiKey: String(target.apiKey || '').trim(),
     model: String(target.model || '').trim(),
     temperature: Number(settings.temperature) || DEFAULT_SETTINGS.temperature,
