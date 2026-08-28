@@ -103,10 +103,19 @@ description: 什么时候该用这份 skill
 
 | 操作 | 说明 |
 |---|---|
-| 导入 .md | 可多选。带 frontmatter `name:` 的当正文，其余当参考资料 —— 不要求用户按顺序选 |
+| 导入 | 展开一个导入盒子：选 .md（可多选）或者直接粘一段进去，落在**同一个可编辑的文本域**里，看清楚解析出什么了再按「导入」 |
 | 编辑正文 | 内置 skill 是只读的，保存时自动另存为你自己的一份并切过去，内置那份始终留着兜底 |
 | 导出 | 把当前 skill 存成 .md（参考资料要单独保存） |
 | 删除 | 内置的删不掉 |
+
+导入盒子和「设置 → 提示词 → 导入酒馆预设」是**同一个组件**（[js/assistant/22-import-box.js](./js/assistant/22-import-box.js)），
+两处的结构、样式、交互一模一样，只有「接受什么格式」「怎么解析」两处不同。
+
+多选进来的文件在文本域里用 `<!-- nai-file: 名字 -->` 分隔：带 frontmatter `name:` 的那份当正文，
+其余当参考资料 —— 不要求用户按顺序选。**把分隔行删掉就是把两份并成一份**，这也是直接粘一整段时的形态。
+
+选文件优先走 File System Access（`showOpenFilePicker`），它认 `id`，
+所以**下次点开还在上次那个文件夹**；非安全上下文或者被页面权限策略挡住时回退到 `<input type="file">`。
 
 skill 存在 `chrome.storage.local['nai-agent-skills']`，当前选择存 `['nai-agent-active-skill']`。
 

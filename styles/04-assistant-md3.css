@@ -1535,10 +1535,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* 反推区是五个按钮，最后那个「送去改词」独占一行，比留一个空格干净 */
-.nai-md3-actions-reverse button:nth-child(5) {
-  grid-column: 1 / -1;
-}
+/* 反推区现在是六个按钮，两列正好三行满，不需要谁去独占一行。
+   曾经写死「第 5 个跨整行」，加了「打开图片」之后跨的就成了「包裹代码框」，
+   最后一个反而落单 —— 这类按序号写死的规则，加按钮时要跟着数一遍。 */
 
 .nai-md3-preview {
   width: 100%;

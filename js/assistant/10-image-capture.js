@@ -207,6 +207,61 @@ async function budgetInlineImage(dataUrl) {
   }
 }
 
+const IMAGE_PICKER_TYPES = [{
+  description: '图片',
+  accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.bmp'] },
+}];
+
+function readFileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
+    reader.readAsDataURL(file);
+  });
+}
+
+// 从文件夹打开本地图片。选择框走 pickLocalFiles，它认 pickerId ——
+// **下次点开就还在上次那个文件夹**，不用每次从头点一遍目录。
+//
+// 本地 NAI 原图走的还是那条零成本路径：读进来先过一次预算，
+// 顺手把 PNG 里的提示词元数据带出来，有的话根本不用调模型。
+async function openLocalImageFile() {
+  if (!ensureExtensionContext()) {
+    setStatus(T.statusContextInvalidated, true);
+    return;
+  }
+
+  const [file] = await pickLocalFiles({
+    pickerId: 'nai-reverse-image',
+    accept: 'image/*',
+    types: IMAGE_PICKER_TYPES,
+    multiple: false,
+    startIn: 'pictures',
+  });
+  if (!file) return;
+
+  setStatus('正在读取图片...', false);
+
+  try {
+    const dataUrl = await readFileDataUrl(file);
+    if (!dataUrl.startsWith('data:image/')) throw new Error('这不是图片文件');
+
+    const budgeted = await budgetInlineImage(dataUrl);
+    state.selectedImage = {
+      sourceUrl: file.name,
+      dataUrl: budgeted.dataUrl,
+      budget: describeImageBudget(budgeted),
+      naiMetadata: budgeted.naiMetadata || null,
+    };
+    updatePreview();
+    openPanel('reverse');
+    setStatus(T.statusImageLocked, false);
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), true);
+  }
+}
+
 async function useImageElement(image, autoReverse) {
   const resolved = resolveImageSource(image);
   const sourceUrl = resolved.sourceUrl;

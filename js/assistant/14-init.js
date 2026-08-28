@@ -81,6 +81,7 @@ async function init() {
   initFlowPage(ui.root);
   initAgentPanel(ui.root).catch(() => {});
 
+  bindImportBoxes(ui.root);
   bindStorageListener();
   bindMessageListener();
   document.addEventListener('click', onShortcutClick, true);

@@ -229,11 +229,13 @@ function renderPresetEditor(editor) {
     renderWorkbenchPresetBlocks();
     bindWorkbenchBlockDragListeners();
     updateWorkbenchRoleSectionVisibility();
-    return;
+  } else {
+    renderPresetBlocks();
+    bindBlockDragListeners();
+    updateRoleSectionVisibility();
   }
-  renderPresetBlocks();
-  bindBlockDragListeners();
-  updateRoleSectionVisibility();
+  // 重新渲染出来的消息块是新元素，得再量一次高，否则长正文会被 rows=3 截在半行上
+  requestAnimationFrame(() => autoResizeAllTextareas());
 }
 
 function appendActivePresetBlock(editor) {

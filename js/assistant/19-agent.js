@@ -33,11 +33,12 @@ function agentMarkup() {
       <div class="nai-agent-manager nai-hidden" data-agent-field="manager">
         <div class="nai-agent-skill-meta" data-agent-field="skillMeta"></div>
         <div class="nai-agent-manager-actions">
-          <button type="button" class="nai-md3-inline-action" data-agent-action="import">${T.agentImport}</button>
+          <button type="button" class="nai-md3-inline-action" data-import-open="skill">${T.agentImport}</button>
           <button type="button" class="nai-md3-inline-action" data-agent-action="edit">${T.agentEdit}</button>
           <button type="button" class="nai-md3-inline-action" data-agent-action="export">${T.agentExport}</button>
           <button type="button" class="nai-md3-inline-action" data-agent-action="delete">${T.agentDelete}</button>
         </div>
+        ${importBoxMarkup('skill')}
         <div class="nai-agent-editor nai-hidden" data-agent-field="editor">
           <textarea class="nai-md3-input nai-agent-editor-text" data-agent-field="editorText" rows="10" spellcheck="false"></textarea>
           <div class="nai-agent-manager-actions">
@@ -514,11 +515,6 @@ async function handleAgentAction(action, target, host) {
     return;
   }
 
-  if (action === 'import') {
-    ui.agent?.fileInput?.click();
-    return;
-  }
-
   if (action === 'export') {
     exportActiveAgentSkill();
     return;
@@ -590,13 +586,7 @@ async function runAgentCharacterFill(characters) {
 function bindAgentPanel(root) {
   ui.agent = {
     hosts: Array.from(root.querySelectorAll('.nai-agent')),
-    fileInput: root.querySelector('[data-field="agentSkillInput"]'),
   };
-
-  ui.agent.fileInput?.addEventListener('change', async (event) => {
-    await importAgentSkillFiles(event.target.files);
-    event.target.value = '';
-  });
 
   ui.agent.hosts.forEach((host) => {
     host.addEventListener('click', async (event) => {

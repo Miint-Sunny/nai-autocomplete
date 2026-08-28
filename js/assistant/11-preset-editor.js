@@ -48,23 +48,31 @@ function applyActivePresetName(editor) {
   return true;
 }
 
+// 消息块：控件收在头一行，正文整幅占第二行。
+// 原来是一整行横排（手柄 + 开关 + 角色 + 正文 + 删除），面板只有 380 宽，
+// 正文被挤成一条竖缝，一行只放得下两三个字 —— 那不是能编辑的东西。
+function presetBlockMarkup(block, idx) {
+  return `
+    <div class="nai-preset-block" data-block-id="${escapeHtml(block.id)}">
+      <div class="nai-preset-block-head">
+        <span class="nai-preset-block-handle" draggable="true" title="拖动排序">≡</span>
+        <input type="checkbox" class="nai-preset-block-enabled" ${block.enabled ? 'checked' : ''} />
+        <select class="nai-preset-block-role">
+          <option value="system" ${block.role === 'system' ? 'selected' : ''}>system</option>
+          <option value="user" ${block.role === 'user' ? 'selected' : ''}>user</option>
+          <option value="assistant" ${block.role === 'assistant' ? 'selected' : ''}>assistant</option>
+        </select>
+        <button type="button" class="nai-preset-block-delete" data-block-idx="${idx}" title="删除">×</button>
+      </div>
+      <textarea class="nai-md3-input nai-preset-block-content" rows="3">${escapeHtml(block.content)}</textarea>
+    </div>`;
+}
+
 function renderPresetBlocks() {
   const container = ui.settings.presetBlocksContainer;
   if (!container) return;
   const preset = getActivePreset();
-  container.innerHTML = preset.blocks.map((block, idx) => `
-    <div class="nai-preset-block" data-block-id="${escapeHtml(block.id)}">
-      <span class="nai-preset-block-handle" draggable="true" title="拖动排序">≡</span>
-      <input type="checkbox" class="nai-preset-block-enabled" ${block.enabled ? 'checked' : ''} />
-      <select class="nai-preset-block-role">
-        <option value="system" ${block.role === 'system' ? 'selected' : ''}>system</option>
-        <option value="user" ${block.role === 'user' ? 'selected' : ''}>user</option>
-        <option value="assistant" ${block.role === 'assistant' ? 'selected' : ''}>assistant</option>
-      </select>
-      <textarea class="nai-md3-input nai-preset-block-content" rows="3">${escapeHtml(block.content)}</textarea>
-      <button type="button" class="nai-preset-block-delete" data-block-idx="${idx}" title="删除">×</button>
-    </div>
-  `).join('');
+  container.innerHTML = preset.blocks.map(presetBlockMarkup).join('');
 }
 
 function readBlocksFromEditor() {
@@ -283,19 +291,7 @@ function renderWorkbenchPresetSelector() {
 function renderWorkbenchPresetBlocks() {
   if (!ui.wb?.blocksContainer) return;
   const preset = getActivePreset();
-  ui.wb.blocksContainer.innerHTML = preset.blocks.map((block, idx) => `
-    <div class="nai-preset-block" data-block-id="${escapeHtml(block.id)}">
-      <span class="nai-preset-block-handle" draggable="true" title="拖动排序">≡</span>
-      <input type="checkbox" class="nai-preset-block-enabled" ${block.enabled ? 'checked' : ''} />
-      <select class="nai-preset-block-role">
-        <option value="system" ${block.role === 'system' ? 'selected' : ''}>system</option>
-        <option value="user" ${block.role === 'user' ? 'selected' : ''}>user</option>
-        <option value="assistant" ${block.role === 'assistant' ? 'selected' : ''}>assistant</option>
-      </select>
-      <textarea class="nai-md3-input nai-preset-block-content" rows="3">${escapeHtml(block.content)}</textarea>
-      <button type="button" class="nai-preset-block-delete" data-block-idx="${idx}" title="删除">×</button>
-    </div>
-  `).join('');
+  ui.wb.blocksContainer.innerHTML = preset.blocks.map(presetBlockMarkup).join('');
   if (ui.wb.rolePrompt) ui.wb.rolePrompt.value = state.settings.rolePrompt || '';
 }
 

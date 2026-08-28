@@ -430,7 +430,12 @@ function bindLocationModeWatcher() {
 
 function autoResizeTextarea(textarea) {
   if (!(textarea instanceof HTMLTextAreaElement)) return;
-  const maxHeight = textarea.classList.contains('nai-md3-result') ? 420 : 440;
+  // 导入盒子的文本域是个中转站，不该把下面的「导入」按钮顶出屏幕 —— 单独给它一档矮的。
+  // 这里必须和 CSS 分开管：CSS 的 max-height 会把高度夹住，但这个函数算 overflow-y
+  // 用的还是原来的上限，夹住之后就变成 hidden + 内容够不着。
+  const maxHeight = textarea.classList.contains('nai-md3-result') ? 420
+    : textarea.classList.contains('nai-import-box-text') ? 200
+    : 440;
   textarea.style.height = 'auto';
   const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
   textarea.style.height = `${Math.max(nextHeight, 72)}px`;
@@ -442,12 +447,14 @@ function autoResizeAllTextareas() {
   ui.root.querySelectorAll('textarea').forEach((textarea) => autoResizeTextarea(textarea));
 }
 
+// 用委托而不是逐个绑：消息块、导入盒子、对话流都是渲染出来的，
+// 逐个绑只能照顾到 init 那一刻就在的那批，后来长出来的永远不会跟着内容长高。
 function bindTextareaAutosize() {
   if (!ui.root) return;
-  ui.root.querySelectorAll('textarea').forEach((textarea) => {
-    textarea.addEventListener('input', () => autoResizeTextarea(textarea));
-    autoResizeTextarea(textarea);
+  ui.root.addEventListener('input', (event) => {
+    if (event.target instanceof HTMLTextAreaElement) autoResizeTextarea(event.target);
   });
+  autoResizeAllTextareas();
 }
 
 function getConnectionFields(uiGroup, kind) {

@@ -89,15 +89,46 @@ function readFileText(file) {
   });
 }
 
-// 用户手上的 skill 通常是一个目录：主文件 + references/。这里接受多选文件，
-// 带 frontmatter 的当正文，其余当参考资料 —— 不用要求用户按什么顺序选。
-async function buildSkillFromFiles(files) {
-  const parsed = [];
-  for (const file of files) {
-    const text = await readFileText(file);
-    if (!text.trim()) continue;
-    parsed.push({ name: file.name, text, ...parseSkillFrontmatter(text) });
-  }
+// 多份文件被拼进同一个文本域时，各份之间插这行。用 HTML 注释是因为它在
+// markdown 里是隐形的 —— 用户把整段拷去别处也不碍事，删掉它就等于把两份并成一份。
+const AGENT_SKILL_FILE_MARK = /^<!--\s*nai-file:\s*(.*?)\s*-->\s*$/;
+
+function joinSkillFileTexts(items) {
+  return items
+    .map((item, index) => (index === 0
+      ? String(item.text || '').trim()
+      : `<!-- nai-file: ${item.name} -->\n${String(item.text || '').trim()}`))
+    .filter((section) => section)
+    .join('\n\n');
+}
+
+function splitSkillFileTexts(text) {
+  const sections = [];
+  let current = { name: '', lines: [] };
+
+  String(text || '').replace(/\r\n/g, '\n').split('\n').forEach((line) => {
+    const match = line.match(AGENT_SKILL_FILE_MARK);
+    if (!match) {
+      current.lines.push(line);
+      return;
+    }
+    sections.push(current);
+    current = { name: match[1] || 'reference', lines: [] };
+  });
+  sections.push(current);
+
+  return sections
+    .map((section) => ({ name: section.name, text: section.lines.join('\n').trim() }))
+    .filter((section) => section.text);
+}
+
+// 用户手上的 skill 通常是一个目录：主文件 + references/。多选也好、粘一整段也好，
+// 到这儿都是若干份文本：带 frontmatter name 的当正文，其余当参考资料 ——
+// 不要求用户按什么顺序选。
+function buildSkillFromTexts(items) {
+  const parsed = items
+    .filter((item) => String(item?.text || '').trim())
+    .map((item) => ({ name: item.name || '', text: item.text, ...parseSkillFrontmatter(item.text) }));
 
   if (!parsed.length) throw new Error('没有读到内容');
 
@@ -105,34 +136,48 @@ async function buildSkillFromFiles(files) {
   const main = parsed[mainIndex >= 0 ? mainIndex : 0];
   const references = parsed.filter((item) => item !== main);
 
+  const fallbackName = String(main.name || '').replace(/\.(md|markdown|txt)$/i, '').trim();
   return normalizeAgentSkill({
-    name: main.meta.name || main.name.replace(/\.md$/i, ''),
+    name: main.meta.name || fallbackName || '未命名 skill',
     description: main.meta.description || '',
     body: main.body,
-    references: references.map((item) => ({ name: item.name, content: item.text })),
+    references: references.map((item) => ({ name: item.name || 'reference', content: item.text })),
   });
 }
 
-async function importAgentSkillFiles(fileList) {
-  const files = Array.from(fileList || []).filter((file) => file && file.size);
-  if (!files.length) return;
+// ── 导入盒子用的两个钩子 ────────────────────────────────────────
+
+function describeAgentSkillImport(text) {
+  if (!String(text || '').trim()) return { ok: false, summary: '' };
 
   try {
-    const skill = await buildSkillFromFiles(files);
+    const skill = buildSkillFromTexts(splitSkillFileTexts(text));
     if (!skill) throw new Error('skill 正文是空的');
 
-    const existing = state.agent.skills.findIndex((item) => item.name === skill.name);
-    if (existing >= 0) state.agent.skills[existing] = skill;
-    else state.agent.skills.push(skill);
-
-    state.agent.activeSkillId = skill.id;
-    state.agent.editing = null;
-    await saveAgentSkills();
-    renderAgentPanel();
-    setStatus(`已装载 skill：${skill.name}${skill.references.length ? `（含 ${skill.references.length} 份参考资料）` : ''}。`, false);
+    const parts = [`「${skill.name}」 · 正文 ${skill.body.length} 字`];
+    if (skill.description) parts.push(`描述：${skill.description.slice(0, 40)}${skill.description.length > 40 ? '…' : ''}`);
+    if (skill.references.length) parts.push(`${skill.references.length} 份参考资料`);
+    const existing = state.agent.skills.some((item) => item.name === skill.name);
+    if (existing) parts.push('同名的会被覆盖');
+    return { ok: true, summary: parts.join(' · ') };
   } catch (error) {
-    setStatus(`导入 skill 失败：${error instanceof Error ? error.message : String(error)}`, true);
+    return { ok: false, summary: error instanceof Error ? error.message : String(error) };
   }
+}
+
+async function commitAgentSkillImport(text) {
+  const skill = buildSkillFromTexts(splitSkillFileTexts(text));
+  if (!skill) throw new Error('skill 正文是空的');
+
+  const existing = state.agent.skills.findIndex((item) => item.name === skill.name);
+  if (existing >= 0) state.agent.skills[existing] = skill;
+  else state.agent.skills.push(skill);
+
+  state.agent.activeSkillId = skill.id;
+  state.agent.editing = null;
+  await saveAgentSkills();
+  renderAgentPanel();
+  return `已装载 skill：${skill.name}${skill.references.length ? `（含 ${skill.references.length} 份参考资料）` : ''}。`;
 }
 
 // 内置 skill 不能就地改 —— 改了就没有兜底了。第一次编辑自动复制成一份用户 skill。

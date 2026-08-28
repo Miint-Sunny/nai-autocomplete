@@ -25,10 +25,10 @@
 
 .nai-preset-block {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--nai-md3-radius-sm);
   background: var(--md-sys-color-surface-container);
   border: 1px solid var(--md-sys-color-outline-variant);
   transition: box-shadow 0.15s, opacity 0.15s;
@@ -42,12 +42,20 @@
   box-shadow: 0 -2px 0 0 var(--md-sys-color-primary) inset;
 }
 
+/* 控件收在头一行，正文整幅落在第二行 —— 面板只有 380 宽，
+   横排会把正文挤成一条竖缝。 */
+.nai-preset-block-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .nai-preset-block-handle {
   cursor: grab;
   user-select: none;
   font-size: 16px;
   line-height: 32px;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--nai-md3-ink-muted);
   padding: 0 2px;
   touch-action: none;
 }
@@ -67,7 +75,6 @@
   border: 2px solid var(--nai-md3-header-border);
   background: var(--nai-md3-switch-track);
   cursor: pointer;
-  margin-top: 6px;
   transition: background-color 160ms ease, border-color 160ms ease;
 }
 
@@ -102,12 +109,11 @@
   background: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
   font-size: 12px;
-  margin-top: 4px;
 }
 
 .nai-preset-block-content {
-  flex: 1;
-  min-height: 48px;
+  width: 100%;
+  min-height: 72px;
   resize: vertical;
   font-size: 13px;
   user-select: text;
@@ -122,9 +128,14 @@
   cursor: pointer;
   color: var(--md-sys-color-error);
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--nai-md3-radius-2xs);
   line-height: 1;
-  margin-top: 2px;
+}
+
+/* 删除钮靠右收尾。必须写成 (0,2,0)：`.nai-md3-root button { margin: 0 }` 是 (0,1,1)，
+   单类选择器压不住它（STYLE.md 6.3）。 */
+.nai-preset-block-head .nai-preset-block-delete {
+  margin-left: auto;
 }
 
 .nai-preset-block-delete:hover {
@@ -228,10 +239,55 @@
   background: var(--md-sys-color-on-primary);
 }
 
-.nai-st-import-hint {
-  margin-top: -2px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--md-sys-color-on-surface-variant);
+/* 导入盒子：预设和 skill 共用。配方照抄写词的 .nai-agent-manager ——
+   两处导入长一个样，本来就是同一件事。 */
+.nai-import-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--nai-md3-section-border);
+  border-radius: var(--nai-md3-radius-md);
+  background: var(--nai-md3-section-bg);
+}
+
+.nai-import-box-hint,
+.nai-import-box-source,
+.nai-import-box-status {
+  color: var(--nai-md3-ink-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* 主动作那行套 .nai-md3-actions 拿主按钮配方（和写词的「发送」同一条路），
+   这里只把它从两列网格改回一行，并去掉它自带的上边距。 */
+.nai-import-box-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.nai-import-box-source {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nai-import-box-text {
+  min-height: 110px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+/* 解析结果就地告诉用户会得到什么，不用先导进去再看 */
+.nai-import-box-status.is-ok {
+  color: var(--md-sys-color-on-surface);
+}
+
+.nai-import-box-status.is-error {
+  color: var(--md-sys-color-error);
 }
 

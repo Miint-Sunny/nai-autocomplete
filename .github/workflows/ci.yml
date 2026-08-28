@@ -49,6 +49,9 @@ jobs:
       - name: Test prompt overlay offsets
         run: node scripts/test-content.mjs
 
+      - name: Test import pipeline
+        run: node scripts/test-import.mjs
+
       - name: Test build integrity
         run: node scripts/test-build.mjs
 
