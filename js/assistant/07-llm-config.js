@@ -546,6 +546,13 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
 
   if (expected.tail.test(pathname)) return '';
 
+  // 只填了域名。常见于「把 base URL 当接口地址粘进来」，或者换协议时删掉了旧路径
+  // 却忘了补新的。这条不会误伤自建网关 —— 光秃秃一个域名对三种协议都不是合法地址。
+  if (!pathname || pathname === '/') {
+    return `Endpoint 只填了域名，没有路径 —— 这里要的是完整的接口地址，不是 base URL。`
+      + `「${expected.label}」的地址以 ${expected.want} 结尾。`;
+  }
+
   // 只在地址明显长着**另一种**协议的样子时才说话。自建网关的路径千奇百怪，
   // 认不出来就闭嘴，别对着正常配置乱报。
   const looksLike = Object.entries(PROTOCOL_ENDPOINT_SHAPES)
@@ -577,17 +584,19 @@ function updateEndpointWarnings() {
   });
 }
 
-function buildRequestConfig(target, messages) {
+// settings 默认就是已保存的那份；「测试连接」会把表单里的草稿传进来 ——
+// 它测的必须是用户眼前看到的配置，否则就是拿另一份配置给出一句「通过」。
+function buildRequestConfig(target, messages, settings = state.settings) {
   const preset = getProviderPresetById(target.providerPreset);
   return {
     providerId: target.providerPreset,
     label: preset?.label || '\u81ea\u5b9a\u4e49',
     protocol: target.protocol,
-    endpoint: target.endpoint.trim(),
-    apiKey: target.apiKey.trim(),
-    model: target.model.trim(),
-    temperature: Number(state.settings.temperature) || DEFAULT_SETTINGS.temperature,
-    maxTokens: Number(state.settings.maxTokens) || DEFAULT_SETTINGS.maxTokens,
+    endpoint: String(target.endpoint || '').trim(),
+    apiKey: String(target.apiKey || '').trim(),
+    model: String(target.model || '').trim(),
+    temperature: Number(settings.temperature) || DEFAULT_SETTINGS.temperature,
+    maxTokens: Number(settings.maxTokens) || DEFAULT_SETTINGS.maxTokens,
     reasoningEffort: target.reasoningEffort || 'off',
     messages,
   };
@@ -597,26 +606,26 @@ function hasCompleteModelConfig(config) {
   return Boolean(config?.endpoint && config?.model && config?.apiKey);
 }
 
-function buildPrimaryConfig(messages) {
+function buildPrimaryConfig(messages, settings = state.settings) {
   return buildRequestConfig({
-    providerPreset: state.settings.providerPreset,
-    protocol: state.settings.protocol,
-    endpoint: state.settings.endpoint,
-    apiKey: state.settings.apiKey,
-    model: state.settings.model,
-    reasoningEffort: state.settings.reasoningEffort,
-  }, messages);
+    providerPreset: settings.providerPreset,
+    protocol: settings.protocol,
+    endpoint: settings.endpoint,
+    apiKey: settings.apiKey,
+    model: settings.model,
+    reasoningEffort: settings.reasoningEffort,
+  }, messages, settings);
 }
 
-function buildFallbackConfig(messages) {
-  if (!state.settings.enableFallbackModel) return null;
+function buildFallbackConfig(messages, settings = state.settings) {
+  if (!settings.enableFallbackModel) return null;
   return buildRequestConfig({
-    providerPreset: state.settings.fallbackProviderPreset,
-    protocol: state.settings.fallbackProtocol,
-    endpoint: state.settings.fallbackEndpoint,
-    apiKey: state.settings.fallbackApiKey,
-    model: state.settings.fallbackModel,
-    reasoningEffort: state.settings.fallbackReasoningEffort,
-  }, messages);
+    providerPreset: settings.fallbackProviderPreset,
+    protocol: settings.fallbackProtocol,
+    endpoint: settings.fallbackEndpoint,
+    apiKey: settings.fallbackApiKey,
+    model: settings.fallbackModel,
+    reasoningEffort: settings.fallbackReasoningEffort,
+  }, messages, settings);
 }
 

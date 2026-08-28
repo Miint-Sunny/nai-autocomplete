@@ -831,7 +831,7 @@ function createUI() {
     } else if (action === 'pick-model') applyModelChip(actionTarget);
     else if (action === 'fetch-models') await fetchModelsFor('primary');
     else if (action === 'fetch-fallback-models') await fetchModelsFor('fallback');
-    else if (action === 'test-connection') await testConnection();
+    else if (action === 'test-connection') await testConnection(readSettingsFromInputs());
     else if (action === 'wrap-code') await wrapCurrentResult();
     else if (action === 'apply-role-library') applyPromptLibraryToRolePrompt();
     else if (action === 'workbench-toggle-sidebar') toggleWorkbenchSidebar();

@@ -182,6 +182,18 @@ test('配套的组合一个字都不说', () => {
   assert.equal(detect('responses', 'https://api.x.ai/v1/responses'), '');
 });
 
+// issue #3：用户把协议换成 Anthropic，顺手删掉了 /chat/completions，
+// 剩一个光秃秃的域名。这对三种协议都不是合法地址，得直说。
+test('只填了域名要直说，别等发出去才报', () => {
+  const box = newSandbox();
+  const detect = box.get('detectProtocolEndpointMismatch');
+
+  const message = detect('anthropic-messages', 'https://api.deepseek.com');
+  assert.match(message, /只填了域名/);
+  assert.match(message, /\/messages/);
+  assert.match(detect('openai-chat', 'https://api.deepseek.com/'), /\/chat\/completions/);
+});
+
 // 自建网关和中转站的路径千奇百怪，认不出来就闭嘴 —— 宁可不提示，也不能对着正常配置乱报
 test('认不出来的路径不乱报', () => {
   const box = newSandbox();

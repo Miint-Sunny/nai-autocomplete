@@ -20,26 +20,30 @@ async function runConnectionCheck(config) {
   return response;
 }
 
-async function testConnection() {
+// draft 是当前表单里的那份配置（还没保存）。「测试连接」必须测它 ——
+// 以前这里直接读 state.settings，也就是**上次保存的那份**：表单里改了协议、
+// 换了 Endpoint，测的却是旧配置，还回一句「连接测试通过」（issue #3）。
+async function testConnection(draft) {
   if (state.pending) return;
 
+  const settings = draft ? { ...DEFAULT_SETTINGS, ...draft } : state.settings;
   const testMessages = buildTestMessages();
-  const primaryConfig = buildPrimaryConfig(testMessages);
+  const primaryConfig = buildPrimaryConfig(testMessages, settings);
   if (!hasCompleteModelConfig(primaryConfig)) {
     setStatus('\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u4e3b\u6a21\u578b\u7684\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002', true);
     openSettingsSurface();
     return;
   }
 
-  const fallbackConfig = buildFallbackConfig(testMessages);
-  if (state.settings.enableFallbackModel && !hasCompleteModelConfig(fallbackConfig)) {
+  const fallbackConfig = buildFallbackConfig(testMessages, settings);
+  if (settings.enableFallbackModel && !hasCompleteModelConfig(fallbackConfig)) {
     setStatus(T.statusNeedFallbackConfig, true);
     openSettingsSurface();
     return;
   }
 
   const checks = [{ name: '\u4e3b\u6a21\u578b', config: primaryConfig }];
-  if (state.settings.enableFallbackModel && fallbackConfig) {
+  if (settings.enableFallbackModel && fallbackConfig) {
     checks.push({ name: '\u5907\u7528\u6a21\u578b', config: fallbackConfig });
   }
 
@@ -238,17 +242,11 @@ async function fetchLibraryModelsFor(kind) {
   }
 }
 
+// 以前这里是「临时把 state.settings 换成表单内容 → 测 → 还原」，而还原那步会
+// 用已保存的值把工作台表单整个重写一遍 —— 用户刚选的协议、刚改的 Endpoint 当场
+// 跳回去，看起来就像扩展自己改了配置（issue #3）。现在表单直接传进去，不碰全局。
 async function testLibraryConnection() {
-  const previousSettings = state.settings;
-  state.settings = { ...DEFAULT_SETTINGS, ...readLibrarySettingsFromInputs() };
-  applySettingsToInputs();
-  try {
-    await testConnection();
-  } finally {
-    state.settings = previousSettings;
-    applySettingsToInputs();
-    applyLibrarySettingsToInputs();
-  }
+  await testConnection(readLibrarySettingsFromInputs());
 }
 
 function getPromptConfig() {

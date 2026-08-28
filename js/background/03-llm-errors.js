@@ -78,6 +78,13 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
 
   if (expected.tail.test(pathname)) return '';
 
+  // 只填了域名。常见于「把 base URL 当接口地址粘进来」，或者换协议时删掉了旧路径
+  // 却忘了补新的。这条不会误伤自建网关 —— 光秃秃一个域名对三种协议都不是合法地址。
+  if (!pathname || pathname === '/') {
+    return `Endpoint 只填了域名，没有路径 —— 这里要的是完整的接口地址，不是 base URL。`
+      + `「${expected.label}」的地址以 ${expected.want} 结尾。`;
+  }
+
   // 只在地址明显长着**另一种**协议的样子时才说话。自建网关的路径千奇百怪，
   // 认不出来就闭嘴，别对着正常配置乱报。
   const looksLike = Object.entries(PROTOCOL_ENDPOINT_SHAPES)
