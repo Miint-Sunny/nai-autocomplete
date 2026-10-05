@@ -77,7 +77,7 @@ function mobileViewerApp() {
     const value = halfStars(artist.rating);
     return [1, 2, 3, 4, 5].map(n => `<span class="star${value >= n ? ' is-full' : value >= n - 0.5 ? ' is-half' : ''}">★</span>`).join('');
   }
-  // 每一档都含半星：「4」= 4～4.5 星，「1」= 0.5～1.5 星；「4+」= 4 星及以上；「0」= 未评分
+  // 每一档都含半星：「4」= 4～4.5 星（8～9 分），「1」= 0.5～1.5 星（1～3 分）；「4+」= 4 星及以上；「0」= 未评分
   function matchesRating(value, wanted) {
     if (wanted.endsWith('+')) return value >= Number(wanted.slice(0, -1));
     const level = Number(wanted);
@@ -196,7 +196,7 @@ function mobileViewerApp() {
       const comment = entry.comment ? `<div class="record-text"><span>备注 / 原帖标签</span><p>${escapeHtml(entry.comment)}</p></div>` : '';
       const postId = Number(entry.sourcePostId);
       const source = Number.isSafeInteger(postId) && postId > 0 ? `<a class="source-link" href="https://danbooru.donmai.us/posts/${postId}" target="_blank" rel="noreferrer">打开 D 站原帖 ↗</a>` : '';
-      return `<section class="record"><div class="record-heading"><strong>作品 ${index + 1}</strong><span>${halfStars(entry.score) ? `相似度 ${halfStars(entry.score)} / 5` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
+      return `<section class="record"><div class="record-heading"><strong>作品 ${index + 1}</strong><span>${halfStars(entry.score) ? `相似度 ${halfStars(entry.score) * 2}/10` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
     }).join('');
     detail.innerHTML = `<div class="detail-sheet"><header class="detail-top"><button data-action="close-detail" aria-label="返回">‹ 返回</button><span>画师详情</span></header><section class="profile"><h2>${escapeHtml(artist.name || artist.tag || '未命名画师')}</h2><div class="profile-stars">${stars(artist)}</div><div class="artist-chips">${chips || '<span class="muted">未分类</span>'}</div><div class="tag-box"><code>${escapeHtml(artist.tag || '未填写 NAI tag')}</code>${artist.tag ? `<button data-action="copy-text" data-copy="${escapeHtml(artist.tag)}">复制 tag</button>` : ''}</div>${artist.notes ? `<div class="artist-notes">${escapeHtml(artist.notes)}</div>` : ''}</section><div class="records-title">作品记录 · ${Array.isArray(artist.entries) ? artist.entries.length : 0}</div>${entries || '<div class="empty">这位画师还没有作品记录。</div>'}</div>`;
     detail.classList.add('show');
@@ -434,7 +434,7 @@ button,select,input{font:inherit}button{cursor:pointer}
   <div class="filter-labels" id="mobileLabels"></div>
   <div class="select-row">
     <select id="mobileMatch"><option value="any">任一分类标签</option><option value="all">全部分类标签</option></select>
-    <select id="mobileRating"><option value="">全部星级</option><option value="5">5 星</option><option value="4">4～4.5 星</option><option value="3">3～3.5 星</option><option value="2">2～2.5 星</option><option value="1">0.5～1.5 星</option><option value="4+">4 星及以上</option><option value="3+">3 星及以上</option><option value="0">未评分</option></select>
+    <select id="mobileRating"><option value="">全部评分</option><option value="5">10 分</option><option value="4">8～9 分</option><option value="3">6～7 分</option><option value="2">4～5 分</option><option value="1">1～3 分</option><option value="4+">8 分及以上</option><option value="3+">6 分及以上</option><option value="0">未评分</option></select>
   </div>
   <div class="summary-row"><span id="mobileSummary"></span><button class="clear-button" data-action="clear-filters">清除筛选</button></div>
 </section>

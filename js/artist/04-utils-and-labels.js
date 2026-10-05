@@ -102,19 +102,24 @@ function normalizeRating(value) {
 
 const SCORE_WORDS = ['未评分', '不像', '不太像', '一般', '挺像', '非常像'];
 
-// 半星没有单独的词，写成相邻两档之间：4.5 星 = 「挺像～非常像」
+// 界面上的文字按 10 分制写，半颗星 = 1 分（4.5 星写「9/10」）；星星和存的数都不变。
+// 半星没有单独的词，写成相邻两档之间：9/10 =「挺像～非常像」
+function ratingPoints(value) {
+  return Math.round(normalizeRating(value) * 2);
+}
+
 function scoreLabel(value) {
   const score = normalizeRating(value);
   if (!score) return SCORE_WORDS[0];
   const word = score < 1 ? '完全不像'
     : Number.isInteger(score) ? SCORE_WORDS[score]
       : `${SCORE_WORDS[Math.floor(score)]}～${SCORE_WORDS[Math.ceil(score)]}`;
-  return `${score} 星 · ${word}`;
+  return `${ratingPoints(score)}/10 · ${word}`;
 }
 
 function artistRatingLabel(value) {
-  const rating = normalizeRating(value);
-  return rating ? `${rating} 星` : '未评分';
+  const points = ratingPoints(value);
+  return points ? `${points}/10` : '未评分';
 }
 
 // 相似度标签的配色档：4 星起绿、3 星起黄、再往下红
@@ -125,7 +130,7 @@ function scoreTone(value) {
   return score >= 3 ? 'mid' : 'low';
 }
 
-// 星级筛选每一档都把半星收进来：「4」= 4～4.5 星，「1」= 0.5～1.5 星；
+// 星级筛选每一档都把半星收进来：「4」= 4～4.5 星（8～9 分），「1」= 0.5～1.5 星（1～3 分）；
 // 「4+」= 4 星及以上；「0」只要未评分。手机版 mobileViewerApp 里有一份同口径的。
 function ratingMatchesFilter(value, filter) {
   if (!filter) return true;
@@ -147,15 +152,16 @@ function starMeterHtml(value) {
   return `<span class="star-meter" role="img" aria-label="${artistRatingLabel(value)}">${starIconsHtml(value)}</span>`;
 }
 
-// 可点星级：悬停预览、点左半颗是半星、再点一次当前分数清除、方向键每次半星。
+// 可点星级：悬停预览、点左半颗是半星、再点一次当前分数清除、方向键每次半星（1 分）。
 // 点击走 09 里的 data-action，悬停和键盘也在 09 统一绑定；kind 决定旁边那行字怎么写。
+// data-value 是存的星数（0–5），读屏用的 aria-value* 和界面文字一样按 10 分制报。
 function starRatingHtml(value, { action, id = '', label, kind = 'artist' }) {
   const rating = normalizeRating(value);
   const text = kind === 'entry' ? scoreLabel(rating) : artistRatingLabel(rating);
-  return `<span class="star-rating" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${rating}" aria-valuetext="${esc(text)}" title="点左半颗是半星，再点一次当前分数可清除；也可以用方向键调整" data-action="${action}" data-id="${esc(String(id))}" data-kind="${kind}" data-value="${rating}">${starIconsHtml(rating)}</span>`;
+  return `<span class="star-rating" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${ratingPoints(rating)}" aria-valuetext="${esc(text)}" title="半颗星 1 分：点星星左半边是单数分，再点一次当前分数可清除；方向键每次 ±1 分" data-action="${action}" data-id="${esc(String(id))}" data-kind="${kind}" data-value="${rating}">${starIconsHtml(rating)}</span>`;
 }
 
-// 星级加旁边那行字（画师总评 = 「4.5 星」，相似度 = 带配色的「4.5 星 · 挺像～非常像」）
+// 星级加旁边那行字（画师总评 =「9/10」，相似度 = 带配色的「9/10 · 挺像～非常像」）
 function ratingFieldHtml(value, options) {
   const text = options.kind === 'entry'
     ? `<span class="score-badge score-${scoreTone(value)}" data-rating-text>${scoreLabel(value)}</span>`

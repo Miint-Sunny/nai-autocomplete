@@ -39,7 +39,7 @@ function paintStarRating(widget, value, preview = false) {
   }
   if (preview) return;
   widget.dataset.value = String(rating);
-  widget.setAttribute('aria-valuenow', String(rating));
+  widget.setAttribute('aria-valuenow', String(ratingPoints(rating)));
   widget.setAttribute('aria-valuetext', text);
 }
 

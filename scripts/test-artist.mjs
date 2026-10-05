@@ -96,15 +96,17 @@ test('分值只认 0–5 的半星，其余就近归位', () => {
   for (const [input, expected] of cases) assert.equal(normalizeRating(input), expected, `normalizeRating(${input})`);
 });
 
-test('相似度文字：整数沿用原来的词，半星写成相邻两档之间', () => {
+test('相似度文字按 10 分制写（半颗星 1 分），半星的词写成相邻两档之间', () => {
   const scoreLabel = box.get('scoreLabel');
   assert.equal(scoreLabel(0), '未评分');
-  assert.equal(scoreLabel(0.5), '0.5 星 · 完全不像');
-  assert.equal(scoreLabel(1), '1 星 · 不像');
-  assert.equal(scoreLabel(3), '3 星 · 一般');
-  assert.equal(scoreLabel('2.5'), '2.5 星 · 不太像～一般');
-  assert.equal(scoreLabel(4.5), '4.5 星 · 挺像～非常像');
-  assert.equal(scoreLabel(5), '5 星 · 非常像');
+  assert.equal(scoreLabel(0.5), '1/10 · 完全不像');
+  assert.equal(scoreLabel(1), '2/10 · 不像');
+  assert.equal(scoreLabel(3), '6/10 · 一般');
+  assert.equal(scoreLabel('2.5'), '5/10 · 不太像～一般');
+  assert.equal(scoreLabel(4.5), '9/10 · 挺像～非常像');
+  assert.equal(scoreLabel(5), '10/10 · 非常像');
+  assert.equal(box.get('artistRatingLabel')(4.5), '9/10');
+  assert.equal(box.get('artistRatingLabel')(0), '未评分');
 });
 
 test('相似度配色档：4 星起绿、3 星起黄、再低红', () => {
@@ -254,9 +256,9 @@ test('卡片上直接给「未评分」的自动抓取记录打 3.5 星，马上
 
   assert.equal(savedEntry(local, 'e-grab').score, 3.5);
   assert.equal(widget.dataset.value, '3.5');
-  assert.equal(widget.getAttribute('aria-valuenow'), '3.5');
+  assert.equal(widget.getAttribute('aria-valuenow'), '7', '读屏的数值也按 10 分制报');
   deepEqual(starShape(stars), ['full', 'full', 'full', 'half', 'empty']);
-  assert.equal(label.textContent, '3.5 星 · 一般～挺像');
+  assert.equal(label.textContent, '7/10 · 一般～挺像');
   assert.equal(label.className, 'score-badge score-mid');
 });
 
@@ -302,8 +304,8 @@ test('画师总评支持半星，侧栏列表跟着刷新', () => {
   const { stars, label } = makeStarWidget(local, { action: 'setRating', value: 4 });
   clickStar(local, stars, 5, 'left');
   assert.equal(local.saved().artists[0].rating, 4.5);
-  assert.equal(label.textContent, '4.5 星');
-  assert.ok(local.document.getElementById('artistList').innerHTML.includes('aria-label="4.5 星"'), '侧栏没刷新成 4.5 星');
+  assert.equal(label.textContent, '9/10');
+  assert.ok(local.document.getElementById('artistList').innerHTML.includes('aria-label="9/10"'), '侧栏没刷新成 9/10');
 });
 
 test('悬停只是预览：离开后恢复成已保存的分数', () => {
@@ -311,12 +313,12 @@ test('悬停只是预览：离开后恢复成已保存的分数', () => {
   const { widget, stars, label } = makeStarWidget(local, { action: 'rateEntry', id: 'e-manual', kind: 'entry', value: 5 });
   local.dispatch('pointermove', pointer(stars, 2, 'left'));
   deepEqual(starShape(stars), ['full', 'half', 'empty', 'empty', 'empty']);
-  assert.equal(label.textContent, '1.5 星 · 不像～不太像');
+  assert.equal(label.textContent, '3/10 · 不像～不太像');
   assert.equal(widget.dataset.value, '5', '预览改掉了已保存的分数');
 
   local.dispatch('pointerout', { target: stars[1], relatedTarget: fakeElement() });
   deepEqual(starShape(stars), ['full', 'full', 'full', 'full', 'full']);
-  assert.equal(label.textContent, '5 星 · 非常像');
+  assert.equal(label.textContent, '10/10 · 非常像');
   assert.equal(entryOf(local, 'e-manual').score, 5);
   assert.equal(local.saved(), null, '悬停不该落盘');
 });
@@ -365,15 +367,22 @@ function runMobileExport(library) {
   const dom = createFakeDom();
   dom.document.getElementById('nai-mobile-data').textContent = json;
   vm.runInContext(app, vm.createContext({ document: dom.document, navigator: {}, setTimeout: () => 0, console, JSON, Math, Number, String, Array, Object, Set, Date }));
-  return dom.document;
+  return dom;
 }
 
-test('手机版：半星画成半颗，筛选每一档含半星', () => {
-  const doc = runMobileExport({
+test('手机版：半星画成半颗，筛选每一档含半星，相似度写成 x/10', () => {
+  const dom = runMobileExport({
     labels: [],
     artistStrings: [],
-    artists: [5, 4.5, 4, 3.5].map((rating, index) => ({ id: `m${index}`, name: `画师${index}`, tag: `tag_${index}`, rating, categories: [], entries: [] })),
+    artists: [5, 4.5, 4, 3.5].map((rating, index) => ({
+      id: `m${index}`, name: `画师${index}`, tag: `tag_${index}`, rating, categories: [],
+      entries: index === 1 ? [{ id: 'mx', originalImg: null, naiImg: null, score: 3.5 }] : [],
+    })),
   });
+  const doc = dom.document;
+  dom.dispatch('click', { target: fakeElement({ closest: () => fakeElement({ dataset: { action: 'open-artist', id: 'm1' } }) }) });
+  assert.ok(doc.getElementById('mobileDetail').innerHTML.includes('相似度 7/10'), '手机版详情里的相似度没按 10 分制写');
+
   const list = doc.getElementById('mobileList');
   const card = list.innerHTML.split('data-action="open-artist"').find((chunk) => chunk.includes('data-id="m1"'));
   const shape = [...card.matchAll(/class="star( is-(full|half))?"/g)].map((match) => match[2] || 'empty');

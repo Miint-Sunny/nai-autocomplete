@@ -104,7 +104,7 @@ function artistQuickStarsMarkup(value) {
   const number = Number(value);
   const rating = !Number.isFinite(number) || number <= 0 ? 0 : Math.min(5, Math.round(number * 2) / 2);
   const stars = [1, 2, 3, 4, 5].map((n) => `<span class="nai-artist-quick-star${rating >= n ? ' is-full' : rating >= n - 0.5 ? ' is-half' : ''}">★</span>`).join('');
-  return `<div class="nai-artist-quick-stars" role="img" aria-label="${rating ? `${rating} 星` : '未评分'}">${stars}</div>`;
+  return `<div class="nai-artist-quick-stars" role="img" aria-label="${rating ? `${rating * 2}/10` : '未评分'}">${stars}</div>`;
 }
 
 // 同一份结构复用两次：反推面板的「画师库」页 和 NAI 工作台抽屉的「画师库」窗口。

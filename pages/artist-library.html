@@ -21,7 +21,7 @@
     <div id="labelFilterList" class="label-filter-list"></div>
     <div class="filter-row">
       <select id="labelMatchMode" class="filter-select" title="多个标签的匹配方式"><option value="any">任一标签</option><option value="all">全部标签</option></select>
-      <select id="ratingFilter" class="filter-select" title="按画师星级筛选，每一档都含半星"><option value="">全部星级</option><option value="5">5 星</option><option value="4">4～4.5 星</option><option value="3">3～3.5 星</option><option value="2">2～2.5 星</option><option value="1">0.5～1.5 星</option><option value="4+">4 星及以上</option><option value="3+">3 星及以上</option><option value="0">未评分</option></select>
+      <select id="ratingFilter" class="filter-select" title="按画师总评筛选（满分 10 分，半颗星 1 分）"><option value="">全部评分</option><option value="5">10 分</option><option value="4">8～9 分</option><option value="3">6～7 分</option><option value="2">4～5 分</option><option value="1">1～3 分</option><option value="4+">8 分及以上</option><option value="3+">6 分及以上</option><option value="0">未评分</option></select>
     </div>
     <div class="sidebar-section-title" style="margin:8px 0 0"><span id="artistFilterSummary" class="filter-summary">全部画师</span><button class="btn-ghost btn-sm" data-action="clearArtistFilters">清除筛选</button></div>
   </div>
@@ -147,7 +147,7 @@
       <textarea id="fPrompt" placeholder="例如：masterpiece, best quality, yoneyama mai, 1girl...&#10;steps: 28, scale: 5, seed: 12345"></textarea>
     </div>
     <div class="form-row">
-      <label>相似度评分（点左半颗是半星，再点一次当前分数清除）</label>
+      <label>相似度评分（满分 10 分，半颗星 1 分；再点一次当前分数清除）</label>
       <div id="fScoreField"></div>
     </div>
     <div class="form-row">

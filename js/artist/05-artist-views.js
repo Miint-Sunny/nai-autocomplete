@@ -84,7 +84,7 @@ function renderArtist() {
           <div class="detail-labels">${(a.categories || []).map(label => `<button class="label-chip" data-action="toggleLabelFilter" data-label="${esc(label)}">🏷️ ${esc(label)}</button>`).join('')}<button class="btn-ghost btn-sm" data-action="openArtistModal" data-id="${a.id}">${(a.categories || []).length ? '修改分类' : '＋ 添加分类'}</button></div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;color:var(--fg2);margin-bottom:4px">NAI 出图效果总评（点左半颗是半星）</div>
+          <div style="font-size:12px;color:var(--fg2);margin-bottom:4px">NAI 出图效果总评（满分 10 分，半颗星 1 分）</div>
           <div class="artist-rating">${ratingFieldHtml(a.rating, { action: 'setRating', label: 'NAI 出图效果总评' })}</div>
           <div style="margin-top:10px">
             <button class="btn-ghost btn-sm" data-action="openArtistModal" data-id="${a.id}">✏️ 编辑</button>
