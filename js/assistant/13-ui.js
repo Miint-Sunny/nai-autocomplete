@@ -93,7 +93,11 @@ function createUI() {
           <datalist id="nai-primary-model-list"></datalist>
           <div class="nai-model-chips" data-field="modelChips" data-kind="primary"></div>
           <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
-          <input class="nai-md3-input" data-field="apiKey" type="password" />
+          <!-- 四个 API Key 框都是 text + .nai-md3-secret 遮成圆点，不能用密码类型的输入框：
+               这整棵 DOM 注入在每个网页上（面板藏着也在），页面里只要有一个密码框，
+               Chrome 就把整页不在 <form> 里的输入框拼成一张登录表单，宿主页的搜索框
+               会被当成用户名框弹出密码自动填充（issue #5）。scripts/test-build.mjs 守着这条。 -->
+          <input class="nai-md3-input nai-md3-secret" data-field="apiKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
           <div class="nai-md3-help-note nai-hidden" data-field="keyHelp"></div>
         </div>
 
@@ -116,7 +120,7 @@ function createUI() {
             </div>
             <datalist id="nai-fallback-model-list"></datalist>
             <div class="nai-model-chips" data-field="fallbackModelChips" data-kind="fallback"></div>
-            <label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input" data-field="fallbackApiKey" type="password" />
+            <label class="nai-md3-label">${T.fallbackApiKey}</label><input class="nai-md3-input nai-md3-secret" data-field="fallbackApiKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
             <label class="nai-md3-label">${T.fallbackReasoningEffort}</label><select class="nai-md3-input" data-field="fallbackReasoningEffort"></select>
           </div>
         </div>
@@ -407,7 +411,7 @@ function createUI() {
                   </label>
                   <label class="nai-library-field">
                     <span>API Key</span>
-                    <input data-field="libraryApiKey" type="password" />
+                    <input class="nai-md3-secret" data-field="libraryApiKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
                   </label>
                   <div class="nai-library-settings-actions">
                     <button type="button" data-action="library-fetch-models">${T.fetchModels}</button>
@@ -444,7 +448,7 @@ function createUI() {
                   </label>
                   <label class="nai-library-field">
                     <span>${T.fallbackApiKey}</span>
-                    <input data-field="libraryFallbackApiKey" type="password" />
+                    <input class="nai-md3-secret" data-field="libraryFallbackApiKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
                   </label>
                   <div class="nai-library-settings-actions">
                     <button type="button" data-action="library-fetch-fallback-models">${T.fetchModels}</button>

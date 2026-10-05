@@ -139,6 +139,13 @@
   -webkit-appearance: none;
 }
 
+/* API Key 框是 type="text"，靠这条遮成圆点。不用密码框的原因见 13-ui.js 里 apiKey 那段注释
+   （issue #5：面板注入在每个网页上，密码框会让 Chrome 把宿主页的搜索框当成用户名框）。
+   面板和工作台抽屉两处的 Key 框都挂这个 class。 */
+.nai-md3-root input.nai-md3-secret {
+  -webkit-text-security: disc;
+}
+
 .nai-md3-root button {
   line-height: 1.2;
 }

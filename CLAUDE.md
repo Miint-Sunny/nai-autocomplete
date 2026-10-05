@@ -47,6 +47,7 @@ CI 跑的就是这一串。测试用 `node:vm` 加载**真正上线的那份 chu
 ## 产品约束
 
 - **不要加任何触发出图 / 自动生成的功能**，有封号风险。写提示词、改提示词、写回输入框可以，点「生成」不行
+- **注入网页的界面里不要放密码框**（`type="password"`）。面板整棵 DOM 挂在每个网页上（藏着也在），一个密码框就会让 Chrome 把宿主页的搜索框当成用户名框、弹密码自动填充（issue #5）。要遮挡就用 `type="text"` + `.nai-md3-secret`，`scripts/test-build.mjs` 守着这条
 - 版本号在 `manifest.json`，release workflow 读它。功能改动记得 bump
 - 参考过 [HainTag](https://github.com/1756141021/HainTag)（GPL-3.0）与 Ultimate_Novelai_launcher 的**逻辑**，代码全部重写，不复制
 - 用中文写注释、提交信息和文档

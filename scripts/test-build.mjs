@@ -133,4 +133,28 @@ test('两边都带别名归一化，而且是同一份实现', () => {
   assert.equal(bodies[0], bodies[1], '两份别名归一化的实现已经走散');
 });
 
+// image-assistant.js 注入到所有网页，content.js 注入到 novelai.net。面板平时藏着，
+// 但整棵 DOM 一直挂在页面上 —— 只要里面有一个密码框，Chrome 就会把整页不在 <form> 里的
+// 输入框拼成一张登录表单，宿主页的搜索框被当成用户名框，弹出密码自动填充（issue #5）。
+group('注入网页的界面里没有密码框');
+
+for (const bundle of ['js/bundle/image-assistant.js', 'js/bundle/content.js']) {
+  test(`${bundle} 不创建密码类型的输入框`, () => {
+    const source = fs.readFileSync(path.join(ROOT, bundle), 'utf8');
+    // 模板里的 type="password"，脚本里的 .type = 'password' / setAttribute('type', 'password')
+    const pattern = /type\s*=\s*\\?["']?password\b|\.type\s*=\s*["'`]password|setAttribute\(\s*["']type["']\s*,\s*["']password/i;
+    const hit = source.match(pattern);
+    assert.equal(hit, null, `${bundle} 里出现了 ${hit?.[0]}；API Key 框请用 type="text" + .nai-md3-secret`);
+  });
+}
+
+test('API Key 框仍然遮成圆点', () => {
+  const ui = fs.readFileSync(path.join(ROOT, 'js/bundle/image-assistant.js'), 'utf8');
+  for (const field of ['apiKey', 'fallbackApiKey', 'libraryApiKey', 'libraryFallbackApiKey']) {
+    assert.match(ui, new RegExp(`<input[^>]*class="[^"]*\\bnai-md3-secret\\b[^"]*"[^>]*data-field="${field}"`), `${field} 没挂 .nai-md3-secret，Key 会明文显示`);
+  }
+  const css = fs.readFileSync(path.join(ROOT, 'styles/bundle.css'), 'utf8');
+  assert.match(css, /\.nai-md3-secret\s*\{[^}]*-webkit-text-security:\s*disc/, 'bundle.css 里没有 .nai-md3-secret 的遮挡规则');
+});
+
 await run('打包测试');
