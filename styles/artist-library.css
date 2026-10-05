@@ -572,21 +572,16 @@ textarea,
   clip-path: none;
 }
 
-/* 可点的那种：外扩一圈留给焦点光环，负外边距抵掉，不挤占布局 */
+/* 可点的那种：整排连同外圈留白都能点（判定见 09 的 ratingAtPointer），负外边距抵掉留白，不挤占布局。
+   星距比只读的宽一点，每颗星分到的点击宽度就多一点。悬停不做放大动画 —— 放大会改变星的
+   位置，判定边界跟着抖。 */
 .star-rating {
-  margin: -3px -5px;
+  gap: 0.2em;
+  margin: -4px -6px;
   border-radius: 999px;
-  padding: 3px 5px;
+  padding: 4px 6px;
   outline: none;
   cursor: pointer;
-}
-
-.star-rating .star {
-  transition: transform 120ms ease;
-}
-
-.star-rating .star:hover {
-  transform: scale(1.15);
 }
 
 .star-rating:focus-visible {
@@ -609,16 +604,17 @@ textarea,
   text-align: left;
 }
 
+/* 一档 = 半颗星：卡片 24px 的星每档约 14px 宽，弹窗 36px 约 20px（实测见 STYLE.md 星级那节） */
 .artist-rating .star-rating {
-  font-size: 22px;
+  font-size: 28px;
 }
 
 .entry-foot .star-rating {
-  font-size: 18px;
+  font-size: 24px;
 }
 
 #fScoreField .star-rating {
-  font-size: 28px;
+  font-size: 36px;
 }
 
 .section-title {

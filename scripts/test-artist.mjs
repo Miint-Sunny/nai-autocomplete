@@ -43,7 +43,7 @@ const entryOf = (box, id) => box.get('data').artists[0].entries.find((entry) => 
 const savedEntry = (box, id) => box.saved().artists[0].entries.find((entry) => entry.id === id);
 
 // 一排假的可点星级：和 starRatingHtml 渲染出来的结构一样（.rating-field > .star-rating > .star × 5 + 文字）。
-// 第 n 颗星占 x ∈ [100 + 20(n-1), 118 + 20(n-1)]。
+// 每颗星 20px 宽、星距 4px：第 n 颗星占 x ∈ [100 + 24(n-1), 120 + 24(n-1)]，左右留白各 6px。
 function makeStarWidget(box, { action, id = '', kind = 'artist', value = 0 }) {
   const label = fakeElement();
   const field = fakeElement({ querySelector: (selector) => (selector === '[data-rating-text]' ? label : null) });
@@ -59,9 +59,10 @@ function makeStarWidget(box, { action, id = '', kind = 'artist', value = 0 }) {
     contains: (node) => node === widget || stars.includes(node),
   });
   for (let n = 1; n <= 5; n += 1) {
+    const left = 100 + (n - 1) * 24;
     const star = fakeElement({
       dataset: { star: String(n) },
-      getBoundingClientRect: () => ({ left: 100 + (n - 1) * 20, width: 18 }),
+      getBoundingClientRect: () => ({ left, right: left + 20, width: 20, top: 0, bottom: 20, height: 20 }),
     });
     star.closest = (selector) => (selector === '.star' ? star : widget.closest(selector));
     stars.push(star);
@@ -72,7 +73,7 @@ function makeStarWidget(box, { action, id = '', kind = 'artist', value = 0 }) {
 
 const pointer = (stars, n, half, extra = {}) => ({
   target: stars[n - 1],
-  clientX: 100 + (n - 1) * 20 + (half === 'left' ? 4 : 14),
+  clientX: 100 + (n - 1) * 24 + (half === 'left' ? 4 : 16),
   detail: 1,
   ...extra,
 });
@@ -269,6 +270,23 @@ test('点右半颗是整星；再点一次当前分数就清除', () => {
   assert.equal(widget.dataset.value, '0');
   assert.equal(label.textContent, '未评分');
   assert.equal(label.className, 'score-badge score-none');
+});
+
+test('整排没有死区：星间的缝从中线分给两边，外圈留白归最近的星', () => {
+  const local = freshBox();
+  const { widget } = makeStarWidget(local, { action: 'rateEntryDraft', kind: 'entry', value: 0 });
+  // 指针落在缝或留白上时，事件目标是整排控件本身，不是哪颗星
+  const at = (clientX) => {
+    widget.dataset.value = '0';
+    local.dispatch('click', { target: widget, clientX, detail: 1 });
+    return local.get('entryDraftScore');
+  };
+  // 第 2 颗星 [124, 144]、第 3 颗星 [148, 168]，缝是 144–148，中线 146
+  assert.equal(at(145), 2, '缝的左边一半归第 2 颗星的右半');
+  assert.equal(at(147), 2.5, '缝的右边一半归第 3 颗星的左半');
+  assert.equal(at(95), 0.5, '最左边的留白 = 半颗星');
+  assert.equal(at(222), 5, '最右边的留白 = 5 星');
+  for (let x = 94; x <= 226; x += 1) assert.notEqual(at(x), 0, `x=${x} 点了没反应`);
 });
 
 test('双击的第二下不算，刚打的分不会被当成「再点一次」清掉', () => {

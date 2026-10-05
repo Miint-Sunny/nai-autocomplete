@@ -7,13 +7,19 @@ function askEntryImage(eid, which) {
 }
 
 /* ================= 星级交互：画师总评 / 卡片上的相似度 / 弹窗里的相似度 ================= */
-// 指针在某颗星的左半边就是 n - 0.5，右半边是 n；落在星与星的缝里返回 null，保持原样
+// 整排都能点、没有死区：星与星之间的缝从中线分给两边，外圈留白归最近的那颗；
+// 落在哪颗星的范围里，就以那颗星自己的中线分左右 —— 左半 n - 0.5，右半 n。
+// 以前只认指针正落在星上，缝和留白点了没反应，占了整排的 13–17%。
 function ratingAtPointer(widget, event) {
-  const star = event.target.closest?.('.star');
-  if (!star || !widget.contains(star)) return null;
-  const rect = star.getBoundingClientRect();
-  const n = Number(star.dataset.star);
-  return event.clientX - rect.left < rect.width / 2 ? n - 0.5 : n;
+  const stars = [...widget.querySelectorAll('.star')];
+  for (let index = 0; index < stars.length; index += 1) {
+    const rect = stars[index].getBoundingClientRect();
+    const next = stars[index + 1]?.getBoundingClientRect();
+    if (next && event.clientX >= (rect.right + next.left) / 2) continue;
+    const n = Number(stars[index].dataset.star);
+    return event.clientX < rect.left + rect.width / 2 ? n - 0.5 : n;
+  }
+  return null;
 }
 
 // preview = 悬停预览：只改星星和旁边那行字，data-value 和 aria 还是已保存的分数
