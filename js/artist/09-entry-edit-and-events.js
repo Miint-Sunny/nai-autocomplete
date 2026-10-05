@@ -1,4 +1,4 @@
-/* ================= 给已有记录传图 / 改prompt ================= */
+/* ================= 给已有记录快速换图（改别的走「✏️编辑」弹窗） ================= */
 let pendingEntryImg = null; // { eid, which }
 
 function askEntryImage(eid, which) {
@@ -6,15 +6,100 @@ function askEntryImage(eid, which) {
   document.getElementById('entryImgFile').click();
 }
 
-function editPrompt(eid) {
-  const a = getArtist(currentArtistId);
-  const en = a.entries.find(x => x.id === eid);
-  if (!en) return;
-  const v = prompt('修改这条记录的 prompt / 参数：', en.prompt || '');
-  if (v === null) return;
-  en.prompt = v.trim();
-  save(); renderArtist();
+/* ================= 星级交互：画师总评 / 卡片上的相似度 / 弹窗里的相似度 ================= */
+// 指针在某颗星的左半边就是 n - 0.5，右半边是 n；落在星与星的缝里返回 null，保持原样
+function ratingAtPointer(widget, event) {
+  const star = event.target.closest?.('.star');
+  if (!star || !widget.contains(star)) return null;
+  const rect = star.getBoundingClientRect();
+  const n = Number(star.dataset.star);
+  return event.clientX - rect.left < rect.width / 2 ? n - 0.5 : n;
 }
+
+// preview = 悬停预览：只改星星和旁边那行字，data-value 和 aria 还是已保存的分数
+function paintStarRating(widget, value, preview = false) {
+  const rating = normalizeRating(value);
+  widget.querySelectorAll('.star').forEach(star => {
+    const n = Number(star.dataset.star);
+    star.classList.toggle('is-full', rating >= n);
+    star.classList.toggle('is-half', rating < n && rating >= n - 0.5);
+  });
+  const isEntry = widget.dataset.kind === 'entry';
+  const text = isEntry ? scoreLabel(rating) : artistRatingLabel(rating);
+  const label = widget.closest('.rating-field')?.querySelector('[data-rating-text]');
+  if (label) {
+    label.textContent = text;
+    if (isEntry) label.className = `score-badge score-${scoreTone(rating)}`;
+  }
+  if (preview) return;
+  widget.dataset.value = String(rating);
+  widget.setAttribute('aria-valuenow', String(rating));
+  widget.setAttribute('aria-valuetext', text);
+}
+
+function commitStarRating(widget, value) {
+  const rating = normalizeRating(value);
+  const artist = getArtist(currentArtistId);
+  switch (widget.dataset.action) {
+    case 'rateEntryDraft':
+      entryDraftScore = rating; // 弹窗里只改草稿，点「保存」才落盘
+      break;
+    case 'setRating':
+      if (!artist) return;
+      artist.rating = rating;
+      save(); renderList();
+      break;
+    case 'rateEntry': {
+      const entry = artist?.entries.find(x => x.id === widget.dataset.id);
+      if (!entry) return;
+      entry.score = rating;
+      save();
+      break;
+    }
+    default: return;
+  }
+  // 不重绘整页：卡片里的大图不用重新解码，键盘焦点也还留在这排星上
+  paintStarRating(widget, rating);
+}
+
+function onStarRatingClick(widget, event) {
+  if (event.detail > 1) return; // 双击的第二下不算，不然刚打的分会被当成「再点一次」清掉
+  const value = ratingAtPointer(widget, event);
+  if (value === null) return;
+  const cleared = value === normalizeRating(widget.dataset.value);
+  commitStarRating(widget, cleared ? 0 : value);
+  // 清掉之后指针还停在原处，别让悬停预览马上又把星点亮
+  if (cleared) widget.dataset.suppressPreview = String(value);
+}
+
+document.addEventListener('pointermove', e => {
+  const widget = e.target.closest?.('.star-rating');
+  if (!widget) return;
+  const value = ratingAtPointer(widget, e);
+  if (value === null || widget.dataset.suppressPreview === String(value)) return;
+  delete widget.dataset.suppressPreview;
+  paintStarRating(widget, value, true);
+});
+document.addEventListener('pointerout', e => {
+  const widget = e.target.closest?.('.star-rating');
+  if (!widget || widget.contains(e.relatedTarget)) return;
+  delete widget.dataset.suppressPreview;
+  paintStarRating(widget, widget.dataset.value, true);
+});
+document.addEventListener('keydown', e => {
+  const widget = e.target.closest?.('.star-rating');
+  if (!widget) return;
+  const current = normalizeRating(widget.dataset.value);
+  const step = { ArrowRight: 0.5, ArrowUp: 0.5, ArrowLeft: -0.5, ArrowDown: -0.5 }[e.key];
+  let next = null;
+  if (step) next = Math.min(5, Math.max(0, current + step));
+  else if (e.key === 'Home' || e.key === 'Delete' || e.key === 'Backspace') next = 0;
+  else if (e.key === 'End') next = 5;
+  else if (/^[0-5]$/.test(e.key)) next = Number(e.key);
+  if (next === null) return;
+  e.preventDefault();
+  if (next !== current) commitStarRating(widget, next);
+});
 
 /* ================= 事件绑定（扩展不允许内联事件，统一在这里处理） ================= */
 document.addEventListener('click', e => {
@@ -109,12 +194,9 @@ document.addEventListener('click', e => {
     case 'saveArtist': saveArtist(); break;
     case 'deleteArtist': deleteArtist(); break;
     case 'closeModal': closeModal(el.dataset.target); break;
-    case 'setRating': {
-      const a = getArtist(currentArtistId);
-      a.rating = parseInt(el.dataset.n);
-      save(); renderLabelFilters(); renderList(); renderArtist();
-      break;
-    }
+    case 'setRating':
+    case 'rateEntry':
+    case 'rateEntryDraft': onStarRatingClick(el, e); break;
     case 'copyTag': copyText(getArtist(currentArtistId).tag); break;
     case 'copyPrompt': {
       const a = getArtist(currentArtistId);
@@ -123,6 +205,7 @@ document.addEventListener('click', e => {
       break;
     }
     case 'openEntryModal': openEntryModal(); break;
+    case 'editEntry': openEntryModal(id); break;
     case 'saveEntry': saveEntry(); break;
     case 'deleteEntry': deleteEntry(id); break;
     case 'openGrabModal': document.getElementById('grabModal').classList.add('show'); break;
@@ -140,7 +223,6 @@ document.addEventListener('click', e => {
       break;
     case 'uploadOriginal': askEntryImage(id, 'original'); break;
     case 'uploadNai': askEntryImage(id, 'nai'); break;
-    case 'editPrompt': editPrompt(id); break;
     case 'pickOriginal': document.getElementById('fOriginal').click(); break;
     case 'pickNai': document.getElementById('fNai').click(); break;
     case 'zoom': zoom(el.src); break;

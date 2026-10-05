@@ -176,11 +176,35 @@
   white-space: normal;
 }
 
+/* 半星：灰星上叠一层亮的同字形，clip-path 裁成整颗 / 左半颗。
+   星距用 gap 不用 letter-spacing，后者会算进每颗星的盒宽，半颗就裁偏了。 */
 .nai-artist-quick-stars {
+  display: flex;
+  gap: 0.1em;
   margin-top: 3px;
-  color: var(--md-sys-color-tertiary);
   font-size: 12px;
-  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.nai-artist-quick-star {
+  position: relative;
+  color: var(--md-sys-color-outline);
+}
+
+.nai-artist-quick-star::after {
+  content: "\2605";
+  position: absolute;
+  inset: 0;
+  color: var(--md-sys-color-tertiary);
+  clip-path: inset(0 100% 0 0);
+}
+
+.nai-artist-quick-star.is-half::after {
+  clip-path: inset(0 50% 0 0);
+}
+
+.nai-artist-quick-star.is-full::after {
+  clip-path: none;
 }
 
 .nai-artist-quick-labels {

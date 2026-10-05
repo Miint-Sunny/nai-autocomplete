@@ -91,6 +91,78 @@ function renderCategoryPicker() {
   if (!box) return;
   box.innerHTML = data.labels.length ? data.labels.map(label => `<button type="button" class="label-chip ${editingCategories.some(item => labelKey(item) === labelKey(label)) ? 'selected' : ''}" data-action="toggleArtistCategory" data-label="${esc(label)}">${esc(label)}</button>`).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类，可直接在下面新建。</span>';
 }
+/* ================= 星级（支持半星） ================= */
+// 画师总评 artist.rating 和对比记录的相似度 entry.score 是同一种分值：0–5、步长半星，0 = 未评分。
+// 旧数据全是整数，原样兼容；备份里手改出来的 3.7 这种值就近归到半星上。
+function normalizeRating(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  return Math.min(5, Math.round(number * 2) / 2);
+}
+
+const SCORE_WORDS = ['未评分', '不像', '不太像', '一般', '挺像', '非常像'];
+
+// 半星没有单独的词，写成相邻两档之间：4.5 星 = 「挺像～非常像」
+function scoreLabel(value) {
+  const score = normalizeRating(value);
+  if (!score) return SCORE_WORDS[0];
+  const word = score < 1 ? '完全不像'
+    : Number.isInteger(score) ? SCORE_WORDS[score]
+      : `${SCORE_WORDS[Math.floor(score)]}～${SCORE_WORDS[Math.ceil(score)]}`;
+  return `${score} 星 · ${word}`;
+}
+
+function artistRatingLabel(value) {
+  const rating = normalizeRating(value);
+  return rating ? `${rating} 星` : '未评分';
+}
+
+// 相似度标签的配色档：4 星起绿、3 星起黄、再往下红
+function scoreTone(value) {
+  const score = normalizeRating(value);
+  if (!score) return 'none';
+  if (score >= 4) return 'high';
+  return score >= 3 ? 'mid' : 'low';
+}
+
+// 星级筛选每一档都把半星收进来：「4」= 4～4.5 星，「1」= 0.5～1.5 星；
+// 「4+」= 4 星及以上；「0」只要未评分。手机版 mobileViewerApp 里有一份同口径的。
+function ratingMatchesFilter(value, filter) {
+  if (!filter) return true;
+  const rating = normalizeRating(value);
+  if (filter.endsWith('+')) return rating >= Number(filter.slice(0, -1));
+  const wanted = Number(filter);
+  if (!wanted) return rating === 0;
+  return rating >= (wanted === 1 ? 0.5 : wanted) && rating < wanted + 1;
+}
+
+// 一颗星 = 灰的 ★ + ::after 叠一层亮的，按 is-full / is-half 裁切（样式见 artist-library.css 星级段）
+function starIconsHtml(value) {
+  const rating = normalizeRating(value);
+  return [1, 2, 3, 4, 5].map(n => `<span class="star${rating >= n ? ' is-full' : rating >= n - 0.5 ? ' is-half' : ''}" data-star="${n}">★</span>`).join('');
+}
+
+// 只读星级：画师列表里那一行
+function starMeterHtml(value) {
+  return `<span class="star-meter" role="img" aria-label="${artistRatingLabel(value)}">${starIconsHtml(value)}</span>`;
+}
+
+// 可点星级：悬停预览、点左半颗是半星、再点一次当前分数清除、方向键每次半星。
+// 点击走 09 里的 data-action，悬停和键盘也在 09 统一绑定；kind 决定旁边那行字怎么写。
+function starRatingHtml(value, { action, id = '', label, kind = 'artist' }) {
+  const rating = normalizeRating(value);
+  const text = kind === 'entry' ? scoreLabel(rating) : artistRatingLabel(rating);
+  return `<span class="star-rating" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${rating}" aria-valuetext="${esc(text)}" title="点左半颗是半星，再点一次当前分数可清除；也可以用方向键调整" data-action="${action}" data-id="${esc(String(id))}" data-kind="${kind}" data-value="${rating}">${starIconsHtml(rating)}</span>`;
+}
+
+// 星级加旁边那行字（画师总评 = 「4.5 星」，相似度 = 带配色的「4.5 星 · 挺像～非常像」）
+function ratingFieldHtml(value, options) {
+  const text = options.kind === 'entry'
+    ? `<span class="score-badge score-${scoreTone(value)}" data-rating-text>${scoreLabel(value)}</span>`
+    : `<span class="rating-text" data-rating-text>${artistRatingLabel(value)}</span>`;
+  return `<span class="rating-field">${starRatingHtml(value, options)}${text}</span>`;
+}
+
 function filteredArtists() {
   const q = document.getElementById('searchBox').value.trim().toLocaleLowerCase();
   const rating = document.getElementById('ratingFilter')?.value || '';
@@ -98,10 +170,7 @@ function filteredArtists() {
   return data.artists.filter(artist => {
     const categories = artist.categories || [];
     if (q && ![artist.name, artist.tag, ...categories].some(value => String(value || '').toLocaleLowerCase().includes(q))) return false;
-    if (rating) {
-      const stars = Number(artist.rating || 0);
-      if (rating.endsWith('+') ? stars < Number(rating.slice(0, -1)) : stars !== Number(rating)) return false;
-    }
+    if (!ratingMatchesFilter(artist.rating, rating)) return false;
     if (!selectedLabelFilters.length) return true;
     const matches = selectedLabelFilters.map(label => label === '__uncategorized__' ? !categories.length : categories.some(category => labelKey(category) === labelKey(label)));
     return matchMode === 'all' ? matches.every(Boolean) : matches.some(Boolean);

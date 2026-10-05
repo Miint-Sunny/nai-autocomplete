@@ -67,9 +67,22 @@ function mobileViewerApp() {
     for (let i = entries.length - 1; i >= 0; i--) if (entries[i].naiImg) return entries[i].naiImg;
     return '';
   }
+  // 星级是 0–5、步长半星（0 = 未评分），口径和画师库页 04-utils-and-labels.js 那份一致；
+  // 这个函数整个被序列化进导出的 HTML，引不到外面的实现，只能在这里再写一遍。
+  function halfStars(value) {
+    const number = Number(value);
+    return !Number.isFinite(number) || number <= 0 ? 0 : Math.min(5, Math.round(number * 2) / 2);
+  }
   function stars(artist) {
-    const count = Math.max(0, Math.min(5, Number(artist.rating) || 0));
-    return '★'.repeat(count) + '☆'.repeat(5 - count);
+    const value = halfStars(artist.rating);
+    return [1, 2, 3, 4, 5].map(n => `<span class="star${value >= n ? ' is-full' : value >= n - 0.5 ? ' is-half' : ''}">★</span>`).join('');
+  }
+  // 每一档都含半星：「4」= 4～4.5 星，「1」= 0.5～1.5 星；「4+」= 4 星及以上；「0」= 未评分
+  function matchesRating(value, wanted) {
+    if (wanted.endsWith('+')) return value >= Number(wanted.slice(0, -1));
+    const level = Number(wanted);
+    if (!level) return value === 0;
+    return value >= (level === 1 ? 0.5 : level) && value < level + 1;
   }
   function filteredArtists() {
     const query = normalize(search.value);
@@ -77,10 +90,7 @@ function mobileViewerApp() {
     return library.artists.filter(artist => {
       const own = categories(artist);
       if (query && ![artist.name, artist.tag, artist.notes, ...own].some(value => normalize(value).includes(query))) return false;
-      if (wanted) {
-        const value = Number(artist.rating) || 0;
-        if (wanted.endsWith('+') ? value < Number(wanted.slice(0, -1)) : value !== Number(wanted)) return false;
-      }
+      if (wanted && !matchesRating(halfStars(artist.rating), wanted)) return false;
       if (!selected.size) return true;
       const matches = [...selected].map(label => label === '__uncategorized__' ? !own.length : own.some(item => normalize(item) === normalize(label)));
       return matchMode.value === 'all' ? matches.every(Boolean) : matches.some(Boolean);
@@ -186,7 +196,7 @@ function mobileViewerApp() {
       const comment = entry.comment ? `<div class="record-text"><span>备注 / 原帖标签</span><p>${escapeHtml(entry.comment)}</p></div>` : '';
       const postId = Number(entry.sourcePostId);
       const source = Number.isSafeInteger(postId) && postId > 0 ? `<a class="source-link" href="https://danbooru.donmai.us/posts/${postId}" target="_blank" rel="noreferrer">打开 D 站原帖 ↗</a>` : '';
-      return `<section class="record"><div class="record-heading"><strong>作品 ${index + 1}</strong><span>${Number(entry.score) > 0 ? `相似度 ${escapeHtml(entry.score)} / 5` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
+      return `<section class="record"><div class="record-heading"><strong>作品 ${index + 1}</strong><span>${halfStars(entry.score) ? `相似度 ${halfStars(entry.score)} / 5` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
     }).join('');
     detail.innerHTML = `<div class="detail-sheet"><header class="detail-top"><button data-action="close-detail" aria-label="返回">‹ 返回</button><span>画师详情</span></header><section class="profile"><h2>${escapeHtml(artist.name || artist.tag || '未命名画师')}</h2><div class="profile-stars">${stars(artist)}</div><div class="artist-chips">${chips || '<span class="muted">未分类</span>'}</div><div class="tag-box"><code>${escapeHtml(artist.tag || '未填写 NAI tag')}</code>${artist.tag ? `<button data-action="copy-text" data-copy="${escapeHtml(artist.tag)}">复制 tag</button>` : ''}</div>${artist.notes ? `<div class="artist-notes">${escapeHtml(artist.notes)}</div>` : ''}</section><div class="records-title">作品记录 · ${Array.isArray(artist.entries) ? artist.entries.length : 0}</div>${entries || '<div class="empty">这位画师还没有作品记录。</div>'}</div>`;
     detail.classList.add('show');
@@ -344,7 +354,12 @@ button,select,input{font:inherit}button{cursor:pointer}
 .artist-info{display:flex;min-width:0;flex:1;flex-direction:column;justify-content:center}
 .artist-info strong{overflow:hidden;font-size:17px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
 .artist-tag{overflow:hidden;margin-top:4px;color:var(--nai-md3-ink-muted);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
-.artist-stars,.profile-stars{margin-top:5px;color:var(--md-sys-color-primary);font-size:15px;letter-spacing:1px}
+.artist-stars,.profile-stars{display:flex;gap:.1em;margin-top:5px;font-size:15px;line-height:1}
+/* 半星：灰星上叠一层亮的同字形，clip-path 裁成整颗 / 左半颗（同画师库页 artist-library.css 星级段） */
+.star{position:relative;display:inline-block;color:var(--md-sys-color-outline)}
+.star::after{content:"★";position:absolute;inset:0;color:var(--md-sys-color-primary);clip-path:inset(0 100% 0 0)}
+.star.is-half::after{clip-path:inset(0 50% 0 0)}
+.star.is-full::after{clip-path:none}
 .artist-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .artist-chip{padding:3px 9px;font-size:11px;box-shadow:none}
 .entry-count{margin-top:7px;color:var(--nai-md3-ink-muted);font-size:11px}
@@ -419,7 +434,7 @@ button,select,input{font:inherit}button{cursor:pointer}
   <div class="filter-labels" id="mobileLabels"></div>
   <div class="select-row">
     <select id="mobileMatch"><option value="any">任一分类标签</option><option value="all">全部分类标签</option></select>
-    <select id="mobileRating"><option value="">全部星级</option><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option><option value="4+">四星及以上</option><option value="3+">三星及以上</option><option value="0">未评分</option></select>
+    <select id="mobileRating"><option value="">全部星级</option><option value="5">5 星</option><option value="4">4～4.5 星</option><option value="3">3～3.5 星</option><option value="2">2～2.5 星</option><option value="1">0.5～1.5 星</option><option value="4+">4 星及以上</option><option value="3+">3 星及以上</option><option value="0">未评分</option></select>
   </div>
   <div class="summary-row"><span id="mobileSummary"></span><button class="clear-button" data-action="clear-filters">清除筛选</button></div>
 </section>

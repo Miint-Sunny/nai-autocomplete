@@ -213,15 +213,18 @@ body.nai-md3-root {
 .mini-stars {
   display: block;
   margin-top: 6px;
-  color: var(--md-sys-color-tertiary);
   font-size: 13px;
-  letter-spacing: 1px;
   white-space: nowrap;
 }
 
-.artist-item.active .mini-stars,
 .artist-item.active .artist-label-mini {
   color: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+}
+
+/* 选中项是整块主色填充，星星跟着反白；灰星用同一个颜色压淡，不然在填充上看不见 */
+.artist-item.active .star-meter {
+  --star-on: var(--nai-md3-tab-active-fg, var(--md-sys-color-on-primary));
+  --star-off: color-mix(in srgb, var(--star-on) 32%, transparent);
 }
 
 .artist-labels {
@@ -530,19 +533,92 @@ textarea,
   word-break: break-all;
 }
 
-.stars {
-  font-size: 22px;
-  letter-spacing: 2px;
-  cursor: pointer;
+/* ===== 星级：画师总评与对比记录相似度共用，0–5 星、步长半星 =====
+   一颗星 = 灰的 ★ + ::after 叠一层亮的同字形，亮层用 clip-path 裁成整颗 / 左半颗 / 不显示。
+   用 clip-path 不用 width：裁切线按这颗星自己的盒子算，正好落在字形正中。
+   星与星之间用 gap，不用 letter-spacing —— 字间距会算进每颗星的盒宽，半颗就裁偏了。 */
+.star-meter,
+.star-rating {
+  --star-on: var(--md-sys-color-tertiary);
+  --star-off: var(--md-sys-color-outline);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12em;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
   user-select: none;
 }
 
-.stars .on {
-  color: var(--md-sys-color-tertiary);
+.star {
+  position: relative;
+  display: inline-block;
+  color: var(--star-off);
 }
 
-.stars .off {
-  color: var(--md-sys-color-outline);
+.star::after {
+  content: "\2605";
+  position: absolute;
+  inset: 0;
+  color: var(--star-on);
+  clip-path: inset(0 100% 0 0);
+}
+
+.star.is-half::after {
+  clip-path: inset(0 50% 0 0);
+}
+
+.star.is-full::after {
+  clip-path: none;
+}
+
+/* 可点的那种：外扩一圈留给焦点光环，负外边距抵掉，不挤占布局 */
+.star-rating {
+  margin: -3px -5px;
+  border-radius: 999px;
+  padding: 3px 5px;
+  outline: none;
+  cursor: pointer;
+}
+
+.star-rating .star {
+  transition: transform 120ms ease;
+}
+
+.star-rating .star:hover {
+  transform: scale(1.15);
+}
+
+.star-rating:focus-visible {
+  box-shadow: 0 0 0 4px var(--nai-md3-accent-soft);
+}
+
+/* 星级 + 旁边那行字（画师总评「4.5 星」/ 相似度标签） */
+.rating-field {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.rating-text {
+  min-width: 3.5em;
+  color: var(--nai-md3-ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.artist-rating .star-rating {
+  font-size: 22px;
+}
+
+.entry-foot .star-rating {
+  font-size: 18px;
+}
+
+#fScoreField .star-rating {
+  font-size: 28px;
 }
 
 .section-title {
@@ -626,28 +702,33 @@ textarea,
   font-weight: 700;
 }
 
-.score-5,
-.score-4 {
+/* 配色档由 scoreTone() 定：4 星起 high、3 星起 mid、再低 low，未评分 none */
+.score-high {
   border-color: transparent;
   background: color-mix(in srgb, var(--nai-md3-success) 22%, transparent);
   color: var(--nai-md3-success);
 }
 
-.score-3 {
+.score-mid {
   border-color: transparent;
   background: color-mix(in srgb, var(--md-sys-color-tertiary) 22%, transparent);
   color: var(--md-sys-color-tertiary);
 }
 
-.score-2,
-.score-1 {
+.score-low {
   border-color: transparent;
   background: color-mix(in srgb, var(--md-sys-color-error) 22%, transparent);
   color: var(--md-sys-color-error);
 }
 
-.score-0 {
+.score-none {
   color: var(--md-sys-color-on-surface-variant);
+}
+
+.entry-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .comment {

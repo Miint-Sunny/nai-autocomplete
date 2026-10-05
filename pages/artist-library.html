@@ -21,7 +21,7 @@
     <div id="labelFilterList" class="label-filter-list"></div>
     <div class="filter-row">
       <select id="labelMatchMode" class="filter-select" title="多个标签的匹配方式"><option value="any">任一标签</option><option value="all">全部标签</option></select>
-      <select id="ratingFilter" class="filter-select" title="按画师星级筛选"><option value="">全部星级</option><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option><option value="4+">四星及以上</option><option value="3+">三星及以上</option><option value="0">未评分</option></select>
+      <select id="ratingFilter" class="filter-select" title="按画师星级筛选，每一档都含半星"><option value="">全部星级</option><option value="5">5 星</option><option value="4">4～4.5 星</option><option value="3">3～3.5 星</option><option value="2">2～2.5 星</option><option value="1">0.5～1.5 星</option><option value="4+">4 星及以上</option><option value="3+">3 星及以上</option><option value="0">未评分</option></select>
     </div>
     <div class="sidebar-section-title" style="margin:8px 0 0"><span id="artistFilterSummary" class="filter-summary">全部画师</span><button class="btn-ghost btn-sm" data-action="clearArtistFilters">清除筛选</button></div>
   </div>
@@ -125,12 +125,12 @@
   </div>
 </div>
 
-<!-- 添加对比记录弹窗 -->
+<!-- 添加 / 编辑对比记录弹窗（标题、说明、按钮文字由 openEntryModal 按模式填） -->
 <div class="modal-mask" id="entryModal">
   <div class="modal">
-    <h3>添加对比记录</h3>
+    <h3 id="entryModalTitle">添加对比记录</h3>
     <div class="form-row">
-      <label>上传图片（点击方框选择，会自动压缩）</label>
+      <label id="entryImagesLabel">上传图片（点击方框选择，会自动压缩）</label>
       <div class="upload-row">
         <div class="upload-box" data-action="pickOriginal">
           <span>📷 画师原图</span><div id="prevOriginal"></div>
@@ -147,14 +147,8 @@
       <textarea id="fPrompt" placeholder="例如：masterpiece, best quality, yoneyama mai, 1girl...&#10;steps: 28, scale: 5, seed: 12345"></textarea>
     </div>
     <div class="form-row">
-      <label>相似度评分</label>
-      <select id="fScore">
-        <option value="5">⭐⭐⭐⭐⭐ 非常像</option>
-        <option value="4">⭐⭐⭐⭐ 挺像的</option>
-        <option value="3" selected>⭐⭐⭐ 一般般</option>
-        <option value="2">⭐⭐ 不太像</option>
-        <option value="1">⭐ 完全不像</option>
-      </select>
+      <label>相似度评分（点左半颗是半星，再点一次当前分数清除）</label>
+      <div id="fScoreField"></div>
     </div>
     <div class="form-row">
       <label>备注（可选）</label>
@@ -162,7 +156,7 @@
     </div>
     <div class="modal-btns">
       <button class="btn-ghost" data-action="closeModal" data-target="entryModal">取消</button>
-      <button class="btn-primary" data-action="saveEntry">保存记录</button>
+      <button class="btn-primary" data-action="saveEntry" id="entrySaveButton">保存记录</button>
     </div>
   </div>
 </div>

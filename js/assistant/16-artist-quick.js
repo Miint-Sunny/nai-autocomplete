@@ -91,13 +91,20 @@ function artistQuickRecordMarkup(record) {
   const picture = image
     ? `<img class="nai-artist-quick-thumb" loading="lazy" decoding="async" src="${escapeHtml(image)}" alt="" />`
     : `<span class="nai-artist-quick-thumb is-placeholder">${initial}</span>`;
-  const stars = Math.max(0, Math.min(5, Number(record.rating) || 0));
-
   return `<article class="nai-artist-quick-card" data-artist-action="insert" data-id="${id}">${picture}`
     + `<div class="nai-artist-quick-info">`
     + `<div class="nai-artist-quick-name">${escapeHtml(record.name || record.tag || '未命名画师')}</div>`
     + `<div class="nai-artist-quick-tag">${escapeHtml(record.tag || '未填写 tag')}</div>`
-    + `<div class="nai-artist-quick-stars">${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}</div>${labels}</div>${actions}</article>`;
+    + `${artistQuickStarsMarkup(record.rating)}${labels}</div>${actions}</article>`;
+}
+
+// 画师库的星级是 0–5、步长半星（画师库页可以打 4.5）。'★'.repeat(4.5) 会截成 4 颗，
+// 所以每颗星单独一个元素，亮层按 is-full / is-half 裁切（06-artist-quick.css）。
+function artistQuickStarsMarkup(value) {
+  const number = Number(value);
+  const rating = !Number.isFinite(number) || number <= 0 ? 0 : Math.min(5, Math.round(number * 2) / 2);
+  const stars = [1, 2, 3, 4, 5].map((n) => `<span class="nai-artist-quick-star${rating >= n ? ' is-full' : rating >= n - 0.5 ? ' is-half' : ''}">★</span>`).join('');
+  return `<div class="nai-artist-quick-stars" role="img" aria-label="${rating ? `${rating} 星` : '未评分'}">${stars}</div>`;
 }
 
 // 同一份结构复用两次：反推面板的「画师库」页 和 NAI 工作台抽屉的「画师库」窗口。
