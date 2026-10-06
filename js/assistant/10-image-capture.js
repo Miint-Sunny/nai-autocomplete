@@ -266,11 +266,11 @@ async function useImageElement(image, autoReverse) {
   const resolved = resolveImageSource(image);
   const sourceUrl = resolved.sourceUrl;
   if (!sourceUrl) {
-    setStatus('\u76ee\u6807\u5143\u7d20\u6ca1\u6709\u53ef\u7528\u56fe\u7247\u5730\u5740\u3002', true);
+    setStatus('目标元素没有可用图片地址。', true);
     return;
   }
 
-  setStatus('\u6b63\u5728\u8bfb\u53d6\u56fe\u7247...', false);
+  setStatus('正在读取图片...', false);
 
   try {
     if (resolved.dataUrl) {
@@ -300,10 +300,10 @@ async function useImageElement(image, autoReverse) {
     });
 
     if (!response?.ok) {
-      setStatus('\u76f4\u63a5\u8bfb\u53d6\u5931\u8d25\uff0c\u6539\u7528\u6eda\u52a8\u62fc\u63a5\u622a\u56fe...', false);
+      setStatus('直接读取失败，改用滚动拼接截图...', false);
       const capturedDataUrl = await captureVisibleElement(image);
       if (!capturedDataUrl) {
-        throw new Error(response?.error || '\u56fe\u7247\u8bfb\u53d6\u5931\u8d25');
+        throw new Error(response?.error || '图片读取失败');
       }
 
       // 滚动拼接出来的是画布重绘，不可能带元数据
@@ -397,7 +397,7 @@ function onPickClick(event) {
   event.stopPropagation();
 
   if (!image) {
-    setStatus('\u8bf7\u70b9\u51fb\u56fe\u7247\u5143\u7d20\u3002', true);
+    setStatus('请点击图片元素。', true);
     return;
   }
 

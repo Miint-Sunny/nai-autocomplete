@@ -14,7 +14,7 @@ async function runConnectionCheck(config) {
   });
 
   if (!response?.ok) {
-    throw new Error(response?.error || '\u8fde\u63a5\u6d4b\u8bd5\u5931\u8d25');
+    throw new Error(response?.error || '连接测试失败');
   }
 
   return response;
@@ -30,7 +30,7 @@ async function testConnection(draft) {
   const testMessages = buildTestMessages();
   const primaryConfig = buildPrimaryConfig(testMessages, settings);
   if (!hasCompleteModelConfig(primaryConfig)) {
-    setStatus('\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u4e3b\u6a21\u578b\u7684\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002', true);
+    setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
     openSettingsSurface();
     return;
   }
@@ -42,12 +42,12 @@ async function testConnection(draft) {
     return;
   }
 
-  const checks = [{ name: '\u4e3b\u6a21\u578b', config: primaryConfig }];
+  const checks = [{ name: '主模型', config: primaryConfig }];
   if (settings.enableFallbackModel && fallbackConfig) {
-    checks.push({ name: '\u5907\u7528\u6a21\u578b', config: fallbackConfig });
+    checks.push({ name: '备用模型', config: fallbackConfig });
   }
 
-  setPending(true, '\u6d4b\u8bd5\u4e2d...');
+  setPending(true, '测试中...');
   setStatus(T.statusTestingConnection, false);
 
   const passed = [];
@@ -57,19 +57,19 @@ async function testConnection(draft) {
     for (const check of checks) {
       try {
         await runConnectionCheck(check.config);
-        passed.push(`${check.name}\uFF08${check.config.model}\uFF09`);
+        passed.push(`${check.name}（${check.config.model}）`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        failed.push(`${check.name}\uFF08${check.config.model}\uFF09\uFF1A${message}`);
+        failed.push(`${check.name}（${check.config.model}）：${message}`);
       }
     }
 
     if (failed.length) {
-      throw new Error(failed.join('\uFF1B'));
+      throw new Error(failed.join('；'));
 
     }
 
-    setStatus(`\u8fde\u63a5\u6d4b\u8bd5\u901a\u8fc7\uff1a${passed.join('\u3001')}\u3002`, false);
+    setStatus(`连接测试通过：${passed.join('、')}。`, false);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {

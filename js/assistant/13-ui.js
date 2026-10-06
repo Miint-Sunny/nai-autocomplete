@@ -28,7 +28,7 @@ function createUI() {
 
       <div class="nai-md3-body">
       <section class="nai-md3-page" data-page="reverse">
-        <div class="nai-md3-hint">${T.quickHint}<kbd>Alt</kbd> + <kbd>Shift</kbd> + \u70b9\u51fb\u56fe\u7247</div>
+        <div class="nai-md3-hint">${T.quickHint}<kbd>Alt</kbd> + <kbd>Shift</kbd> + 点击图片</div>
         <div class="nai-md3-actions nai-md3-actions-reverse">
           <button type="button" data-action="pick">${T.pick}</button>
           <button type="button" data-action="open-image">${T.openImageFile}</button>

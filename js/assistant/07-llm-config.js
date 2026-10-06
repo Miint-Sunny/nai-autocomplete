@@ -644,7 +644,7 @@ function buildRequestConfig(target, messages, settings = state.settings) {
   const preset = getProviderPresetById(target.providerPreset);
   return {
     providerId: target.providerPreset,
-    label: preset?.label || '\u81ea\u5b9a\u4e49',
+    label: preset?.label || '自定义',
     protocol: target.protocol,
     endpoint: resolveEndpoint(target.protocol, target.endpoint, settings.autoCompleteEndpoint),
     apiKey: String(target.apiKey || '').trim(),

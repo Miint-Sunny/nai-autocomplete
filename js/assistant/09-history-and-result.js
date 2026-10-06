@@ -28,7 +28,7 @@ function renderHistory() {
   }
 
   ui.historyList.innerHTML = state.history.map((item) => {
-    const source = escapeHtml(item.sourceUrl || '\u672a\u77e5\u6765\u6e90');
+    const source = escapeHtml(item.sourceUrl || '未知来源');
     const result = escapeHtml(item.result || '');
     const brief = result.length > 140 ? `${result.slice(0, 140)}...` : result;
 
@@ -139,7 +139,7 @@ async function reverseAndCopy() {
   const primaryConfig = buildPrimaryConfig(messages);
 
   if (!hasCompleteModelConfig(primaryConfig)) {
-    setStatus('\u8bf7\u5148\u5b8c\u6574\u914d\u7f6e\u4e3b\u6a21\u578b\u7684\u670d\u52a1\u5546\u3001Endpoint\u3001Model \u548c API Key\u3002', true);
+    setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
     openSettingsSurface();
     return;
   }
@@ -153,7 +153,7 @@ async function reverseAndCopy() {
   }
 
   const runId = createId('llm-run');
-  setPending(true, '\u53cd\u63a8\u4e2d...', { runId });
+  setPending(true, '反推中...', { runId });
   setStatus(T.statusRunning, false);
 
   try {
@@ -172,12 +172,12 @@ async function reverseAndCopy() {
     }
 
     if (!response?.ok) {
-      throw new Error(response?.error || '\u53cd\u63a8\u5931\u8d25');
+      throw new Error(response?.error || '反推失败');
     }
 
     const usedFallback = Boolean(response.usedFallback);
 
-    const modelResult = (response.text || '').trim() || '\u6a21\u578b\u6ca1\u6709\u8fd4\u56de\u6587\u672c\u7ed3\u679c\u3002';
+    const modelResult = (response.text || '').trim() || '模型没有返回文本结果。';
     const resultText = formatResultBySettings(modelResult);
     setResult(resultText);
 

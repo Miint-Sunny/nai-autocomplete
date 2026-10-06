@@ -112,7 +112,7 @@ function artistQuickMarkup() {
   return `
     <div class="nai-artist-quick">
       <div class="nai-artist-quick-bar">
-        <select class="nai-md3-input nai-artist-quick-page" data-artist-field="page" aria-label="\u753b\u5e08\u5e93\u9875\u9762"></select>
+        <select class="nai-md3-input nai-artist-quick-page" data-artist-field="page" aria-label="画师库页面"></select>
         <button type="button" class="nai-md3-inline-action nai-artist-quick-manage" data-artist-action="manage">${T.artistQuickManage}</button>
       </div>
       <nav class="nai-md3-tabs nai-artist-quick-modes">
@@ -121,7 +121,7 @@ function artistQuickMarkup() {
       </nav>
       <div class="nai-artist-quick-filters">
         <input class="nai-md3-input nai-artist-quick-search" type="search" data-artist-field="search" />
-        <select class="nai-md3-input nai-artist-quick-rating" data-artist-field="rating" aria-label="\u661f\u7ea7\u7b5b\u9009">
+        <select class="nai-md3-input nai-artist-quick-rating" data-artist-field="rating" aria-label="星级筛选">
           <option value="">${T.artistQuickAllRatings}</option>
           <option value="5">\u2605\u2605\u2605\u2605\u2605</option>
           <option value="4">\u2605\u2605\u2605\u2605+</option>

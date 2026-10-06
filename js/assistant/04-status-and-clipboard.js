@@ -153,7 +153,7 @@ function setPending(isPending, label, options = {}) {
     ui.sendButton.disabled = isPending && !cancellable;
     if (!isPending) ui.sendButton.textContent = T.reverseCopy;
     else if (cancellable) ui.sendButton.textContent = T.cancelRun;
-    else if (owns) ui.sendButton.textContent = label || '\u53cd\u63a8\u4e2d...';
+    else if (owns) ui.sendButton.textContent = label || '反推中...';
   }
 
   renderAgentRunState();
