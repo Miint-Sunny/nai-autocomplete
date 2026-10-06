@@ -213,7 +213,7 @@ function flowParseSegment(text, index, total) {
   return {
     id: flowCreateId('seg'),
     kind: total === 1 ? 'single' : (isBase ? 'base' : 'character'),
-    name: total === 1 ? '提示词' : (isBase ? '基础' : `角色 ${index}`),
+    name: total === 1 ? '提示词' : (isBase ? '主提示词' : `角色 ${index}`),
     items,
   };
 }
@@ -466,7 +466,7 @@ function flowRenameSegments(flow) {
       segment.name = '提示词';
     } else if (index === 0) {
       segment.kind = 'base';
-      segment.name = '基础';
+      segment.name = '主提示词';
     } else {
       segment.kind = 'character';
       segment.name = `角色 ${index}`;

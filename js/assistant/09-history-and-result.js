@@ -96,7 +96,7 @@ async function useNaiMetadataResult(metadata) {
 
   const copied = await copyText(resultText);
   const summary = metadata.summary ? `（${metadata.summary}）` : '';
-  setStatus(`${T.statusNaiMetadata}${summary}${copied ? '' : ' · 复制失败，请手动复制'}`, !copied);
+  setStatus(`${T.statusNaiMetadata}${summary}${copied ? '' : ' · 无法自动复制，请手动复制'}`, !copied);
 }
 
 async function reverseAndCopy() {
@@ -139,7 +139,7 @@ async function reverseAndCopy() {
   const primaryConfig = buildPrimaryConfig(messages);
 
   if (!hasCompleteModelConfig(primaryConfig)) {
-    setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
+    setStatus('请先填写主模型的服务商、API 地址、模型和 API Key。', true);
     openSettingsSurface();
     return;
   }
@@ -153,7 +153,7 @@ async function reverseAndCopy() {
   }
 
   const runId = createId('llm-run');
-  setPending(true, '反推中...', { runId });
+  setPending(true, '正在反推…', { runId });
   setStatus(T.statusRunning, false);
 
   try {
@@ -172,12 +172,12 @@ async function reverseAndCopy() {
     }
 
     if (!response?.ok) {
-      throw new Error(response?.error || '反推失败');
+      throw new Error(response?.error || '无法完成反推');
     }
 
     const usedFallback = Boolean(response.usedFallback);
 
-    const modelResult = (response.text || '').trim() || '模型没有返回文本结果。';
+    const modelResult = (response.text || '').trim() || '模型未返回文本结果。';
     const resultText = formatResultBySettings(modelResult);
     setResult(resultText);
 

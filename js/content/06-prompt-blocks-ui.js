@@ -131,14 +131,14 @@ function createPromptLibraryDialog() {
   dialog.className = 'nai-prompt-library-dialog nai-hidden';
   dialog.innerHTML = `
     <div class="nai-prompt-library-backdrop" data-action="close-library-dialog"></div>
-    <div class="nai-prompt-library-card" role="dialog" aria-modal="true" aria-label="保存词库">
+    <div class="nai-prompt-library-card" role="dialog" aria-modal="true" aria-label="保存到词库">
       <div class="nai-prompt-library-head">
         <div class="nai-prompt-library-title">保存到词库</div>
-        <div class="nai-prompt-library-note">保存为本地词库条目，并尝试同步到官方 Prompt Chunk</div>
+        <div class="nai-prompt-library-note">保存为本地词库条目，并同步到 NovelAI 的 Prompt Chunk。</div>
       </div>
       <div class="nai-prompt-library-grid">
         <label class="nai-prompt-library-field">
-          <span>预设分类</span>
+          <span>分类</span>
           <select data-field="preset-category">
             ${PRESET_PROMPT_LIBRARY_CATEGORIES.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`).join('')}
             <option value="custom">自定义</option>
@@ -146,11 +146,11 @@ function createPromptLibraryDialog() {
         </label>
         <label class="nai-prompt-library-field nai-hidden" data-custom-category-wrap>
           <span>自定义分类</span>
-          <input data-field="custom-category" type="text" placeholder="例如 role_alt" />
+          <input data-field="custom-category" type="text" placeholder="例如：role_alt" />
         </label>
         <label class="nai-prompt-library-field">
           <span>名称</span>
-          <input data-field="entry-name" type="text" placeholder="例如 yuukarin" />
+          <input data-field="entry-name" type="text" placeholder="例如：yuukarin" />
         </label>
       </div>
       <div class="nai-prompt-library-preview" data-field="alias-preview">char:yuukarin</div>
@@ -222,13 +222,13 @@ function updatePromptLibraryDialogPreview() {
   let errorText = '';
 
   if (presetValue === 'custom' && !draft.hasCategory) {
-    errorText = '请先填写自定义分类。';
+    errorText = '请填写自定义分类。';
   } else if (!draft.normalizedCategory) {
-    errorText = '分类仅支持字母、数字、下划线、短横线或常见文字。';
+    errorText = '分类只能包含字母、数字、下划线、短横线或常见文字。';
   } else if (!draft.hasName) {
-    errorText = '请先填写名称。';
+    errorText = '请填写名称。';
   } else if (!draft.normalizedName) {
-    errorText = '名称仅支持字母、数字、下划线、短横线或常见文字。';
+    errorText = '名称只能包含字母、数字、下划线、短横线或常见文字。';
   }
 
   if (preview) {
@@ -402,7 +402,7 @@ async function savePromptLibrarySelectionFromDialog() {
   const tags = tokens.map(token => token.tag);
   const delimiters = tokens.map(token => token.delimiter);
   if (!tags.length) {
-    setPromptLibraryDialogError('选区里没有可保存的提示词。');
+    setPromptLibraryDialogError('选中的内容中没有可保存的提示词。');
     return;
   }
 
@@ -659,8 +659,8 @@ function renderPromptBlockPanel(editor) {
         type="button"
         class="nai-prompt-block-save"
         data-action="save-library"
-        title="${block.libraryAlias ? `更新词库：${escapeHtml(block.libraryAlias)}` : '保存到词库'}"
-        aria-label="${block.libraryAlias ? `更新词库：${escapeHtml(block.libraryAlias)}` : '保存到词库'}"
+        title="${block.libraryAlias ? `更新词库条目「${escapeHtml(block.libraryAlias)}」` : '保存到词库'}"
+        aria-label="${block.libraryAlias ? `更新词库条目「${escapeHtml(block.libraryAlias)}」` : '保存到词库'}"
       >${getPromptBlockIcon('save')}</button>
       <button
         type="button"

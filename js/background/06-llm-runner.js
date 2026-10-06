@@ -30,7 +30,7 @@ function validateLlmConfig(config) {
   if (!Array.isArray(config?.messages) || !config.messages.length) missing.push('消息内容');
 
   if (missing.length) {
-    throw new LlmError(LLM_ERROR.CONFIG, `${describeProvider(config)} 配置不完整，缺少：${missing.join('、')}。`, {
+    throw new LlmError(LLM_ERROR.CONFIG, `${describeProvider(config)} 的配置不完整，缺少：${missing.join('、')}。`, {
       providerLabel: describeProvider(config),
       model: config?.model || '',
     });
@@ -57,16 +57,16 @@ function resolveStreamFinal(events) {
 
 function buildEmptyResultError(finishReason, config) {
   if (finishReason === 'length' || finishReason === 'max_tokens') {
-    return new LlmError(LLM_ERROR.EMPTY, '模型在写完之前就撞到了 max_tokens 上限，没有留下正文。', {
-      hint: '把「思考模式」调低或关闭，或调大 max_tokens —— 思考过程也算在这个额度里。',
+    return new LlmError(LLM_ERROR.EMPTY, '模型在输出正文前就达到了 Max Tokens 上限，没有返回内容。', {
+      hint: '请调低或关闭「思考强度」，或调大 Max Tokens（思考过程也会占用这个额度）。',
     });
   }
   if (finishReason === 'content_filter' || finishReason === 'safety') {
-    return new LlmError(LLM_ERROR.EMPTY, '内容被服务商的安全策略拦下了，没有返回正文。', {
-      hint: '换一张图或换一家服务商再试。',
+    return new LlmError(LLM_ERROR.EMPTY, '内容被服务商的安全策略拦截，没有返回结果。', {
+      hint: '请更换图片或服务商后重试。',
     });
   }
-  return new LlmError(LLM_ERROR.EMPTY, `${describeProvider(config)} 返回了 200，但正文是空的。`);
+  return new LlmError(LLM_ERROR.EMPTY, `${describeProvider(config)} 返回了成功状态，但内容为空。`);
 }
 
 async function runLlmRequest(config, options = {}) {
@@ -115,7 +115,7 @@ async function runLlmRequest(config, options = {}) {
     if (!data) {
       const raw = String(httpResult.rawText || '').trim();
       if (/^</.test(raw)) {
-        throw new LlmError(LLM_ERROR.PARSE, `${describeProvider(config)} 返回的是 HTML 而不是 JSON，多半是中转站或代理的错误页。`);
+        throw new LlmError(LLM_ERROR.PARSE, `${describeProvider(config)} 返回的是 HTML 而不是 JSON，通常是中转服务或代理的错误页。`);
       }
       // 少数中转站直接吐纯文本，这种照旧当成正文收下。
       text = raw;
@@ -239,7 +239,7 @@ async function runConfigChain(configs, attempt, options = {}) {
 function formatChainFailure(chain, startedAt, now) {
   return {
     ok: false,
-    error: chain.error ? chain.error.toDisplayString() : 'LLM 请求失败',
+    error: chain.error ? chain.error.toDisplayString() : '无法完成模型请求',
     errorKind: chain.error?.kind || LLM_ERROR.UNKNOWN,
     errorHint: chain.error?.hint || '',
     durationMs: now() - startedAt,
@@ -255,7 +255,7 @@ async function runLlmWithFallback(payload, options = {}) {
   const startedAt = now();
 
   if (!configs.length) {
-    return { ok: false, error: '未提供模型配置。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
+    return { ok: false, error: '缺少模型配置。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
   }
 
   const chain = await runConfigChain(configs, (config) => runLlmRequest(config, options), options);
@@ -356,8 +356,8 @@ async function runLlmJson(config, options = {}) {
   if (value) return { value, text: first.text, result: first, repaired: false };
 
   if (options.repair === false) {
-    throw new LlmError(LLM_ERROR.PARSE, `${describeProvider(config)} 没有返回可解析的 JSON。`, {
-      hint: '换一个支持 JSON 模式的模型，或降低思考档位。',
+    throw new LlmError(LLM_ERROR.PARSE, `无法解析 ${describeProvider(config)} 返回的 JSON。`, {
+      hint: '请换用支持 JSON 模式的模型，或调低思考强度。',
     });
   }
 
@@ -380,8 +380,8 @@ async function runLlmJson(config, options = {}) {
   const repairedValue = extractJsonBlock(second.text);
 
   if (!repairedValue) {
-    throw new LlmError(LLM_ERROR.PARSE, `${describeProvider(config)} 连续两次都没有返回可解析的 JSON。`, {
-      hint: '换一个支持 JSON 模式的模型，或降低思考档位。',
+    throw new LlmError(LLM_ERROR.PARSE, `${describeProvider(config)} 连续两次返回的内容都无法解析为 JSON。`, {
+      hint: '请换用支持 JSON 模式的模型，或调低思考强度。',
     });
   }
 

@@ -34,7 +34,7 @@ function flowGroupIntoLines(items) {
 
 function flowChipTitle(item, info) {
   if (!info.known) {
-    return `${item.name} · 词典里查不到，模型多半也不认识`;
+    return `${item.name} · 词典未收录，模型可能无法识别`;
   }
   const parts = [item.name, `${flowFormatPosts(info.posts)} post`];
   if (info.zh) parts.push(info.zh);
@@ -66,7 +66,7 @@ function flowSentenceMarkup(item, context) {
 
   return `<span class="nai-flow-sentence" data-flow-item="${item.id}" data-role="${role.id}"`
     + `${selected ? ' data-selected="true"' : ''}`
-    + ` title="自然语言段 · ${role.label} · 点一下改，右键上下拖调权重">`
+    + ` title="自然语言 · ${role.label} · 点击编辑，按住右键上下拖动调整权重">`
     + `<span class="nai-flow-sentence-head"><span class="nai-flow-sentence-role">${role.label}</span>${weight}`
     + '<span class="nai-flow-chip-remove" title="移除">×</span></span>'
     + `<span class="nai-flow-sentence-text">${flowEscapeHtml(item.raw)}</span></span>`;
@@ -89,7 +89,7 @@ function flowItemMarkup(item, context) {
 
 function flowCanvasMarkup(segment, context) {
   if (!segment.items.length) {
-    return `<div class="nai-flow-empty">${context.emptyHint || '这一段还是空的，下面输入框加第一个 tag'}</div>`;
+    return `<div class="nai-flow-empty">${context.emptyHint || '这一段暂无 tag，可在下方输入框中添加。'}</div>`;
   }
 
   return flowGroupIntoLines(segment.items)
@@ -124,7 +124,7 @@ function flowSummaryMarkup(flow, segment) {
 
   const parts = [`${total} 个 tag`];
   if (flow.segments.length > 1) parts.push(`${flow.segments.length} 段`);
-  if (unknown) parts.push(`本段 ${unknown} 个词典查不到`);
+  if (unknown) parts.push(`本段有 ${unknown} 个未收录`);
   if (!flowDictionaryReady()) parts.push('词典未加载');
   return flowEscapeHtml(parts.join(' · '));
 }

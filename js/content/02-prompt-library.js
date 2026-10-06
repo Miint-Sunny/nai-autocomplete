@@ -150,7 +150,7 @@ function syncPromptLibraryEntryToOfficialChunk(entry, timeout = 5000) {
         },
       },
     }));
-    setTimeout(() => finish({ ok: false, error: '官方 Prompt Chunk 同步超时' }), timeout);
+    setTimeout(() => finish({ ok: false, error: '同步 Prompt Chunk 超时' }), timeout);
   });
 }
 
@@ -288,9 +288,9 @@ function getStorageArea() {
 function getPromptLibraryStorageError(error) {
   const message = String(error?.message || error || '');
   if (/Extension context invalidated/i.test(message) || !getStorageArea()) {
-    return '扩展刚刚重载，当前页面还是旧脚本。请刷新页面后再保存词库。';
+    return '扩展已更新，当前页面仍在使用旧版本。请刷新页面后再保存词库。';
   }
-  return '词库保存失败，请稍后重试。';
+  return '无法保存词库，请稍后重试。';
 }
 
 function readPromptLibraryLocalBackup() {

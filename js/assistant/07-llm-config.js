@@ -5,7 +5,7 @@ function buildMessages(resolvedBlocks) {
   const { merged, didMerge } = mergeBlocksForProtocol(resolvedBlocks, protocol);
 
   if (didMerge) {
-    setStatus('消息块已按协议要求自动合并。', false);
+    setStatus('已按接口协议的要求自动合并消息块。', false);
   }
 
   const messages = merged.map((block) => ({
@@ -291,17 +291,17 @@ async function syncLibraryEntry(entry) {
   }
 
   if (result?.skipped) {
-    setStatus('当前页面不可同步官方 Prompt Chunk。', true);
+    setStatus('当前页面无法同步 Prompt Chunk，请在 NovelAI 页面中操作。', true);
     return;
   }
 
-  setStatus(`${T.statusLibrarySyncFailed}${result?.error || '未知错误'}`, true);
+  setStatus(`${T.statusLibrarySyncFailed}${result?.error || '原因未知'}`, true);
 }
 
 async function syncLibraryEntryById(entryId) {
   const entry = state.promptLibrary.find((item) => item.id === entryId);
   if (!entry) return;
-  setStatus('正在同步到官方 Prompt Chunk...', false);
+  setStatus('正在同步到 Prompt Chunk…', false);
   await syncLibraryEntry(entry);
 }
 
@@ -315,7 +315,7 @@ async function copyLibraryEntry(entryId) {
 async function deleteLibraryEntry(entryId) {
   const entry = state.promptLibrary.find((item) => item.id === entryId);
   if (!entry) return;
-  const confirmed = window.confirm(`删除词库条目 ${entry.alias}？`);
+  const confirmed = window.confirm(`删除词库条目「${entry.alias}」？此操作无法撤销。`);
   if (!confirmed) return;
 
   const nextLibrary = state.promptLibrary.filter((item) => item.id !== entryId);
@@ -327,21 +327,21 @@ async function deleteLibraryEntry(entryId) {
 // 各家取密钥的位置差别很大，Vertex 尤其特殊：它要的是会过期的 OAuth
 // access token，不是长期 API key。
 const API_KEY_HELP = {
-  'vertex-openai': 'Vertex AI 用的是 OAuth access token，不是长期 API Key。\n本机装好 gcloud 后执行：gcloud auth print-access-token\n把输出整段粘进来。token 约 1 小时过期，过期后重新执行再粘一次。\n同时把 Endpoint 里的 PROJECT_ID 换成你的项目 ID，两处 us-central1 换成模型所在区域。',
+  'vertex-openai': 'Vertex AI 使用的是 OAuth access token，而不是长期有效的 API Key。\n在本机安装 gcloud 后执行：gcloud auth print-access-token\n把输出完整粘贴到这里。token 约 1 小时后过期，过期后请重新执行并粘贴。\n同时把 API 地址中的 PROJECT_ID 替换为你的项目 ID，两处 us-central1 替换为模型所在的区域。',
   'gemini-openai': '在 Google AI Studio（aistudio.google.com/apikey）创建 API Key。',
-  openai: '在 platform.openai.com/api-keys 创建。',
-  openrouter: '在 openrouter.ai/keys 创建。',
-  deepseek: '在 platform.deepseek.com/api_keys 创建。',
-  anthropic: '在 console.anthropic.com/settings/keys 创建。',
-  'xai-chat': '在 console.x.ai 创建。',
-  'xai-responses': '在 console.x.ai 创建。',
+  openai: '在 platform.openai.com/api-keys 创建 API Key。',
+  openrouter: '在 openrouter.ai/keys 创建 API Key。',
+  deepseek: '在 platform.deepseek.com/api_keys 创建 API Key。',
+  anthropic: '在 console.anthropic.com/settings/keys 创建 API Key。',
+  'xai-chat': '在 console.x.ai 创建 API Key。',
+  'xai-responses': '在 console.x.ai 创建 API Key。',
 };
 
 function toggleApiKeyHelp() {
   const note = ui.settings.keyHelp;
   if (!note) return;
   const providerId = ui.settings.providerPreset?.value || state.settings.providerPreset;
-  note.textContent = API_KEY_HELP[providerId] || '在所选服务商的控制台创建 API Key。';
+  note.textContent = API_KEY_HELP[providerId] || '请在所选服务商的控制台创建 API Key。';
   note.classList.toggle('nai-hidden');
 }
 
@@ -552,7 +552,7 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
   // 只填了域名。常见于「把 base URL 当接口地址粘进来」，或者换协议时删掉了旧路径
   // 却忘了补新的。这条不会误伤自建网关 —— 光秃秃一个域名对三种协议都不是合法地址。
   if (!pathname || pathname === '/') {
-    return `Endpoint 只填了域名，没有路径 —— 这里要的是完整的接口地址，不是 base URL。`
+    return `API 地址只填写了域名，缺少接口路径。请填写完整的接口地址：`
       + `「${expected.label}」的地址以 ${expected.want} 结尾。`;
   }
 
@@ -562,8 +562,8 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
     .find(([id, shape]) => id !== protocol && shape.tail.test(pathname));
   if (!looksLike) return '';
 
-  return `接口协议选的是「${expected.label}」，但 Endpoint 是 ${pathname}，那是「${looksLike[1].label}」的地址。`
-    + `两者必须配套：要么把协议改成「${looksLike[1].label}」，要么把 Endpoint 换成以 ${expected.want} 结尾的那条。`;
+  return `接口协议是「${expected.label}」，但 API 地址的路径 ${pathname} 属于「${looksLike[1].label}」。`
+    + `请将接口协议改为「${looksLike[1].label}」，或将 API 地址改为以 ${expected.want} 结尾的地址。`;
 }
 
 // 只给 base URL 就把路径补上 —— 各家 SDK 和酒馆都是这个口径，
@@ -630,7 +630,7 @@ function updateEndpointWarnings() {
     const autoComplete = toggle ? toggle.checked : true;
     const resolved = resolveEndpoint(protocol.value, raw, autoComplete);
     const mismatch = detectProtocolEndpointMismatch(protocol.value, resolved);
-    const message = mismatch || (resolved && resolved !== raw ? `会自动补成：${resolved}` : '');
+    const message = mismatch || (resolved && resolved !== raw ? `将自动补全为：${resolved}` : '');
 
     warn.textContent = message;
     warn.classList.toggle('is-hint', Boolean(message) && !mismatch);

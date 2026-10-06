@@ -66,7 +66,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "图像反推助手"
+    "default_title": "打开悬浮窗"
   },
   "web_accessible_resources": [
     {

@@ -446,15 +446,15 @@ async function executeAgentTool(call, index, options = {}) {
 async function runPromptAgent(payload, options = {}) {
   const request = String(payload?.request || '').trim();
   if (!request) {
-    return { ok: false, error: '请先写清楚要画什么。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
+    return { ok: false, error: '请先填写画面描述。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
   }
   if (!String(payload?.skill?.body || '').trim()) {
-    return { ok: false, error: '当前没有可用的 skill，请先在设置里装载一个。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
+    return { ok: false, error: '当前没有可用的 skill，请先导入一个。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
   }
 
   const configs = [payload.primary, payload.fallback].filter(Boolean);
   if (!configs.length) {
-    return { ok: false, error: '未提供模型配置。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
+    return { ok: false, error: '缺少模型配置。', errorKind: LLM_ERROR.CONFIG, attempts: [] };
   }
 
   const now = options.now || (() => Date.now());

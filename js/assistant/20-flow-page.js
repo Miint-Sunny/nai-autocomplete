@@ -7,7 +7,7 @@ const FLOW_PAGE_ACTIONS = [
   { id: 'append', label: '追加到输入框' },
   { id: 'read', label: '读取输入框' },
   { id: 'copy', label: '复制' },
-  { id: 'copy-base', label: '复制无角色' },
+  { id: 'copy-base', label: '复制主提示词' },
 ];
 
 function flowHostMarkup() {

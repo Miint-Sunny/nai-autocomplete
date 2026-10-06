@@ -25,7 +25,7 @@ function updatePreview() {
   ui.preview.src = state.selectedImage.dataUrl;
   // 自带提示词的图先说这件事 —— 用户看到就知道这次点反推不会花钱
   const naiSummary = state.selectedImage.naiMetadata?.prompt
-    ? `自带提示词 · ${state.selectedImage.naiMetadata.summary || '可直接读取'}`
+    ? `图片含提示词 · ${state.selectedImage.naiMetadata.summary || '可直接读取'}`
     : '';
   ui.previewHint.textContent = [
     naiSummary,

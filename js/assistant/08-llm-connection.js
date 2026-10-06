@@ -14,7 +14,7 @@ async function runConnectionCheck(config) {
   });
 
   if (!response?.ok) {
-    throw new Error(response?.error || '连接测试失败');
+    throw new Error(response?.error || '无法连接服务商');
   }
 
   return response;
@@ -30,7 +30,7 @@ async function testConnection(draft) {
   const testMessages = buildTestMessages();
   const primaryConfig = buildPrimaryConfig(testMessages, settings);
   if (!hasCompleteModelConfig(primaryConfig)) {
-    setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
+    setStatus('请先填写主模型的服务商、API 地址、模型和 API Key。', true);
     openSettingsSurface();
     return;
   }
@@ -47,7 +47,7 @@ async function testConnection(draft) {
     checks.push({ name: '备用模型', config: fallbackConfig });
   }
 
-  setPending(true, '测试中...');
+  setPending(true, '正在测试…');
   setStatus(T.statusTestingConnection, false);
 
   const passed = [];
@@ -69,7 +69,7 @@ async function testConnection(draft) {
 
     }
 
-    setStatus(`连接测试通过：${passed.join('、')}。`, false);
+    setStatus(`连接正常：${passed.join('、')}。`, false);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true);
   } finally {
@@ -153,7 +153,7 @@ function renderModelChips(container, models, currentModel) {
 
   container.innerHTML = shown
     .map((model) => `<button type="button" class="nai-md3-inline-action nai-model-chip${model === current ? ' is-active' : ''}" data-action="pick-model" data-model="${escapeHtml(model)}">${escapeHtml(model)}</button>`)
-    .join('') + (rest > 0 ? `<span class="nai-model-chips-rest">还有 ${rest} 个，可在输入框里直接打</span>` : '');
+    .join('') + (rest > 0 ? `<span class="nai-model-chips-rest">还有 ${rest} 个，可直接在输入框中输入</span>` : '');
 }
 
 // 胶囊点了就填进对应的那个模型框（面板 / 抽屉、主 / 备用四种组合）
@@ -172,32 +172,32 @@ function applyModelChip(target) {
   container.querySelectorAll('.nai-model-chip').forEach((chip) => {
     chip.classList.toggle('is-active', chip.dataset.model === model);
   });
-  setStatus(`已选择模型 ${model}${isFallback ? '（备用）' : ''}，别忘了保存设置。`, false);
+  setStatus(`已选择模型 ${model}${isFallback ? '（备用）' : ''}，请记得保存设置。`, false);
 }
 
 function describeModelFetch(models, currentModel, kind) {
   const suffix = kind === 'fallback' ? '（备用）' : '';
-  if (!models.length) return { text: `该服务未返回可用模型${suffix}。`, isError: true };
+  if (!models.length) return { text: `服务商未返回可用的模型${suffix}。`, isError: true };
 
   const current = String(currentModel || '').trim();
   if (current && !models.includes(current)) {
     return {
-      text: `已加载 ${models.length} 个模型候选${suffix}，但当前填的「${current}」不在其中 —— 从下面的列表里挑一个。`,
+      text: `已获取 ${models.length} 个模型${suffix}，当前填写的「${current}」不在其中，请从下方列表中选择。`,
       isError: true,
     };
   }
 
-  return { text: `已加载 ${models.length} 个模型候选${suffix}，在下面直接点选。`, isError: false };
+  return { text: `已获取 ${models.length} 个模型${suffix}，可在下方点选。`, isError: false };
 }
 
 async function fetchModelsFor(kind) {
   const config = getModelListConfig(kind);
   if (!config.endpoint || !config.apiKey) {
-    setStatus('请先填写对应的 Endpoint 和 API Key，再获取模型列表。', true);
+    setStatus('请先填写 API 地址和 API Key，再获取模型列表。', true);
     return;
   }
 
-  setStatus('正在获取模型列表...', false);
+  setStatus('正在获取模型列表…', false);
   try {
     const response = await sendRuntimeMessage({
       type: 'nai-list-models',
@@ -205,7 +205,7 @@ async function fetchModelsFor(kind) {
     });
 
     if (!response?.ok) {
-      throw new Error(response?.error || '获取模型列表失败');
+      throw new Error(response?.error || '无法获取模型列表');
     }
 
     const models = Array.isArray(response.models) ? response.models : [];
@@ -222,11 +222,11 @@ async function fetchModelsFor(kind) {
 async function fetchLibraryModelsFor(kind) {
   const config = getLibraryModelListConfig(kind);
   if (!config.endpoint || !config.apiKey) {
-    setStatus('请先填写对应的 Endpoint 和 API Key，再获取模型列表。', true);
+    setStatus('请先填写 API 地址和 API Key，再获取模型列表。', true);
     return;
   }
 
-  setStatus('正在获取模型列表...', false);
+  setStatus('正在获取模型列表…', false);
   try {
     const response = await sendRuntimeMessage({
       type: 'nai-list-models',
@@ -234,7 +234,7 @@ async function fetchLibraryModelsFor(kind) {
     });
 
     if (!response?.ok) {
-      throw new Error(response?.error || '获取模型列表失败');
+      throw new Error(response?.error || '无法获取模型列表');
     }
 
     const models = Array.isArray(response.models) ? response.models : [];

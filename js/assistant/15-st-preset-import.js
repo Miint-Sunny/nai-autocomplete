@@ -114,7 +114,7 @@ function ensureBooruVariable(blocks) {
 }
 
 function getStPresetName(data) {
-  return String(data?.name || data?.id || '').trim() || 'ST 导入';
+  return String(data?.name || data?.id || '').trim() || 'SillyTavern 导入';
 }
 
 // 解析和落库分开：导入盒子要先把「会得到什么」讲清楚，用户点了导入才真写进去。
@@ -197,7 +197,7 @@ function describeStPresetImport(text) {
   try {
     data = JSON.parse(trimmed);
   } catch (error) {
-    return { ok: false, summary: `不是合法的 JSON：${error instanceof Error ? error.message : String(error)}` };
+    return { ok: false, summary: `文件不是有效的 JSON：${error instanceof Error ? error.message : String(error)}` };
   }
 
   try {
@@ -207,7 +207,7 @@ function describeStPresetImport(text) {
     if (analysis.skipped.length) {
       parts.push(`跳过 ${analysis.skipped.length} 个没有正文的占位符：${analysis.skipped.slice(0, 6).join('、')}${analysis.skipped.length > 6 ? '…' : ''}`);
     }
-    if (analysis.addedBooruVar) parts.push('已自动补上 {{booru_tags}}');
+    if (analysis.addedBooruVar) parts.push('已自动添加 {{booru_tags}}');
     return { ok: true, summary: parts.join(' · ') };
   } catch (error) {
     return { ok: false, summary: error instanceof Error ? error.message : String(error) };
@@ -223,5 +223,5 @@ async function commitStPresetImport(text) {
   if (!applied) throw new Error(T.statusContextInvalidated);
 
   const extra = analysis.skipped.length ? `，跳过 ${analysis.skipped.length} 个占位符` : '';
-  return `已导入并套用「${preset.name}」：${analysis.blocks.length} 个消息块${extra}。`;
+  return `已导入并应用「${preset.name}」：${analysis.blocks.length} 个消息块${extra}。`;
 }

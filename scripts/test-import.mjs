@@ -173,7 +173,7 @@ test('全是没正文的占位符也抛错', async () => {
 test('坏 JSON 给的是能看懂的一句话，不是抛出去', () => {
   const result = describeStPresetImport('{ 这不是 json');
   assert.equal(result.ok, false);
-  assert.match(result.summary, /不是合法的 JSON/);
+  assert.match(result.summary, /不是有效的 JSON/);
 });
 
 test('好 JSON 的摘要要说清楚得到几块、跳了什么', () => {
@@ -266,7 +266,7 @@ test('把分隔标记删掉就是把两份并成一份', () => {
 
 test('空内容抛错，不会造出一个空 skill', async () => {
   const error = await captureError(() => buildSkillFromTexts(splitSkillFileTexts('   \n  ')));
-  assert.match(error.message, /没有读到内容/);
+  assert.match(error.message, /文件中没有内容/);
 });
 
 test('摘要要说清楚正文多少字、几份参考资料', () => {

@@ -112,7 +112,7 @@ test('补全之后警告就该闭嘴', () => {
 
 test('开关关掉时，只填域名仍然要报出来', () => {
   const message = detect('anthropic-messages', resolve('anthropic-messages', 'https://api.deepseek.com', false));
-  assert.match(message, /只填了域名/);
+  assert.match(message, /只填写了域名/);
 });
 
 await run('Endpoint 地址口径');

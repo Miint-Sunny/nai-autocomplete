@@ -119,11 +119,11 @@ group('分段');
 test('段的角色命名', () => {
   const flow = parse('base | char a | char b |');
   deepEqual(flow.segments.map((segment) => [segment.kind, segment.name]), [
-    ['base', '基础'], ['character', '角色 1'], ['character', '角色 2'],
+    ['base', '主提示词'], ['character', '角色 1'], ['character', '角色 2'],
   ]);
 });
 
-test('单段不叫基础', () => {
+test('单段不叫主提示词', () => {
   const flow = parse('1girl, solo');
   assert.equal(flow.segments[0].kind, 'single');
 });
@@ -342,7 +342,7 @@ test('词典查不到要标出来 —— 模型多半也不认识', () => {
   const unknown = classify('zzz not a tag', null);
   assert.equal(unknown.known, false);
   assert.equal(unknown.source, 'unknown');
-  assert.equal(unknown.sourceLabel, '词典无');
+  assert.equal(unknown.sourceLabel, '未收录');
   assert.equal(unknown.semantic, 'other', '查不到也照样给语义猜测');
 });
 

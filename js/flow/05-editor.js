@@ -39,19 +39,19 @@ function flowEditorMarkup(options) {
     <div class="nai-flow">
       <div class="nai-flow-head">
         <div class="nai-flow-segments" data-flow-field="segments"></div>
-        <button type="button" class="nai-md3-inline-action nai-flow-seg-add" data-flow-action="add-segment" title="新增一个角色段">＋段</button>
+        <button type="button" class="nai-md3-inline-action nai-flow-seg-add" data-flow-action="add-segment" title="添加角色段">＋ 角色段</button>
       </div>
       <div class="nai-flow-tools">
         <button type="button" class="nai-md3-inline-action" data-flow-action="undo" title="撤销">撤销</button>
         <button type="button" class="nai-md3-inline-action" data-flow-action="redo" title="重做">重做</button>
-        <button type="button" class="nai-md3-inline-action" data-flow-action="dedupe" title="同段内同名 tag 只留一个，权重取最大">去重</button>
-        <button type="button" class="nai-md3-inline-action" data-flow-action="sort" title="每一行内按类别归并，不跨行搬动">归类</button>
+        <button type="button" class="nai-md3-inline-action" data-flow-action="dedupe" title="同一段内重复的 tag 只保留一个，权重取最大值">去重</button>
+        <button type="button" class="nai-md3-inline-action" data-flow-action="sort" title="在每一行内按类别归类，不跨行移动">归类</button>
         <button type="button" class="nai-md3-inline-action" data-flow-action="clear" title="清空当前段">清空</button>
       </div>
       <div class="nai-flow-canvas" data-flow-field="canvas"></div>
       <div class="nai-flow-bulk nai-hidden" data-flow-field="bulk"></div>
       <div class="nai-flow-add">
-        <textarea class="nai-md3-input nai-flow-input" rows="1" data-flow-field="add" placeholder="加 tag，回车确认；点上面的 chip 或整句都能改"></textarea>
+        <textarea class="nai-md3-input nai-flow-input" rows="1" data-flow-field="add" placeholder="输入 tag 后按 Enter 添加；点击上方的 tag 或句子可以编辑"></textarea>
         <div class="nai-flow-suggests" data-flow-field="suggests"></div>
       </div>
       <div class="nai-flow-foot" data-flow-field="summary"></div>
@@ -132,13 +132,13 @@ function flowCreateEditor(options = {}) {
     const count = state.selection.size;
     dom.bulk.classList.toggle('nai-hidden', !count);
     if (count) {
-      dom.bulk.innerHTML = `<span class="nai-flow-bulk-count">已选 ${count} 个</span>`
-        + '<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-toggle-kind" title="tag 被忽略时改用自然语言整句，反之亦然">tag ⇄ 整句</button>'
+      dom.bulk.innerHTML = `<span class="nai-flow-bulk-count">已选择 ${count} 个</span>`
+        + '<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-toggle-kind" title="在 tag 和自然语言句子之间切换（tag 不生效时可改用句子）">tag ⇄ 整句</button>'
         + '<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-group">加权成组</button>'
         + '<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-delete">删除</button>'
         + state.flow.segments
           .filter((item) => item.id !== segment.id)
-          .map((item) => `<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-move" data-id="${item.id}">移到${flowEscapeHtml(item.name)}</button>`)
+          .map((item) => `<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-move" data-id="${item.id}">移到「${flowEscapeHtml(item.name)}」</button>`)
           .join('')
         + '<button type="button" class="nai-md3-inline-action" data-flow-action="bulk-clear">取消选择</button>';
     }
@@ -176,7 +176,7 @@ function flowCreateEditor(options = {}) {
     dom.add.value = isSentence ? found.item.raw : found.item.name;
     dom.add.rows = isSentence ? 4 : 1;
     dom.add.classList.toggle('is-prose', isSentence);
-    dom.add.placeholder = isSentence ? '改这一段，回车确认，Esc 取消' : '改词，回车确认，Esc 取消';
+    dom.add.placeholder = isSentence ? '编辑这一段，按 Enter 确认，按 Esc 取消' : '编辑 tag，按 Enter 确认，按 Esc 取消';
     dom.add.focus();
     dom.add.select();
     renderSuggestions();
@@ -188,7 +188,7 @@ function flowCreateEditor(options = {}) {
     dom.add.value = '';
     dom.add.rows = 1;
     dom.add.classList.remove('is-prose');
-    dom.add.placeholder = '加 tag，回车确认；点上面的 chip 或整句都能改';
+    dom.add.placeholder = '输入 tag 后按 Enter 添加；点击上方的 tag 或句子可以编辑';
     dom.suggests.innerHTML = '';
     render();
   }

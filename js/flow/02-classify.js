@@ -31,7 +31,7 @@ const FLOW_SOURCE_LABELS = {
   copyright: '版权',
   character: '角色',
   meta: '元信息',
-  unknown: '词典无',
+  unknown: '未收录',
 };
 
 const FLOW_SEMANTIC_RULES = [

@@ -119,7 +119,7 @@ async function fillNaiCharacterFields(characters) {
     .filter((entry) => entry.prompt);
 
   if (!desired.length) {
-    return { ok: false, filled: 0, reason: 'empty', message: '没有可以填入的角色提示词。' };
+    return { ok: false, filled: 0, reason: 'empty', message: '没有可填入的角色提示词。' };
   }
 
   const needed = Math.max(...desired.map((entry) => entry.slot));
@@ -130,7 +130,7 @@ async function fillNaiCharacterFields(characters) {
       ok: false,
       filled: 0,
       reason: 'not-found',
-      message: '这个页面上没找到 Character 栏。请在 NovelAI 的出图页打开角色提示词后再试。',
+      message: '当前页面上没有找到角色栏。请在 NovelAI 出图页添加角色后重试。',
     };
   }
 
@@ -139,10 +139,10 @@ async function fillNaiCharacterFields(characters) {
       ok: false,
       filled: 0,
       reason: 'too-few',
-      message: `只找到 ${fields.length} 个 Character 栏，需要 ${needed} 个。请先在网页里添加到 ${needed} 个角色。`,
+      message: `当前页面只有 ${fields.length} 个角色栏，需要 ${needed} 个。请先在 NovelAI 中添加到 ${needed} 个角色。`,
     };
   }
 
   desired.forEach((entry) => setNaiFieldValue(fields[entry.slot - 1], entry.prompt));
-  return { ok: true, filled: desired.length, message: `已填入 ${desired.length} 个 Character 栏` };
+  return { ok: true, filled: desired.length, message: `已填入 ${desired.length} 个角色栏` };
 }

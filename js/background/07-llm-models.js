@@ -53,7 +53,7 @@ function extractModelIds(data) {
 
 async function listModels(config, options = {}) {
   if (!config?.endpoint) {
-    throw new LlmError(LLM_ERROR.CONFIG, '请先填写 Endpoint。');
+    throw new LlmError(LLM_ERROR.CONFIG, '请先填写 API 地址。');
   }
   if (!config?.apiKey && !endpointAllowsEmptyKey(config.endpoint)) {
     throw new LlmError(LLM_ERROR.CONFIG, '请先填写 API Key。');
@@ -72,7 +72,7 @@ async function listModels(config, options = {}) {
 
   const data = parseJsonSafely(result.rawText);
   if (!data) {
-    throw new LlmError(LLM_ERROR.PARSE, '模型列表接口没有返回 JSON。');
+    throw new LlmError(LLM_ERROR.PARSE, '模型列表接口返回的不是 JSON。');
   }
 
   const models = Array.from(new Set(extractModelIds(data))).sort((a, b) => a.localeCompare(b));

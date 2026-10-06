@@ -189,7 +189,7 @@ test('只填了域名要直说，别等发出去才报', () => {
   const detect = box.get('detectProtocolEndpointMismatch');
 
   const message = detect('anthropic-messages', 'https://api.deepseek.com');
-  assert.match(message, /只填了域名/);
+  assert.match(message, /只填写了域名/);
   assert.match(message, /\/messages/);
   assert.match(detect('openai-chat', 'https://api.deepseek.com/'), /\/chat\/completions/);
 });
@@ -211,13 +211,13 @@ test('schema 类的 400 优先报错配这条，而不是笼统的那句', () =>
   const mismatched = new LlmError('bad_request', 'tools[0]: missing field `type`', {
     config: { protocol: 'anthropic-messages', endpoint: 'https://api.deepseek.com/chat/completions' },
   });
-  assert.match(mismatched.hint, /两者必须配套/);
+  assert.match(mismatched.hint, /请将接口协议改为/);
 
   // 配套但仍然 schema 报错时，退回原来那句笼统的
   const plain = new LlmError('bad_request', 'tools[0]: unknown variant `custom`', {
     config: { protocol: 'anthropic-messages', endpoint: 'https://api.anthropic.com/v1/messages' },
   });
-  assert.match(plain.hint, /形状要求和我们发的不一致/);
+  assert.match(plain.hint, /格式要求与扩展发送的不一致/);
 });
 
 // OpenAI 两条协议的工具定义带 type，这是它们各自 spec 的形状
@@ -259,10 +259,10 @@ test('schema 类的 400 不给「图片 / 思考档位」那条误导 hint', () 
   const schemaError = new LlmError('bad_request', '未能将 JSON 主体反序列化为目标类型： tools[0]： 缺少字段 \'type\'');
   const plainError = new LlmError('bad_request', '请求失败：HTTP 400');
 
-  assert.equal(/调成关闭再试/.test(schemaError.hint), false, '别把人往「调思考档位」上带');
-  assert.match(schemaError.hint, /schema/);
+  assert.equal(/设为「关闭」后重试/.test(schemaError.hint), false, '别把人往「调思考强度」上带');
+  assert.match(schemaError.hint, /校验请求格式/);
   assert.match(schemaError.hint, /无关/, '要明说和图片、思考档位都没关系');
-  assert.match(plainError.hint, /调成关闭再试/, '普通 400 保留原来的常见原因');
+  assert.match(plainError.hint, /设为「关闭」后重试/, '普通 400 保留原来的常见原因');
 });
 
 test('anthropic：连续同角色的消息要合并（API 不接受相邻同角色）', () => {
@@ -390,7 +390,7 @@ test('网络层失败的提示要和「模型返回空」区分开', async () =>
   assert.equal(error.kind, 'network');
   assert.match(error.message, /127\.0\.0\.1/);
   assert.match(error.message, /本机服务/);
-  assert.match(error.message, /不是模型返回空文本/);
+  assert.match(error.message, /不是模型返回了空内容/);
 });
 
 test('超时是超时，不会被误判成取消', async () => {
@@ -594,7 +594,7 @@ test('200 + 空正文 + finish_reason=length：要指向 max_tokens 而不是含
   const error = await captureError(() => box.get('runLlmRequest')(openaiConfig(), FAST_RETRY));
 
   assert.equal(error.kind, 'empty');
-  assert.match(error.message, /max_tokens/);
+  assert.match(error.message, /Max Tokens/);
   assert.match(error.hint, /思考/);
 });
 

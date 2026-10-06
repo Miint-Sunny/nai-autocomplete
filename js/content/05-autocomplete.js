@@ -4,10 +4,10 @@ function createContainer() {
   c.className = 'nai-autocomplete-container';
   c.innerHTML = `
     <div class="nai-autocomplete-header">
-      <span class="nai-autocomplete-title">标签补全</span>
+      <span class="nai-autocomplete-title">tag 补全</span>
       <div class="nai-autocomplete-toggles">
         <button type="button" class="nai-ac-chip" id="nai-slash-switch" title="下划线与空格互转" aria-pressed="false">_ ⇄ 空格</button>
-        <button type="button" class="nai-ac-chip" id="nai-highlight-switch" title="在输入框里给每个 TAG 画分类下划线" aria-pressed="false">TAG 下划线</button>
+        <button type="button" class="nai-ac-chip" id="nai-highlight-switch" title="按分类给输入框中的每个 tag 加下划线" aria-pressed="false">tag 下划线</button>
       </div>
     </div>
     <div class="nai-autocomplete-list"></div>
@@ -342,9 +342,9 @@ function showAutocomplete(editor, results, query) {
   lastAutocompleteContext = getSegmentContext();
 
   if (isLoading) {
-    list.innerHTML = '<div class="nai-autocomplete-loading"><span class="nai-autocomplete-spinner"></span>加载中...</div>';
+    list.innerHTML = '<div class="nai-autocomplete-loading"><span class="nai-autocomplete-spinner"></span>正在加载…</div>';
   } else if (!results.length) {
-    list.innerHTML = '<div class="nai-autocomplete-empty"><div class="nai-autocomplete-empty-icon">-</div>无匹配结果</div>';
+    list.innerHTML = '<div class="nai-autocomplete-empty"><div class="nai-autocomplete-empty-icon">-</div>没有匹配的 tag</div>';
   } else {
     list.innerHTML = results.map((tag, i) => {
       const isLibrary = tag.resultType === 'prompt-library';

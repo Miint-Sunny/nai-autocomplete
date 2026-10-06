@@ -128,7 +128,7 @@ async function performLlmRequest(request, ctx) {
 
   const toTransportError = (error) => {
     if (deadline.timedOut) {
-      return new LlmError(LLM_ERROR.TIMEOUT, `请求超过 ${Math.round(ctx.timeoutMs / 1000)} 秒未返回，已中止。`);
+      return new LlmError(LLM_ERROR.TIMEOUT, `请求超过 ${Math.round(ctx.timeoutMs / 1000)} 秒没有响应，已中止。`);
     }
     if (isAbortError(error)) return new LlmError(LLM_ERROR.ABORTED, '请求已取消。');
     return new LlmError(
@@ -172,7 +172,7 @@ async function performLlmRequest(request, ctx) {
     if (!response.ok) {
       const data = parseJsonSafely(rawText);
       const retryAfterMs = parseRetryAfter(response.headers?.get?.('retry-after'), ctx.now());
-      const message = extractErrorMessage(data, `请求失败：HTTP ${response.status}`);
+      const message = extractErrorMessage(data, `服务商返回错误（HTTP ${response.status}）`);
       throw new LlmError(classifyHttpStatus(response.status), redactSecrets(message, ctx.secrets), {
         status: response.status,
         retryAfterMs,
@@ -226,5 +226,5 @@ async function llmHttp(request, options = {}) {
     }
   }
 
-  throw lastError || new LlmError(LLM_ERROR.UNKNOWN, '请求失败');
+  throw lastError || new LlmError(LLM_ERROR.UNKNOWN, '无法完成请求');
 }

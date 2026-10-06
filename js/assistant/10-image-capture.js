@@ -216,7 +216,7 @@ function readFileDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
+    reader.onerror = () => reject(new Error(`无法读取 ${file.name}`));
     reader.readAsDataURL(file);
   });
 }
@@ -241,11 +241,11 @@ async function openLocalImageFile() {
   });
   if (!file) return;
 
-  setStatus('正在读取图片...', false);
+  setStatus('正在读取图片…', false);
 
   try {
     const dataUrl = await readFileDataUrl(file);
-    if (!dataUrl.startsWith('data:image/')) throw new Error('这不是图片文件');
+    if (!dataUrl.startsWith('data:image/')) throw new Error('所选文件不是图片');
 
     const budgeted = await budgetInlineImage(dataUrl);
     state.selectedImage = {
@@ -266,11 +266,11 @@ async function useImageElement(image, autoReverse) {
   const resolved = resolveImageSource(image);
   const sourceUrl = resolved.sourceUrl;
   if (!sourceUrl) {
-    setStatus('目标元素没有可用图片地址。', true);
+    setStatus('无法获取该元素的图片地址。', true);
     return;
   }
 
-  setStatus('正在读取图片...', false);
+  setStatus('正在读取图片…', false);
 
   try {
     if (resolved.dataUrl) {
@@ -300,10 +300,10 @@ async function useImageElement(image, autoReverse) {
     });
 
     if (!response?.ok) {
-      setStatus('直接读取失败，改用滚动拼接截图...', false);
+      setStatus('无法直接读取图片，正在改用滚动截图拼接…', false);
       const capturedDataUrl = await captureVisibleElement(image);
       if (!capturedDataUrl) {
-        throw new Error(response?.error || '图片读取失败');
+        throw new Error(response?.error || '无法读取图片');
       }
 
       // 滚动拼接出来的是画布重绘，不可能带元数据
@@ -397,7 +397,7 @@ function onPickClick(event) {
   event.stopPropagation();
 
   if (!image) {
-    setStatus('请点击图片元素。', true);
+    setStatus('请点击一张图片。', true);
     return;
   }
 

@@ -79,7 +79,7 @@ function createUI() {
           </div>
           <label class="nai-md3-label">${T.serviceProvider}</label><select class="nai-md3-input" data-field="providerPreset"></select>
           <label class="nai-md3-label">${T.protocol}</label><select class="nai-md3-input" data-field="protocol"></select>
-          <label class="nai-md3-label">API Endpoint</label><input class="nai-md3-input" data-field="endpoint" type="text" />
+          <label class="nai-md3-label">API 地址</label><input class="nai-md3-input" data-field="endpoint" type="text" />
           <div class="nai-md3-config-warn nai-hidden" data-field="endpointWarn"></div>
           <label class="nai-md3-switch"><input data-field="autoCompleteEndpoint" type="checkbox" /><span>${T.autoCompleteEndpoint}</span></label>
           <div class="nai-md3-section-note">${T.autoCompleteEndpointHint}</div>
@@ -92,7 +92,7 @@ function createUI() {
           </div>
           <datalist id="nai-primary-model-list"></datalist>
           <div class="nai-model-chips" data-field="modelChips" data-kind="primary"></div>
-          <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取">i</button></label>
+          <label class="nai-md3-label">API Key<button type="button" class="nai-md3-help" data-action="toggle-key-help" aria-label="如何获取 API Key">i</button></label>
           <!-- 四个 API Key 框都是 text + .nai-md3-secret 遮成圆点，不能用密码类型的输入框：
                这整棵 DOM 注入在每个网页上（面板藏着也在），页面里只要有一个密码框，
                Chrome 就把整页不在 <form> 里的输入框拼成一张登录表单，宿主页的搜索框
@@ -131,7 +131,7 @@ function createUI() {
             <div class="nai-md3-section-note">${T.sectionSamplingHint}</div>
           </div>
           <div class="nai-md3-grid-2">
-            <div><label class="nai-md3-label">Temperature</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
+            <div><label class="nai-md3-label">温度</label><input class="nai-md3-input" data-field="temperature" type="number" min="0" max="2" step="0.1" /></div>
             <div><label class="nai-md3-label">Max Tokens</label><input class="nai-md3-input" data-field="maxTokens" type="number" min="64" max="32000" step="1" /></div>
           </div>
           <label class="nai-md3-label">${T.reasoningEffort}</label><select class="nai-md3-input" data-field="reasoningEffort"></select>
@@ -185,7 +185,7 @@ function createUI() {
           </div>
           <div class="nai-preset-blocks-editor" data-preset-blocks></div>
           <div style="display:flex;gap:.5em;margin-top:.4em;flex-wrap:wrap">
-            <button type="button" class="nai-md3-inline-action" data-action="add-block">+ 添加消息块</button>
+            <button type="button" class="nai-md3-inline-action" data-action="add-block">＋ 添加消息块</button>
             <span class="nai-preset-var-chips"><button type="button" class="nai-preset-var-chip" data-action="insert-variable" data-variable="{{booru_tags}}">{{booru_tags}}</button><button type="button" class="nai-preset-var-chip" data-action="insert-variable" data-variable="{{role_prompt}}">{{role_prompt}}</button></span>
           </div>
         </div>
@@ -217,7 +217,7 @@ function createUI() {
       <div class="nai-md3-resize-handle" aria-hidden="true"></div>
     </section>
     <aside class="nai-library-drawer nai-hidden" aria-label="工作台">
-      <div class="nai-library-drawer-resize-handle" role="separator" aria-orientation="vertical" aria-label="拖拽调整宽度（双击重置）" title="拖拽调整宽度 · 双击重置"></div>
+      <div class="nai-library-drawer-resize-handle" role="separator" aria-orientation="vertical" aria-label="拖动调整宽度，双击恢复默认宽度" title="拖动调整宽度，双击恢复默认宽度"></div>
       <div class="nai-library-drawer-surface">
         <header class="nai-library-drawer-head">
           <div>
@@ -230,7 +230,7 @@ function createUI() {
         <div class="nai-library-drawer-status"></div>
 
         <div class="nai-library-drawer-content">
-          <nav class="nai-workbench-sidebar" aria-label="工作台窗口">
+          <nav class="nai-workbench-sidebar" aria-label="工作台导航">
             <div class="nai-workbench-nav-main">
               <button type="button" class="nai-workbench-nav-item is-active" data-workbench-page="library" data-action="workbench-open-library" title="词库">
                 <span class="nai-workbench-nav-icon" aria-hidden="true">${getWorkbenchIcon('library')}</span>
@@ -269,9 +269,9 @@ function createUI() {
             <div class="nai-library-editor-head">
               <div>
                 <div class="nai-library-editor-kicker">Prompt Chunk</div>
-                <div class="nai-library-editor-title">词库编辑</div>
+                <div class="nai-library-editor-title">编辑词库条目</div>
               </div>
-              <button class="nai-library-editor-close" type="button" data-action="library-close-editor" aria-label="隐藏词库编辑">×</button>
+              <button class="nai-library-editor-close" type="button" data-action="library-close-editor" aria-label="关闭词库编辑">×</button>
             </div>
             <div class="nai-library-editor-row">
               <label class="nai-library-field">
@@ -282,12 +282,12 @@ function createUI() {
               </label>
               <label class="nai-library-field">
                 <span>名称</span>
-                <input data-field="libraryName" type="text" placeholder="yuukarin" />
+                <input data-field="libraryName" type="text" placeholder="例如：yuukarin" />
               </label>
             </div>
             <label class="nai-library-field nai-hidden" data-field="libraryAliasesField">
-              <span>别名（写词时点名用，逗号分隔）</span>
-              <input data-field="libraryAliases" type="text" placeholder="小夏, Natsuki" />
+              <span>别名（写词时可用别名点名，多个用逗号分隔）</span>
+              <input data-field="libraryAliases" type="text" placeholder="例如：小夏, Natsuki" />
             </label>
             <label class="nai-library-field">
               <span>Prompt Chunk 内容</span>
@@ -302,7 +302,7 @@ function createUI() {
           <section class="nai-library-main" aria-label="工作台页面">
             <section class="nai-library-index" data-workbench-panel="library">
               <div class="nai-library-index-head">
-                <div>已保存词库</div>
+                <div>词库条目</div>
                 <button type="button" data-action="library-new">新建</button>
               </div>
               <div class="nai-library-list"></div>
@@ -342,12 +342,12 @@ function createUI() {
                     </label>
                     <div style="display:flex;gap:.5em;align-items:end">
                       <label class="nai-library-field" style="flex:1"><span>${T.roleLibrary}</span><select data-field="wbRoleLibrarySelect"></select></label>
-                      <button type="button" class="nai-md3-inline-action" data-action="wb-apply-role-library" style="margin-bottom:2px">套用</button>
+                      <button type="button" class="nai-md3-inline-action" data-action="wb-apply-role-library" style="margin-bottom:2px">应用</button>
                     </div>
                   </div>
                   <div class="nai-preset-blocks-container" data-wb-preset-blocks></div>
                   <div style="display:flex;gap:.5em;margin-top:.4em;flex-wrap:wrap">
-                    <button type="button" class="nai-md3-inline-action" data-action="wb-add-block">+ 添加消息块</button>
+                    <button type="button" class="nai-md3-inline-action" data-action="wb-add-block">＋ 添加消息块</button>
                     <span class="nai-preset-var-chips"><button type="button" class="nai-preset-var-chip" data-action="wb-insert-variable" data-variable="{{booru_tags}}">{{booru_tags}}</button><button type="button" class="nai-preset-var-chip" data-action="wb-insert-variable" data-variable="{{role_prompt}}">{{role_prompt}}</button></span>
                   </div>
                 </div>
@@ -394,7 +394,7 @@ function createUI() {
                     </label>
                   </div>
                   <label class="nai-library-field">
-                    <span>API Endpoint</span>
+                    <span>API 地址</span>
                     <input data-field="libraryEndpoint" type="text" />
                   </label>
                   <div class="nai-md3-config-warn nai-hidden" data-field="libraryEndpointWarn"></div>
@@ -459,7 +459,7 @@ function createUI() {
                   <div class="nai-library-settings-title">${T.sectionSampling}</div>
                   <div class="nai-library-settings-grid">
                     <label class="nai-library-field">
-                      <span>Temperature</span>
+                      <span>温度</span>
                       <input data-field="libraryTemperature" type="number" min="0" max="2" step="0.1" />
                     </label>
                     <label class="nai-library-field">
@@ -526,7 +526,7 @@ function createUI() {
                   <div class="nai-library-settings-title">外观</div>
                   <div class="nai-library-settings-grid">
                     <label class="nai-library-field">
-                      <span>颜色预设</span>
+                      <span>配色</span>
                       <select data-field="libraryThemePreset"></select>
                     </label>
                     <div class="nai-library-check-stack">

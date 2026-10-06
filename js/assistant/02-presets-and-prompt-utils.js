@@ -275,7 +275,7 @@ function duplicatePreset(sourceId) {
   if (!source) return null;
   const preset = {
     id: 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
-    name: source.name + ' (副本)',
+    name: source.name + '（副本）',
     builtIn: false,
     blocks: source.blocks.map((b) => ({ ...b, id: generateBlockId() })),
   };

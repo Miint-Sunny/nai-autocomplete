@@ -17,7 +17,7 @@ function isWorkbenchPage(url) {
 
 function updateActionTitle(tabId, url) {
   if (!tabId) return;
-  const title = isWorkbenchPage(url) ? '工作台' : '图像反推助手';
+  const title = isWorkbenchPage(url) ? '打开工作台' : '打开悬浮窗';
   chrome.action.setTitle({ tabId, title });
 }
 

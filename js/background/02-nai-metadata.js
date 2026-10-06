@@ -247,7 +247,7 @@ function normalizeNaiMetadata(values) {
 
 function describeNaiMetadata(metadata, origin) {
   const bits = [
-    origin === 'stealth' ? 'alpha 隐写' : 'PNG 文本块',
+    origin === 'stealth' ? 'alpha 通道' : 'PNG 文本块',
     metadata.model,
     metadata.seed != null ? `Seed ${metadata.seed}` : '',
     metadata.width && metadata.height ? `${metadata.width} × ${metadata.height}` : '',

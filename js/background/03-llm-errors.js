@@ -40,14 +40,14 @@ const LLM_ERROR_POLICY = {
 };
 
 const LLM_ERROR_HINTS = {
-  [LLM_ERROR.AUTH]: 'API Key 无效、过期或没有该模型的权限。Vertex 用的是 access token，约 1 小时就会过期，需要重新取。',
-  [LLM_ERROR.RATE_LIMIT]: '触发了服务商限流。稍等片刻再试，或降低并发；免费额度用尽也会返回这个。',
-  [LLM_ERROR.BAD_REQUEST]: '请求被服务端判为不合法。常见原因：该模型不支持图片输入、图片过大、或者不接受思考档位参数（把「思考模式」调成关闭再试）。',
-  [LLM_ERROR.NOT_FOUND]: 'Endpoint 路径或模型 ID 不存在。检查 Endpoint 结尾是否漏了 /chat/completions，以及模型名有没有拼错。',
-  [LLM_ERROR.SERVER]: '服务端错误，通常是临时的，已自动重试过。',
-  [LLM_ERROR.EMPTY]: '服务端返回 200 但没有正文。常见原因：思考档位把 max_tokens 吃光了，或内容被安全策略拦掉。',
-  [LLM_ERROR.PARSE]: '响应不是可解析的 JSON / SSE。多半是中转站或代理返回了 HTML 错误页。',
-  [LLM_ERROR.TIMEOUT]: '超过设定时限仍未返回。可能是模型思考过久，或代理卡住了。',
+  [LLM_ERROR.AUTH]: 'API Key 无效、已过期，或没有该模型的使用权限。Vertex AI 使用的 access token 约 1 小时后过期，过期后需要重新获取。',
+  [LLM_ERROR.RATE_LIMIT]: '请求过于频繁，已被服务商限流。请稍后重试或降低请求频率；免费额度用尽时也会出现这个错误。',
+  [LLM_ERROR.BAD_REQUEST]: '服务商认为请求无效。常见原因：模型不支持图片输入、图片过大，或不支持思考强度参数（可将「思考强度」设为「关闭」后重试）。',
+  [LLM_ERROR.NOT_FOUND]: 'API 地址的路径或模型 ID 不存在。请检查 API 地址末尾是否缺少 /chat/completions，以及模型名称是否拼写正确。',
+  [LLM_ERROR.SERVER]: '服务商出现临时错误，已自动重试。请稍后再试。',
+  [LLM_ERROR.EMPTY]: '服务商返回了成功状态，但没有内容。常见原因：思考过程用完了 Max Tokens 额度，或内容被安全策略拦截。',
+  [LLM_ERROR.PARSE]: '无法解析服务商的响应（不是 JSON 或 SSE）。通常是中转服务或代理返回了 HTML 错误页。',
+  [LLM_ERROR.TIMEOUT]: '请求超时。可能是模型思考时间过长，或代理没有响应。',
   [LLM_ERROR.CONFIG]: '服务商配置不完整。',
 };
 
@@ -84,7 +84,7 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
   // 只填了域名。常见于「把 base URL 当接口地址粘进来」，或者换协议时删掉了旧路径
   // 却忘了补新的。这条不会误伤自建网关 —— 光秃秃一个域名对三种协议都不是合法地址。
   if (!pathname || pathname === '/') {
-    return `Endpoint 只填了域名，没有路径 —— 这里要的是完整的接口地址，不是 base URL。`
+    return `API 地址只填写了域名，缺少接口路径。请填写完整的接口地址：`
       + `「${expected.label}」的地址以 ${expected.want} 结尾。`;
   }
 
@@ -94,8 +94,8 @@ function detectProtocolEndpointMismatch(protocol, endpoint) {
     .find(([id, shape]) => id !== protocol && shape.tail.test(pathname));
   if (!looksLike) return '';
 
-  return `接口协议选的是「${expected.label}」，但 Endpoint 是 ${pathname}，那是「${looksLike[1].label}」的地址。`
-    + `两者必须配套：要么把协议改成「${looksLike[1].label}」，要么把 Endpoint 换成以 ${expected.want} 结尾的那条。`;
+  return `接口协议是「${expected.label}」，但 API 地址的路径 ${pathname} 属于「${looksLike[1].label}」。`
+    + `请将接口协议改为「${looksLike[1].label}」，或将 API 地址改为以 ${expected.want} 结尾的地址。`;
 }
 
 // 400 的兜底 hint 说的是「图片 / 思考档位」，那是最常见的两种。
@@ -111,7 +111,7 @@ function pickErrorHint(kind, message, config) {
   const mismatch = detectProtocolEndpointMismatch(config?.protocol, config?.endpoint);
   if (mismatch) return mismatch;
 
-  return '服务端按 schema 校验请求体时失败了，和图片或思考档位无关。多半是这家对某个字段的形状要求和我们发的不一致 —— 把这条原文报到 issue 里最有用。';
+  return '服务商校验请求格式时出错，与图片或思考强度无关。可能是该服务商对某个字段的格式要求与扩展发送的不一致，请把这条错误原文反馈到 issue。';
 }
 
 class LlmError extends Error {
@@ -231,15 +231,15 @@ function buildFetchFailureMessage(url, error) {
   try {
     const parsed = new URL(url);
     hostText = `${parsed.protocol}//${parsed.host}`;
-    if (parsed.protocol === 'http:') extraHints.push('Endpoint 使用了 HTTP');
-    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(parsed.hostname)) extraHints.push('Endpoint 是本机服务');
-    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(parsed.hostname)) extraHints.push('Endpoint 是内网地址');
+    if (parsed.protocol === 'http:') extraHints.push('API 地址使用的是 HTTP');
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(parsed.hostname)) extraHints.push('API 地址指向本机服务');
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(parsed.hostname)) extraHints.push('API 地址是内网地址');
   } catch (parseError) {
     // 保留原始 url
   }
 
   const detail = String(error instanceof Error ? error.message : error || '').trim() || 'Failed to fetch';
-  const hintText = extraHints.length ? ` 可能点：${extraHints.join('，')}。` : '';
+  const hintText = extraHints.length ? ` 可能的原因：${extraHints.join('，')}。` : '';
 
-  return `未拿到 HTTP 响应（${hostText}），属于网络层 failed to fetch。这通常不是模型返回空文本，而是 Endpoint 根本没有成功返回 HTTP 响应。请检查 Endpoint 、端口、协议、证书或代理配置。${hintText} 原始错误：${detail}`;
+  return `无法连接服务商（${hostText}）：没有收到 HTTP 响应（failed to fetch）。这是网络层面的问题，不是模型返回了空内容。请检查 API 地址、端口、协议、证书和代理设置。${hintText} 原始错误：${detail}`;
 }

@@ -30,7 +30,7 @@ function syncPresetNameField(editor) {
   nameField.value = preset.name || '';
   const editable = isActivePresetNameEditable(preset);
   nameField.disabled = !editable;
-  nameField.title = editable ? '' : '内置预设名称不可直接修改，可先复制后再重命名。';
+  nameField.title = editable ? '' : '内置预设不能重命名。请先复制一份，再修改副本的名称。';
 }
 
 function readActivePresetName(editor) {

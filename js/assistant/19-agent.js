@@ -395,7 +395,7 @@ async function runAgentWrite() {
 
   const primaryConfig = buildPrimaryConfig([]);
   if (!hasCompleteModelConfig(primaryConfig)) {
-    setStatus('请先完整配置主模型的服务商、Endpoint、Model 和 API Key。', true);
+    setStatus('请先填写主模型的服务商、API 地址、模型和 API Key。', true);
     openSettingsSurface();
     return;
   }
@@ -450,7 +450,7 @@ async function runAgentWrite() {
       return;
     }
 
-    if (!response?.ok) throw new Error(response?.error || '写提示词失败');
+    if (!response?.ok) throw new Error(response?.error || '无法生成提示词');
 
     state.agent.request = '';
     state.agent.conversation.push(agentAssistantEntry(response.text, describeAgentRun(response)));

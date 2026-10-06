@@ -39,7 +39,7 @@ function syncPromptLibraryEntryToOfficialChunk(entry, timeout = 5000) {
         },
       },
     }));
-    setTimeout(() => finish({ ok: false, error: '官方 Prompt Chunk 同步超时' }), timeout);
+    setTimeout(() => finish({ ok: false, error: '同步 Prompt Chunk 超时' }), timeout);
   });
 }
 
@@ -153,7 +153,7 @@ function setPending(isPending, label, options = {}) {
     ui.sendButton.disabled = isPending && !cancellable;
     if (!isPending) ui.sendButton.textContent = T.reverseCopy;
     else if (cancellable) ui.sendButton.textContent = T.cancelRun;
-    else if (owns) ui.sendButton.textContent = label || '反推中...';
+    else if (owns) ui.sendButton.textContent = label || '正在反推…';
   }
 
   renderAgentRunState();

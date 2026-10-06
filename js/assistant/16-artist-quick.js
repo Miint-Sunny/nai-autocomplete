@@ -76,7 +76,7 @@ function artistQuickRecordMarkup(record) {
     : '';
   const actions = `<div class="nai-artist-quick-actions">`
     + `<button type="button" class="nai-md3-inline-action nai-artist-quick-add" data-artist-action="insert" data-id="${id}" title="追加到当前提示词">＋</button>`
-    + `<button type="button" class="nai-md3-inline-action nai-artist-quick-copy" data-artist-action="copy" data-id="${id}" title="复制到剪切板">\u{1f4cb}</button>`
+    + `<button type="button" class="nai-md3-inline-action nai-artist-quick-copy" data-artist-action="copy" data-id="${id}" title="复制到剪贴板">\u{1f4cb}</button>`
     + `</div>`;
 
   if (state.artistQuick.mode === 'strings') {
@@ -112,7 +112,7 @@ function artistQuickMarkup() {
   return `
     <div class="nai-artist-quick">
       <div class="nai-artist-quick-bar">
-        <select class="nai-md3-input nai-artist-quick-page" data-artist-field="page" aria-label="画师库页面"></select>
+        <select class="nai-md3-input nai-artist-quick-page" data-artist-field="page" aria-label="选择画师库"></select>
         <button type="button" class="nai-md3-inline-action nai-artist-quick-manage" data-artist-action="manage">${T.artistQuickManage}</button>
       </div>
       <nav class="nai-md3-tabs nai-artist-quick-modes">
@@ -121,7 +121,7 @@ function artistQuickMarkup() {
       </nav>
       <div class="nai-artist-quick-filters">
         <input class="nai-md3-input nai-artist-quick-search" type="search" data-artist-field="search" />
-        <select class="nai-md3-input nai-artist-quick-rating" data-artist-field="rating" aria-label="星级筛选">
+        <select class="nai-md3-input nai-artist-quick-rating" data-artist-field="rating" aria-label="按评分筛选">
           <option value="">${T.artistQuickAllRatings}</option>
           <option value="5">\u2605\u2605\u2605\u2605\u2605</option>
           <option value="4">\u2605\u2605\u2605\u2605+</option>
@@ -171,10 +171,10 @@ function renderArtistQuickPanel() {
   const listHtml = visible.length
     ? visible.map(artistQuickRecordMarkup).join('')
       + (records.length > visible.length
-        ? `<button type="button" class="nai-md3-inline-action nai-artist-quick-more" data-artist-action="more">显示更多，还有 ${records.length - visible.length} 条</button>`
+        ? `<button type="button" class="nai-md3-inline-action nai-artist-quick-more" data-artist-action="more">显示更多（还有 ${records.length - visible.length} 条）</button>`
         : '')
     : `<div class="nai-artist-quick-empty">${state.artistQuick.loaded
-      ? (total ? '没有符合条件的记录' : (isArtists ? '这一页还没有画师' : '这一页还没有画师串'))
+      ? (total ? '没有符合条件的记录' : (isArtists ? '这个画师库中暂无画师' : '这个画师库中暂无画师串'))
       : '正在读取画师库…'}</div>`;
 
   hosts.forEach((host) => {
@@ -186,7 +186,7 @@ function renderArtistQuickPanel() {
     const searchInput = host.querySelector('[data-artist-field="search"]');
     if (searchInput) {
       if (searchInput.value !== state.artistQuick.search) searchInput.value = state.artistQuick.search;
-      searchInput.placeholder = isArtists ? '搜索名字、tag、分类' : '搜索画师串、标题、分类';
+      searchInput.placeholder = isArtists ? '搜索名称、tag 或分类' : '搜索画师串、标题或分类';
     }
     const ratingSelect = host.querySelector('[data-artist-field="rating"]');
     if (ratingSelect) {

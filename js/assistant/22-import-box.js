@@ -59,12 +59,12 @@ const IMPORT_BOX_KINDS = {
   preset: {
     pickLabel: '选择 JSON 文件',
     accept: 'application/json,.json',
-    types: [{ description: '酒馆预设', accept: { 'application/json': ['.json'] } }],
+    types: [{ description: 'SillyTavern 预设', accept: { 'application/json': ['.json'] } }],
     multiple: false,
     pickerId: 'nai-import-preset',
-    hint: '酒馆（SillyTavern）导出的 preset JSON。按 prompt_order 里的全局顺序还原成消息块，'
-      + '聊天记录、世界书这类没有正文的占位符会跳过。',
-    placeholder: '把 preset JSON 粘到这里，或者点上面的按钮选文件。\n导进来之前可以直接在这儿改。',
+    hint: 'SillyTavern 导出的预设 JSON。会按 prompt_order 的全局顺序还原为消息块，'
+      + '并跳过聊天记录、世界书等没有正文的占位符。',
+    placeholder: '在此粘贴预设 JSON，或点击上方按钮选择文件。\n导入前可以直接在这里修改。',
     describe: (text) => describeStPresetImport(text),
     commit: (text) => commitStPresetImport(text),
   },
@@ -74,9 +74,9 @@ const IMPORT_BOX_KINDS = {
     types: [{ description: 'skill', accept: { 'text/markdown': ['.md', '.markdown'], 'text/plain': ['.txt'] } }],
     multiple: true,
     pickerId: 'nai-import-skill',
-    hint: '带 YAML frontmatter 的 markdown。可以多选：带 name 的那份当正文，其余当参考资料；'
-      + '多份会拼在下面，用 <!-- nai-file: 名字 --> 分隔。',
-    placeholder: '把 skill 正文粘到这里，或者点上面的按钮选文件。\n导进来之前可以直接在这儿改。',
+    hint: '带 YAML frontmatter 的 Markdown 文件，可以多选：含 name 字段的文件作为正文，其余作为参考资料；'
+      + '多个文件会合并显示在下方，以 <!-- nai-file: 文件名 --> 分隔。',
+    placeholder: '在此粘贴 skill 正文，或点击上方按钮选择文件。\n导入前可以直接在这里修改。',
     describe: (text) => describeAgentSkillImport(text),
     commit: (text) => commitAgentSkillImport(text),
   },
@@ -120,7 +120,7 @@ function refreshImportBoxPreview(box) {
 
   const value = text.value;
   if (!value.trim()) {
-    status.textContent = '还没有内容。';
+    status.textContent = '暂无内容。';
     status.classList.remove('is-error', 'is-ok');
     return;
   }
@@ -169,10 +169,10 @@ async function handleImportBoxPick(box) {
 
     // 文件内容落进文本域而不是直接落库 —— 这一步就是「导入之后允许展开编辑」
     text.value = config.multiple ? joinSkillFileTexts(items) : String(items[0]?.text || '');
-    if (source) source.textContent = `已读入 ${files.map((file) => file.name).join('、')}`;
+    if (source) source.textContent = `已读取 ${files.map((file) => file.name).join('、')}`;
     refreshImportBoxPreview(box);
   } catch (error) {
-    setStatus(`读取文件失败：${error instanceof Error ? error.message : String(error)}`, true);
+    setStatus(`无法读取文件：${error instanceof Error ? error.message : String(error)}`, true);
   }
 }
 
@@ -182,19 +182,19 @@ async function handleImportBoxCommit(box) {
 
   const value = text.value.trim();
   if (!value) {
-    setStatus('先选个文件或者粘一段内容进来。', true);
+    setStatus('请先选择文件或粘贴内容。', true);
     return;
   }
 
   try {
     const message = await config.commit(value);
-    setStatus(message || '导入完成。', false);
+    setStatus(message || '已导入。', false);
     text.value = '';
     const { source } = importBoxParts(box);
     if (source) source.textContent = '';
     setImportBoxOpen(box, false);
   } catch (error) {
-    setStatus(`导入失败：${error instanceof Error ? error.message : String(error)}`, true);
+    setStatus(`无法导入：${error instanceof Error ? error.message : String(error)}`, true);
   }
 }
 

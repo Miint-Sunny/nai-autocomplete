@@ -84,7 +84,7 @@ function readFileText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
+    reader.onerror = () => reject(new Error(`无法读取 ${file.name}`));
     reader.readAsText(file);
   });
 }
@@ -130,7 +130,7 @@ function buildSkillFromTexts(items) {
     .filter((item) => String(item?.text || '').trim())
     .map((item) => ({ name: item.name || '', text: item.text, ...parseSkillFrontmatter(item.text) }));
 
-  if (!parsed.length) throw new Error('没有读到内容');
+  if (!parsed.length) throw new Error('文件中没有内容');
 
   const mainIndex = parsed.findIndex((item) => item.meta.name);
   const main = parsed[mainIndex >= 0 ? mainIndex : 0];
@@ -152,13 +152,13 @@ function describeAgentSkillImport(text) {
 
   try {
     const skill = buildSkillFromTexts(splitSkillFileTexts(text));
-    if (!skill) throw new Error('skill 正文是空的');
+    if (!skill) throw new Error('skill 正文为空');
 
     const parts = [`「${skill.name}」 · 正文 ${skill.body.length} 字`];
     if (skill.description) parts.push(`描述：${skill.description.slice(0, 40)}${skill.description.length > 40 ? '…' : ''}`);
     if (skill.references.length) parts.push(`${skill.references.length} 份参考资料`);
     const existing = state.agent.skills.some((item) => item.name === skill.name);
-    if (existing) parts.push('同名的会被覆盖');
+    if (existing) parts.push('将覆盖同名 skill');
     return { ok: true, summary: parts.join(' · ') };
   } catch (error) {
     return { ok: false, summary: error instanceof Error ? error.message : String(error) };
@@ -167,7 +167,7 @@ function describeAgentSkillImport(text) {
 
 async function commitAgentSkillImport(text) {
   const skill = buildSkillFromTexts(splitSkillFileTexts(text));
-  if (!skill) throw new Error('skill 正文是空的');
+  if (!skill) throw new Error('skill 正文为空');
 
   const existing = state.agent.skills.findIndex((item) => item.name === skill.name);
   if (existing >= 0) state.agent.skills[existing] = skill;
@@ -177,7 +177,7 @@ async function commitAgentSkillImport(text) {
   state.agent.editing = null;
   await saveAgentSkills();
   renderAgentPanel();
-  return `已装载 skill：${skill.name}${skill.references.length ? `（含 ${skill.references.length} 份参考资料）` : ''}。`;
+  return `已导入 skill「${skill.name}」${skill.references.length ? `（含 ${skill.references.length} 份参考资料）` : ''}。`;
 }
 
 // 内置 skill 不能就地改 —— 改了就没有兜底了。第一次编辑自动复制成一份用户 skill。
@@ -192,19 +192,19 @@ async function saveActiveAgentSkillBody(body) {
 
   if (active.builtin) {
     const copy = normalizeAgentSkill({
-      name: `${active.name}（我的）`,
+      name: `${active.name}（副本）`,
       description: active.description,
       body: text,
       references: active.references,
     });
     state.agent.skills.push(copy);
     state.agent.activeSkillId = copy.id;
-    setStatus(`内置 skill 保持原样，已另存为「${copy.name}」并切换过去。`, false);
+    setStatus(`内置 skill 不能修改，已另存为「${copy.name}」并切换到副本。`, false);
   } else {
     const index = state.agent.skills.findIndex((skill) => skill.id === active.id);
     if (index < 0) return;
     state.agent.skills[index] = { ...state.agent.skills[index], body: text, updatedAt: Date.now() };
-    setStatus(`已保存 skill：${active.name}。`, false);
+    setStatus(`已保存 skill「${active.name}」。`, false);
   }
 
   state.agent.editing = null;
@@ -224,7 +224,7 @@ async function deleteActiveAgentSkill() {
   state.agent.editing = null;
   await saveAgentSkills();
   renderAgentPanel();
-  setStatus(`已删除 skill：${active.name}。`, false);
+  setStatus(`已删除 skill「${active.name}」。`, false);
 }
 
 function serializeAgentSkill(skill) {
@@ -249,5 +249,5 @@ function exportActiveAgentSkill() {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  setStatus(`已导出 ${skill.name}.md（参考资料需要单独保存）。`, false);
+  setStatus(`已导出 ${skill.name}.md（不含参考资料，需要另行保存）。`, false);
 }
