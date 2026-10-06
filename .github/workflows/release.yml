@@ -100,15 +100,15 @@ jobs:
           else
             {
               echo "## 安装"
-              echo "1. 下载 \`$ARCHIVE_NAME\`"
-              echo "2. 解压到一个固定目录（之后别删，扩展是从这里加载的）"
-              echo "3. Chrome / Edge 打开 \`chrome://extensions\`，右上角开「开发者模式」"
-              echo "4. 点「加载已解压的扩展程序」，选解压出来的 \`nai-autocomplete\` 文件夹"
+              echo "1. 下载 \`$ARCHIVE_NAME\`。"
+              echo "2. 解压到一个固定的文件夹，之后不要删除或移动它。扩展是从这个文件夹加载的。"
+              echo "3. 在 Chrome 或 Edge 中打开 \`chrome://extensions\`，打开右上角的「开发者模式」。"
+              echo "4. 点击「加载已解压的扩展程序」，选择解压得到的 \`nai-autocomplete\` 文件夹。"
               echo
-              echo "首次在 novelai.net 使用时会自动拉取 danbooru 标签词典并缓存，需要能访问 GitHub。"
+              echo "首次在 novelai.net 使用时，扩展会自动下载 Danbooru tag 词典并缓存到本地，这一步需要能够访问 GitHub。"
               echo
               echo "## 变更"
-              echo "见提交记录与仓库内的 README / STYLE / LLM / AGENT / FLOW 文档。"
+              echo "请查看提交记录，以及仓库中的 README 和开发文档（STYLE、COPY、LLM、AGENT、FLOW）。"
             } > release-notes.md
             gh release create "$TAG" "$asset_path" \
               --target "$GITHUB_SHA" \
