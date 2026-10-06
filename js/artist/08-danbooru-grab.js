@@ -21,7 +21,7 @@ function waitTabLoad(tabId, timeout) {
 async function ensureDanbooruTab() {
   const tabs = await chrome.tabs.query({ url: 'https://danbooru.donmai.us/*' });
   if (tabs.length) return tabs[0];
-  addLog('没有找到D站标签页，正在自动打开（如出现人机验证请完成它）...');
+  addLog('未找到已打开的 Danbooru 标签页，正在打开新标签页（如出现人机验证，请完成验证）…');
   const tab = await chrome.tabs.create({ url: 'https://danbooru.donmai.us/posts', active: true });
   await waitTabLoad(tab.id, 30000);
   await sleep(2000);
@@ -42,7 +42,7 @@ async function fetchViaTab(url) {
     },
     args: [url]
   });
-  addLog('标签页通道: HTTP ' + result.status);
+  addLog('标签页通道：HTTP ' + result.status);
   return result;
 }
 
@@ -71,34 +71,34 @@ async function fetchImageViaTab(url) {
     if (result && result.status === 200 && result.dataUrl) {
       return await (await fetch(result.dataUrl)).blob();
     }
-    addLog('标签页取图失败: HTTP ' + (result ? result.status : '无结果'));
-  } catch (e) { addLog('标签页取图异常: ' + errText(e)); }
+    addLog('标签页下载图片失败：HTTP ' + (result ? result.status : '无响应'));
+  } catch (e) { addLog('标签页下载图片出错：' + errText(e)); }
   return null;
 }
 
 async function fetchPosts(tag, count, rating, order) {
   const q = [tag, rating, order].filter(Boolean).join(' ');
   const apiUrl = 'https://danbooru.donmai.us/posts.json?limit=' + count + '&tags=' + encodeURIComponent(q);
-  addLog('查询画师: ' + q);
+  addLog('查询画师：' + q);
 
   // 通道1：直接访问（带浏览器cookie，在D站通过过人机验证的话有机会成功）
   try {
     const res = await fetchWithTimeout(apiUrl, { credentials: 'include' });
     const ct = res.headers.get('content-type') || '';
-    addLog(`直接访问: HTTP ${res.status} ${ct}`);
+    addLog(`直接访问：HTTP ${res.status} ${ct}`);
     if (res.ok && ct.includes('json')) return await res.json();
     if (res.status === 422) {
       if (rating && order) {
-        addLog('搜索条件超过免费账号限制：自动取消排序，保留内容分级后重试');
+        addLog('搜索条件超出免费账号限制，已取消排序并保留内容分级重试');
         return await fetchPosts(tag, count, rating, '');
       }
-      throw new Error(LIMIT_ERR);
+      throw grabError(GRAB_ERROR_LIMIT, LIMIT_ERR);
     }
     const body = (await res.text()).slice(0, 200).replace(/\s+/g, ' ');
-    addLog('直接访问被拦，返回片段: ' + body);
+    addLog('直接访问被拦截，响应片段：' + body);
   } catch (e) {
-    if (e.message.includes('超限')) throw e;
-    addLog('直接访问: ' + errText(e));
+    if (e.code === GRAB_ERROR_LIMIT) throw e;
+    addLog('直接访问：' + errText(e));
   }
 
   // 通道2：借用户自己的D站标签页（已验证身份，最可靠）
@@ -106,52 +106,52 @@ async function fetchPosts(tag, count, rating, order) {
     const r = await fetchViaTab(apiUrl);
     if (r.status === 422) {
       if (rating && order) {
-        addLog('标签页搜索条件超限：自动取消排序，保留内容分级后重试');
+        addLog('标签页通道：搜索条件超出限制，已取消排序并保留内容分级重试');
         return await fetchPosts(tag, count, rating, '');
       }
-      throw new Error(LIMIT_ERR);
+      throw grabError(GRAB_ERROR_LIMIT, LIMIT_ERR);
     }
     if (r.status === 200 && r.body.trim().startsWith('[')) return JSON.parse(r.body);
-    addLog('标签页通道未成功，返回片段: ' + r.body.slice(0, 150).replace(/\s+/g, ' '));
+    addLog('标签页通道未成功，响应片段：' + r.body.slice(0, 150).replace(/\s+/g, ' '));
   } catch (e) {
-    if (e.message.includes('超限')) throw e;
-    addLog('标签页通道: ' + errText(e));
+    if (e.code === GRAB_ERROR_LIMIT) throw e;
+    addLog('标签页通道：' + errText(e));
   }
 
   // 通道3：jina 中转（目标网址的参数要转义，不然会被中转站自己吃掉）
   try {
     const proxyUrl = 'https://r.jina.ai/' + apiUrl.replace('?', '%3F').replace(/&/g, '%26');
     const res2 = await fetchWithTimeout(proxyUrl, {}, 20000);
-    addLog('备用通道(jina): HTTP ' + res2.status);
-    if (res2.status === 422) throw new Error(LIMIT_ERR);
+    addLog('备用通道（jina）：HTTP ' + res2.status);
+    if (res2.status === 422) throw grabError(GRAB_ERROR_LIMIT, LIMIT_ERR);
     if (res2.ok) {
       const text = await res2.text();
       const marker = text.indexOf('Markdown Content:');
       const idx = text.indexOf('[', marker >= 0 ? marker : 0);
       if (idx >= 0) return JSON.parse(text.slice(idx));
-      addLog('备用通道内容异常: ' + text.slice(0, 200).replace(/\s+/g, ' '));
+      addLog('备用通道（jina）返回内容异常：' + text.slice(0, 200).replace(/\s+/g, ' '));
     }
   } catch (e) {
-    if (e.message.includes('超限')) throw e;
-    addLog('备用通道(jina): ' + errText(e));
+    if (e.code === GRAB_ERROR_LIMIT) throw e;
+    addLog('备用通道（jina）：' + errText(e));
   }
 
   // 通道4：allorigins 中转
   try {
     const res3 = await fetchWithTimeout('https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl), {}, 20000);
-    addLog('备用通道(allorigins): HTTP ' + res3.status);
-    if (res3.status === 422) throw new Error(LIMIT_ERR);
+    addLog('备用通道（allorigins）：HTTP ' + res3.status);
+    if (res3.status === 422) throw grabError(GRAB_ERROR_LIMIT, LIMIT_ERR);
     if (res3.ok) {
       const text = await res3.text();
       if (text.trim().startsWith('[')) return JSON.parse(text);
-      addLog('allorigins内容异常: ' + text.slice(0, 200).replace(/\s+/g, ' '));
+      addLog('备用通道（allorigins）返回内容异常：' + text.slice(0, 200).replace(/\s+/g, ' '));
     }
   } catch (e) {
-    if (e.message.includes('超限')) throw e;
-    addLog('备用通道(allorigins): ' + errText(e));
+    if (e.code === GRAB_ERROR_LIMIT) throw e;
+    addLog('备用通道（allorigins）：' + errText(e));
   }
 
-  throw new Error('所有通道都失败了。请点左下角「📋 日志」→「复制日志」发给作者排查');
+  throw grabError(GRAB_ERROR_NETWORK, '所有通道都无法连接 Danbooru。请点击左下角的「运行日志」，复制日志发给开发者排查。');
 }
 
 async function fetchImageBlob(url) {
@@ -160,11 +160,11 @@ async function fetchImageBlob(url) {
     if (res.ok) {
       const blob = await res.blob();
       if (!blob.type || blob.type.startsWith('image/')) return blob;
-      addLog('图片直连返回的不是图片: ' + blob.type);
+      addLog('图片直连返回的不是图片：' + blob.type);
     }
-    addLog('图片直连失败: HTTP ' + res.status + ' ' + url.slice(0, 80));
+    addLog('图片直连失败：HTTP ' + res.status + ' ' + url.slice(0, 80));
   } catch (e) {
-    addLog('图片直连: ' + errText(e));
+    addLog('图片直连：' + errText(e));
   }
   const viaTab = await fetchImageViaTab(url);
   if (viaTab) return viaTab;
@@ -173,11 +173,11 @@ async function fetchImageBlob(url) {
     if (res2.ok) {
       const blob = await res2.blob();
       if (!blob.type || blob.type.startsWith('image/')) return blob;
-      addLog('图片备用通道返回的不是图片: ' + blob.type);
+      addLog('图片备用通道返回的不是图片：' + blob.type);
     }
-    addLog('图片备用通道失败: HTTP ' + res2.status);
+    addLog('图片备用通道失败：HTTP ' + res2.status);
   } catch (e) {
-    addLog('图片备用通道: ' + errText(e));
+    addLog('图片备用通道：' + errText(e));
   }
   return null;
 }
@@ -232,9 +232,9 @@ async function fetchPostImage(post) {
         addLog(`作品 #${post.id} 已下载${candidate.label}`);
         return dataUrl;
       }
-    } catch (e) { addLog(`作品 #${post.id} ${candidate.label}失败: ${errText(e)}`); }
+    } catch (e) { addLog(`作品 #${post.id} ${candidate.label}下载失败：${errText(e)}`); }
   }
-  addLog(`作品 #${post.id} 所有图片地址不可用，将保留标签和原帖入口`);
+  addLog(`作品 #${post.id} 的所有图片地址都无法访问，将保存 tag 和原帖链接`);
   return null;
 }
 
@@ -248,7 +248,7 @@ function postToEntry(post, dataUrl) {
     naiImg: null,
     prompt: '',
     score: 0,
-    comment: `D站作品 #${post.id}（赞 ${post.score ?? 0}）${dataUrl ? '' : ' · 图片暂时无法访问，可打开原帖或手动补图'}\n标签：${post.tag_string || ''}`,
+    comment: `Danbooru 作品 #${post.id}（得分 ${post.score ?? 0}）${dataUrl ? '' : ' · 图片暂时无法访问，可在 Danbooru 打开原帖或手动上传'}\ntag：${post.tag_string || ''}`,
     createdAt: Date.now()
   };
 }
@@ -260,12 +260,12 @@ async function grabImagesForArtist(artist, count, rating, order, onProgress) {
   const result = { images: 0, metadata: 0, duplicates: 0, paired: 0 };
   const generatedOnly = artist.entries.slice().reverse().filter(entry => entry.naiImg && !entry.originalImg && !entry.sourcePostId);
   const keepGeneratedRecordsFirst = artist.entries.some(entry => entry.naiImg);
-  const existingPosts = new Set(artist.entries.map(entry => String(entry.sourcePostId || (String(entry.comment || '').match(/D站(?:原图|作品)\s*#(\d+)/) || [])[1] || '')).filter(Boolean));
+  const existingPosts = new Set(artist.entries.map(entry => String(entry.sourcePostId || (String(entry.comment || '').match(/(?:D站|Danbooru )(?:原图|作品)\s*#(\d+)/) || [])[1] || '')).filter(Boolean));
   for (let index = 0; index < posts.length; index++) {
     const p = posts[index];
     if (grabStopFlag) break;
     if (existingPosts.has(String(p.id))) { result.duplicates++; continue; }
-    if (onProgress) onProgress(`处理第 ${index + 1}/${posts.length} 张：已下载 ${result.images} 张，已保留 ${result.metadata} 条作品信息...`);
+    if (onProgress) onProgress(`正在处理第 ${index + 1}/${posts.length} 张：已下载 ${result.images} 张，已保存 ${result.metadata} 条作品信息…`);
     const dataUrl = await fetchPostImage(p);
     const original = postToEntry(p, dataUrl);
     const generated = generatedOnly.shift();
@@ -295,7 +295,7 @@ async function startGrab() {
   if (grabRunning) return;
   const a = getArtist(currentArtistId);
   if (!a) return;
-  if (!a.tag) { alert('这个画师还没填 tag，先点「编辑」补上'); return; }
+  if (!a.tag) { alert('这位画师还没有填写 tag。请先点击「编辑画师」补充 tag。'); return; }
   const count = parseInt(document.getElementById('gCount').value);
   const order = document.getElementById('gOrder').value;
   const rating = document.getElementById('gRating').value;
@@ -303,16 +303,16 @@ async function startGrab() {
   grabRunning = true; grabStopFlag = false;
   setGrabUI(true, 'single');
   try {
-    prog.textContent = `正在查询 D 站：${a.tag} ...`;
+    prog.textContent = `正在 Danbooru 查询：${a.tag}…`;
     const result = await grabImagesForArtist(a, count, rating, order, t => prog.textContent = t);
     save(); renderList(); renderArtist();
     if (result.images || result.metadata) {
-      prog.textContent = `完成！下载 ${result.images} 张图片${result.paired ? `，与 ${result.paired} 张 NAI 图对齐` : ''}，保留 ${result.metadata} 条无图作品信息${result.duplicates ? `，跳过 ${result.duplicates} 条重复作品` : ''} ✓`;
+      prog.textContent = `已完成：下载 ${result.images} 张图片${result.paired ? `，其中 ${result.paired} 张已与 NAI 生成图配对` : ''}，保存 ${result.metadata} 条无图作品信息${result.duplicates ? `，跳过 ${result.duplicates} 条重复作品` : ''}。`;
     } else {
-      prog.textContent = result.duplicates ? `这些作品已经保存过了，跳过 ${result.duplicates} 条重复记录` : '没有找到该画师的作品；可以检查画师 tag 和分级条件';
+      prog.textContent = result.duplicates ? `这些作品都已保存过，已跳过 ${result.duplicates} 条重复记录。` : '没有找到这位画师的作品。请检查画师 tag 和内容分级。';
     }
   } catch (e) {
-    prog.textContent = '❌ ' + e.message;
+    prog.textContent = e.code ? e.message : '无法获取原图：' + e.message;
   }
   grabRunning = false;
   setGrabUI(false, 'single');
@@ -326,7 +326,7 @@ async function startBatch() {
   const skip = document.getElementById('bSkip').checked;
   const prog = document.getElementById('batchProgress');
   const targets = data.artists.filter(a => a.tag && (!skip || !a.entries.some(e => e.originalImg || e.sourcePostId)));
-  if (!targets.length) { prog.textContent = '没有需要抓的画师（都已有作品记录，或没填tag）'; return; }
+  if (!targets.length) { prog.textContent = '没有需要获取原图的画师：所有画师都已有作品记录，或没有填写 tag。'; return; }
   grabRunning = true; grabStopFlag = false;
   setGrabUI(true, 'batch');
   let okArtists = 0;
@@ -336,7 +336,7 @@ async function startBatch() {
   for (let i = 0; i < targets.length; i++) {
     if (grabStopFlag) break;
     const a = targets[i];
-    prog.textContent = `[${i + 1}/${targets.length}] ${a.name} ...`;
+    prog.textContent = `[${i + 1}/${targets.length}] 正在处理 ${a.name}…`;
     try {
       const result = await grabImagesForArtist(a, per, rating, order, null);
       if (result.images > 0 || result.metadata > 0 || result.duplicates > 0) {
@@ -344,11 +344,11 @@ async function startBatch() {
         totalImages += result.images;
         totalMetadata += result.metadata;
         save();
-      } else failed.push(a.name + '(无作品)');
+      } else failed.push(a.name + '（无作品）');
     } catch (e) {
       failed.push(a.name);
-      if (String(e.message).includes('防火墙') || String(e.message).includes('超限') || String(e.message).includes('备用通道')) {
-        abortMsg = '❌ ' + e.message + '\n（已中止批量任务，解决后重新点「开始批量抓取」即可，已抓过的会自动跳过）';
+      if (e.code === GRAB_ERROR_LIMIT || e.code === GRAB_ERROR_NETWORK) {
+        abortMsg = e.message + '\n已中止批量获取。解决问题后重新点击「开始批量获取」即可，已获取的作品会自动跳过。';
         break;
       }
     }
@@ -358,9 +358,9 @@ async function startBatch() {
   if (abortMsg) {
     prog.textContent = abortMsg;
   } else if (grabStopFlag) {
-    prog.textContent = `已停止。成功 ${okArtists} 位画师，下载 ${totalImages} 张图片，保留 ${totalMetadata} 条无图作品`;
+    prog.textContent = `已停止：处理了 ${okArtists} 位画师，下载 ${totalImages} 张图片，保存 ${totalMetadata} 条无图作品信息。`;
   } else {
-    prog.textContent = `批量完成！处理 ${okArtists} 位画师，下载 ${totalImages} 张图片，保留 ${totalMetadata} 条无图作品` + (failed.length ? `，未找到作品 ${failed.length} 位：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '...' : ''}` : '');
+    prog.textContent = `批量获取已完成：处理 ${okArtists} 位画师，下载 ${totalImages} 张图片，保存 ${totalMetadata} 条无图作品信息` + (failed.length ? `；${failed.length} 位画师没有找到作品：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '…' : ''}` : '') + '。';
   }
   renderList();
   grabRunning = false;

@@ -114,13 +114,13 @@ document.addEventListener('click', e => {
   const id = el.dataset.id;
   switch (el.dataset.action) {
     case 'newLibraryPage': {
-      const name = prompt('给新页面起个名字：', `画师库 ${data.pages.length + 1}`);
-      if (name !== null && name.trim()) { const page = createLibraryPage(name); toast(`已创建页面：${page.name}`); }
+      const name = prompt('新画师库的名称：', `画师库 ${data.pages.length + 1}`);
+      if (name !== null && name.trim()) { const page = createLibraryPage(name); toast(`已创建画师库「${page.name}」`); }
       break;
     }
     case 'renameLibraryPage': {
       const page = currentLibraryPage();
-      const name = prompt('修改当前页面的名字：', page.name);
+      const name = prompt('重命名画师库：', page.name);
       if (name !== null) renameLibraryPage(page.id, name);
       break;
     }
@@ -178,7 +178,7 @@ document.addEventListener('click', e => {
       break;
     }
     case 'renameLabel': {
-      const next = prompt('请输入新的分类标签名称：', el.dataset.label);
+      const next = prompt('重命名分类：', el.dataset.label);
       if (next !== null) renameLabel(el.dataset.label, next);
       break;
     }
@@ -225,7 +225,7 @@ document.addEventListener('click', e => {
     case 'runDiagnosis': runDiagnosis(); break;
     case 'clearLogs': grabLogs = []; renderLogs(); break;
     case 'copyLogs':
-      navigator.clipboard.writeText(grabLogs.join('\n')).then(() => toast('日志已复制，直接粘贴发送即可 ✓'));
+      navigator.clipboard.writeText(grabLogs.join('\n')).then(() => toast('已复制运行日志'));
       break;
     case 'uploadOriginal': askEntryImage(id, 'original'); break;
     case 'uploadNai': askEntryImage(id, 'nai'); break;
@@ -259,8 +259,8 @@ document.getElementById('stringImageFile').addEventListener('change', async func
   try {
     pendingArtistStringImage = await readArtistStringImage(file);
     renderArtistStringImagePreview();
-    toast(pendingArtistStringImage.metadata?.hasMetadata ? '已无损读取原图及 NAI 生成信息 ✓' : '原图已无损载入，但没有检测到 NAI 信息');
-  } catch (error) { alert('读取原图失败：' + error.message); }
+    toast(pendingArtistStringImage.metadata?.hasMetadata ? '已读取原图和 NovelAI 生成信息' : '已载入原图，但未检测到 NovelAI 生成信息');
+  } catch (error) { alert('无法读取原图：' + error.message); }
 });
 document.getElementById('entryImgFile').addEventListener('change', function () {
   const file = this.files[0];
@@ -273,7 +273,7 @@ document.getElementById('entryImgFile').addEventListener('change', function () {
   const which = pendingEntryImg.which;
   compressImage(file, url => {
     if (which === 'original') en.originalImg = url; else en.naiImg = url;
-    save(); renderList(); renderArtist(); toast('图片已更新 ✓');
+    save(); renderList(); renderArtist(); toast('已更新图片');
   });
 });
 

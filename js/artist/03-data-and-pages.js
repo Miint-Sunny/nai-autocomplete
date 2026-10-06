@@ -118,13 +118,13 @@ function renderLibraryPages() {
   if (!selector) return;
   selector.innerHTML = data.pages.map(page => {
     const count = page.id === data.activePageId ? data.artists.length : (page.artists || []).length;
-    return `<option value="${esc(page.id)}"${page.id === data.activePageId ? ' selected' : ''}>${esc(page.name)} · ${count} 人</option>`;
+    return `<option value="${esc(page.id)}"${page.id === data.activePageId ? ' selected' : ''}>${esc(page.name)} · ${count} 位画师</option>`;
   }).join('');
   selector.value = data.activePageId;
   const deleteButton = document.getElementById('deleteLibraryPageBtn');
   if (deleteButton) {
     deleteButton.disabled = data.pages.length <= 1;
-    deleteButton.title = data.pages.length <= 1 ? '至少保留一个画师库页面' : '删除当前页面及其中全部画师、分类和画师串';
+    deleteButton.title = data.pages.length <= 1 ? '至少需要保留一个画师库' : '删除当前画师库及其中的全部画师、分类和画师串';
   }
 }
 
@@ -188,12 +188,12 @@ function renameLibraryPage(id, name) {
   const page = data.pages.find(item => item.id === id);
   const next = cleanLabelName(name);
   if (!page || !next) return false;
-  if (next.length > 40) { toast('页面名字最多 40 个字'); return false; }
-  if (data.pages.some(item => item.id !== id && labelKey(item.name) === labelKey(next))) { toast('已经有同名页面'); return false; }
+  if (next.length > 40) { toast('画师库名称不能超过 40 个字'); return false; }
+  if (data.pages.some(item => item.id !== id && labelKey(item.name) === labelKey(next))) { toast('已存在同名画师库'); return false; }
   page.name = next;
   save();
   renderLibraryPages();
-  toast(`页面已改名为：${next}`);
+  toast(`已重命名为「${next}」`);
   return true;
 }
 
@@ -201,11 +201,11 @@ function deleteLibraryPage(id) {
   ensureDataShape();
   const index = data.pages.findIndex(page => page.id === id);
   if (index < 0) return false;
-  if (data.pages.length <= 1) { toast('至少保留一个画师库页面，不能删除最后一页'); return false; }
+  if (data.pages.length <= 1) { toast('无法删除：至少需要保留一个画师库'); return false; }
   const page = data.pages[index];
   const artists = page.id === data.activePageId ? data.artists : page.artists || [];
   const strings = page.id === data.activePageId ? data.artistStrings : page.artistStrings || [];
-  if (!confirm(`确定删除页面「${page.name}」吗？\n\n其中 ${artists.length} 位画师和 ${strings.length} 条画师串都会被删除。\n此操作无法撤销，建议先进行完整备份。`)) return false;
+  if (!confirm(`删除画师库「${page.name}」？\n\n其中的 ${artists.length} 位画师和 ${strings.length} 条画师串会一起删除，此操作无法撤销。建议先导出备份。`)) return false;
   if (page.id === data.activePageId) {
     const next = data.pages[index > 0 ? index - 1 : index + 1];
     switchLibraryPage(next.id, { persist: false, refresh: false });
@@ -213,7 +213,7 @@ function deleteLibraryPage(id) {
   data.pages = data.pages.filter(item => item.id !== id);
   refreshCurrentLibraryPage();
   save();
-  toast(`已删除页面：${page.name}`);
+  toast(`已删除画师库「${page.name}」`);
   return true;
 }
 
@@ -231,7 +231,7 @@ function save() {
   const str = JSON.stringify(data);
   chrome.storage.local.set({ [KEY]: str }, () => {
     if (chrome.runtime.lastError) {
-      alert('⚠️ 保存失败：' + chrome.runtime.lastError.message + '\n建议先「完整备份」，再删掉一些旧记录。');
+      alert('无法保存数据：' + chrome.runtime.lastError.message + '\n请先导出备份，删除部分旧记录后重试。');
     }
     updateStorageText();
   });
@@ -247,10 +247,10 @@ function updateStorageText() {
     }, 0);
     const used = (bytes / 1024 / 1024).toFixed(1);
     const raw = (originalBytes / 1024 / 1024).toFixed(1);
-    const text = `已用 ${used} MB · 无损原图 ${originals.length} 张 / ${raw} MB\n无固定 10 MB 上限，受磁盘剩余空间影响`;
+    const text = `已用 ${used} MB · 原图 ${originals.length} 张（${raw} MB）\n存储空间不限于 10 MB，取决于磁盘剩余空间`;
     document.getElementById('storageText').textContent = text;
     const stringUsage = document.getElementById('artistStringStorageText');
-    if (stringUsage) stringUsage.textContent = `总占用 ${used} MB · 已保存 ${originals.length} 张无损原图（原始大小 ${raw} MB）· 无固定 10 MB 上限`;
+    if (stringUsage) stringUsage.textContent = `已用 ${used} MB · 已保存 ${originals.length} 张原图（${raw} MB）· 存储空间不限于 10 MB`;
   });
 }
 

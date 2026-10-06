@@ -1,10 +1,10 @@
 /* ================= 复制 / 放大 ================= */
 function copyText(t) {
   if (!t) return;
-  navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板 ✓')).catch(() => {
+  navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板')).catch(() => {
     const ta = document.createElement('textarea');
     ta.value = t; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); ta.remove(); toast('已复制 ✓');
+    document.execCommand('copy'); ta.remove(); toast('已复制到剪贴板');
   });
 }
 function zoom(src) {
@@ -41,14 +41,14 @@ function downloadBackupFile(content, type, prefix, extension) {
   URL.revokeObjectURL(url);
 }
 function exportData() {
-  downloadBackupFile(JSON.stringify(createBackupPayload()), 'application/json', 'NAI画师完整备份', 'json');
-  toast(`完整备份已下载，包含 ${data.pages.length} 个页面、画师串和无损原图 ✓`);
+  downloadBackupFile(JSON.stringify(createBackupPayload()), 'application/json', 'NAI画师记录本备份', 'json');
+  toast(`已导出备份：${data.pages.length} 个画师库，含画师串和原图`);
 }
 function exportMobile() {
   const hasContent = data.artists.length || data.artistStrings.length || data.pages.some(page =>
     page.id !== data.activePageId && ((Array.isArray(page.artists) && page.artists.length) || (Array.isArray(page.artistStrings) && page.artistStrings.length))
   );
-  if (!hasContent) { toast('还没有画师或画师串可以导出'); return; }
+  if (!hasContent) { toast('没有可导出的画师或画师串'); return; }
   // 只塞进手机版，不进 createBackupPayload —— 备份格式不该因为这个变
   const html = buildMobileViewerHtml({
     ...createBackupPayload(),
@@ -60,8 +60,8 @@ function exportMobile() {
       promptText: String(entry?.promptText || ''),
     })).filter((entry) => entry.alias && entry.tags.length),
   });
-  downloadBackupFile(html, 'text/html;charset=utf-8', 'NAI画师库手机版', 'html');
-  toast('手机版已下载，发送到手机即可离线查看 ✓');
+  downloadBackupFile(html, 'text/html;charset=utf-8', 'NAI画师记录本手机版', 'html');
+  toast('已导出手机版，发送到手机即可离线查看');
 }
 function parseImportedBackup(content) {
   const text = String(content || '').trim();
@@ -70,10 +70,10 @@ function parseImportedBackup(content) {
     imported = JSON.parse(text);
   } else {
     const embedded = text.match(/<script\b[^>]*\bid=["']nai-mobile-data["'][^>]*>([\s\S]*?)<\/script\s*>/i);
-    if (!embedded) throw new Error('请选择完整 JSON 备份或本程序导出的手机版 HTML');
+    if (!embedded) throw new Error('请选择本扩展导出的完整备份（JSON）或手机版（HTML）文件。');
     imported = JSON.parse(embedded[1]);
   }
-  if (!imported || !Array.isArray(imported.artists)) throw new Error('备份中没有画师数据');
+  if (!imported || !Array.isArray(imported.artists)) throw new Error('文件中没有画师数据。');
   return imported;
 }
 function normalizeArtistKey(value) {
@@ -141,13 +141,13 @@ function applyImportedBackup(imported, mode = 'merge', pageName = '') {
 function suggestImportedPageName(fileName, imported) {
   const existing = imported?.pages?.find(page => page.id === imported.activePageId)?.name;
   if (existing) return uniqueLibraryPageName(existing);
-  const base = String(fileName || '').replace(/\.(json|html?)$/i, '').replace(/^NAI画师(?:完整备份|库)[_-]?/i, '').trim();
+  const base = String(fileName || '').replace(/\.(json|html?)$/i, '').replace(/^NAI画师(?:记录本|库)?(?:完整备份|备份|手机版)?[_-]?/i, '').trim();
   return uniqueLibraryPageName(base || '导入的画师库');
 }
 
 function showImportChoice(imported, fileName) {
   pendingLibraryImport = { imported, fileName: String(fileName || '') };
-  document.getElementById('importSummary').textContent = `文件包含 ${imported.artists.length} 位画师、${Array.isArray(imported.artistStrings) ? imported.artistStrings.length : 0} 条画师串${Array.isArray(imported.pages) && imported.pages.length > 1 ? `、${imported.pages.length} 个页面` : ''}。`;
+  document.getElementById('importSummary').textContent = `文件包含 ${imported.artists.length} 位画师、${Array.isArray(imported.artistStrings) ? imported.artistStrings.length : 0} 条画师串${Array.isArray(imported.pages) && imported.pages.length > 1 ? `，共 ${imported.pages.length} 个画师库` : ''}。`;
   document.getElementById('importPageName').value = suggestImportedPageName(fileName, imported);
   document.getElementById('importModeModal').classList.add('show');
 }
@@ -155,12 +155,12 @@ function showImportChoice(imported, fileName) {
 function finishLibraryImport(mode) {
   if (!pendingLibraryImport) return null;
   const pageName = String(document.getElementById('importPageName').value || '').trim();
-  if (mode === 'new' && !pageName) { toast('请先填写新页面名称'); return null; }
+  if (mode === 'new' && !pageName) { toast('请填写新画师库的名称'); return null; }
   const result = applyImportedBackup(pendingLibraryImport.imported, mode, pageName);
   pendingLibraryImport = null;
   closeModal('importModeModal');
-  const extra = result.restoredPages.length ? `；另外恢复 ${result.restoredPages.length} 个页面` : '';
-  toast(`${mode === 'new' ? `已导入新页面「${result.pageName}」` : '已合并到当前页'}：${result.artists.added} 位画师、${result.artistStrings.added} 条画师串，跳过 ${result.artists.skipped + result.artistStrings.skipped} 条重复${extra} ✓`);
+  const extra = result.restoredPages.length ? `，另外恢复了 ${result.restoredPages.length} 个画师库` : '';
+  toast(`${mode === 'new' ? `已导入到新画师库「${result.pageName}」` : '已合并到当前画师库'}：${result.artists.added} 位画师、${result.artistStrings.added} 条画师串，跳过 ${result.artists.skipped + result.artistStrings.skipped} 条重复${extra}`);
   return result;
 }
 
@@ -172,7 +172,7 @@ function importData(input) {
     try {
       const imported = parseImportedBackup(e.target.result);
       showImportChoice(imported, file.name);
-    } catch (err) { alert('文件格式不对，导入失败：' + err.message); }
+    } catch (err) { alert('无法导入：' + err.message); }
   };
   reader.readAsText(file);
   input.value = '';

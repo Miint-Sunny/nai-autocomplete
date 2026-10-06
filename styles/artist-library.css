@@ -788,6 +788,14 @@ textarea,
   font-size: 12px;
 }
 
+/* 字段下方的说明文字：字段名只写名称，用途和注意事项写在这里（COPY.md 第 4 条） */
+.form-hint {
+  margin-top: 6px;
+  color: var(--nai-md3-ink-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .upload-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

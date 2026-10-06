@@ -16,8 +16,8 @@ function labelArtistCount(name) {
 }
 function createLabel(name, { selectForEditing = false, selectForStringEditing = false } = {}) {
   const clean = cleanLabelName(name);
-  if (!clean) { toast('请先输入分类标签名称'); return null; }
-  if (clean.length > 30) { toast('分类标签最多 30 个字'); return null; }
+  if (!clean) { toast('请输入分类名称'); return null; }
+  if (clean.length > 30) { toast('分类名称不能超过 30 个字'); return null; }
   const existing = data.labels.find(label => labelKey(label) === labelKey(clean));
   const actual = existing || clean;
   if (!existing) {
@@ -33,8 +33,8 @@ function createLabel(name, { selectForEditing = false, selectForStringEditing = 
   renderArtistStringCategoryPicker();
   renderArtistStringLabelFilters();
   renderArtistStrings();
-  if (!existing) toast(`已创建分类：${actual}`);
-  else if (!selectForEditing && !selectForStringEditing) toast('这个分类标签已经存在');
+  if (!existing) toast(`已创建分类「${actual}」`);
+  else if (!selectForEditing && !selectForStringEditing) toast('已存在同名分类');
   return actual;
 }
 function renameLabel(oldName, newName) {
@@ -42,7 +42,7 @@ function renameLabel(oldName, newName) {
   if (!next) return false;
   const previous = data.labels.find(label => labelKey(label) === labelKey(oldName));
   if (!previous) return false;
-  if (data.labels.some(label => labelKey(label) === labelKey(next) && labelKey(label) !== labelKey(previous))) { toast('已存在同名分类标签'); return false; }
+  if (data.labels.some(label => labelKey(label) === labelKey(next) && labelKey(label) !== labelKey(previous))) { toast('已存在同名分类'); return false; }
   data.labels = data.labels.map(label => labelKey(label) === labelKey(previous) ? next : label).sort((a, b) => a.localeCompare(b, 'zh-CN'));
   for (const artist of data.artists) artist.categories = uniqueLabels((artist.categories || []).map(label => labelKey(label) === labelKey(previous) ? next : label));
   for (const record of data.artistStrings) record.categories = uniqueLabels((record.categories || []).map(label => labelKey(label) === labelKey(previous) ? next : label));
@@ -51,7 +51,7 @@ function renameLabel(oldName, newName) {
   selectedLabelFilters = uniqueLabels(selectedLabelFilters.map(label => labelKey(label) === labelKey(previous) ? next : label));
   selectedArtistStringLabels = uniqueLabels(selectedArtistStringLabels.map(label => labelKey(label) === labelKey(previous) ? next : label));
   save(); renderLabelFilters(); renderLabelManager(); renderCategoryPicker(); renderArtistStringCategoryPicker(); renderArtistStringLabelFilters(); renderArtistStrings(); renderList(); renderArtist();
-  toast(`分类已改为：${next}`);
+  toast(`已将分类重命名为「${next}」`);
   return true;
 }
 function deleteLabel(name) {
@@ -59,7 +59,7 @@ function deleteLabel(name) {
   if (!existing) return false;
   const count = labelArtistCount(existing);
   const stringCount = labelArtistStringCount(existing);
-  if (!confirm(`确定删除分类「${existing}」吗？${count || stringCount ? `\n${count} 位画师、${stringCount} 条画师串会移除此标签，但内容不会被删除。` : ''}`)) return false;
+  if (!confirm(`删除分类「${existing}」？${count || stringCount ? `\n${count} 位画师和 ${stringCount} 条画师串会移出这个分类，画师和画师串本身不会被删除。` : ''}`)) return false;
   data.labels = data.labels.filter(label => labelKey(label) !== labelKey(existing));
   for (const artist of data.artists) artist.categories = (artist.categories || []).filter(label => labelKey(label) !== labelKey(existing));
   for (const record of data.artistStrings) record.categories = (record.categories || []).filter(label => labelKey(label) !== labelKey(existing));
@@ -68,7 +68,7 @@ function deleteLabel(name) {
   selectedLabelFilters = selectedLabelFilters.filter(label => labelKey(label) !== labelKey(existing));
   selectedArtistStringLabels = selectedArtistStringLabels.filter(label => labelKey(label) !== labelKey(existing));
   save(); renderLabelFilters(); renderLabelManager(); renderCategoryPicker(); renderArtistStringCategoryPicker(); renderArtistStringLabelFilters(); renderArtistStrings(); renderList(); renderArtist();
-  toast(`已删除分类：${existing}`);
+  toast(`已删除分类「${existing}」`);
   return true;
 }
 function renderLabelFilters() {
@@ -79,17 +79,17 @@ function renderLabelFilters() {
   box.innerHTML = labels.length ? labels.map(label => {
     const active = selectedLabelFilters.some(item => labelKey(item) === labelKey(label));
     return `<button class="label-chip ${active ? 'selected' : ''}" data-action="toggleLabelFilter" data-label="${esc(label)}">${esc(label === '__uncategorized__' ? '未分类' : label)} <span class="count">${labelArtistCount(label)}</span></button>`;
-  }).join('') : '<span style="font-size:11px;color:var(--fg2)">还没有分类，点击右侧「管理 / 新建」</span>';
+  }).join('') : '<span style="font-size:11px;color:var(--fg2)">暂无分类。点击右侧的「管理分类」新建。</span>';
 }
 function renderLabelManager() {
   const box = document.getElementById('labelManagerList');
   if (!box) return;
-  box.innerHTML = data.labels.length ? data.labels.map(label => `<div class="label-manager-row"><span class="label-name">🏷️ ${esc(label)}</span><span style="font-size:11px;color:var(--fg2);white-space:nowrap">${labelArtistCount(label)} 人 · ${labelArtistStringCount(label)} 串</span><button class="btn-ghost btn-sm" data-action="renameLabel" data-label="${esc(label)}">改名</button><button class="btn-red btn-sm" data-action="deleteLabel" data-label="${esc(label)}">删除</button></div>`).join('') : '<p style="font-size:13px;color:var(--fg2);padding:10px 0">还没有分类标签，先在上面新建一个吧。</p>';
+  box.innerHTML = data.labels.length ? data.labels.map(label => `<div class="label-manager-row"><span class="label-name">🏷️ ${esc(label)}</span><span style="font-size:11px;color:var(--fg2);white-space:nowrap">${labelArtistCount(label)} 位画师 · ${labelArtistStringCount(label)} 条画师串</span><button class="btn-ghost btn-sm" data-action="renameLabel" data-label="${esc(label)}">重命名</button><button class="btn-red btn-sm" data-action="deleteLabel" data-label="${esc(label)}">删除</button></div>`).join('') : '<p style="font-size:13px;color:var(--fg2);padding:10px 0">暂无分类。请在上方新建。</p>';
 }
 function renderCategoryPicker() {
   const box = document.getElementById('artistCategoryPicker');
   if (!box) return;
-  box.innerHTML = data.labels.length ? data.labels.map(label => `<button type="button" class="label-chip ${editingCategories.some(item => labelKey(item) === labelKey(label)) ? 'selected' : ''}" data-action="toggleArtistCategory" data-label="${esc(label)}">${esc(label)}</button>`).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类，可直接在下面新建。</span>';
+  box.innerHTML = data.labels.length ? data.labels.map(label => `<button type="button" class="label-chip ${editingCategories.some(item => labelKey(item) === labelKey(label)) ? 'selected' : ''}" data-action="toggleArtistCategory" data-label="${esc(label)}">${esc(label)}</button>`).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类。可以在下方新建。</span>';
 }
 /* ================= 星级（支持半星） ================= */
 // 画师总评 artist.rating 和对比记录的相似度 entry.score 是同一种分值：0–5、步长半星，0 = 未评分。
@@ -158,7 +158,7 @@ function starMeterHtml(value) {
 function starRatingHtml(value, { action, id = '', label, kind = 'artist' }) {
   const rating = normalizeRating(value);
   const text = kind === 'entry' ? scoreLabel(rating) : artistRatingLabel(rating);
-  return `<span class="star-rating" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${ratingPoints(rating)}" aria-valuetext="${esc(text)}" title="半颗星 1 分：点星星左半边是单数分，再点一次当前分数可清除；方向键每次 ±1 分" data-action="${action}" data-id="${esc(String(id))}" data-kind="${kind}" data-value="${rating}">${starIconsHtml(rating)}</span>`;
+  return `<span class="star-rating" role="slider" tabindex="0" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${ratingPoints(rating)}" aria-valuetext="${esc(text)}" title="半颗星为 1 分。点击星星评分，再次点击当前分数可清除；也可以用方向键调整。" data-action="${action}" data-id="${esc(String(id))}" data-kind="${kind}" data-value="${rating}">${starIconsHtml(rating)}</span>`;
 }
 
 // 星级加旁边那行字（画师总评 =「9/10」，相似度 = 带配色的「9/10 · 挺像～非常像」）

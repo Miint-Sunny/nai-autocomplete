@@ -220,7 +220,7 @@ test('新建仍然至少要一张图', () => {
   const local = freshBox();
   local.get('openEntryModal')();
   local.get('saveEntry')();
-  deepEqual(local.alerts, ['至少上传一张图片吧']);
+  deepEqual(local.alerts, ['请至少上传一张图片。']);
   assert.equal(local.get('data').artists[0].entries.length, 3);
 });
 
@@ -342,7 +342,43 @@ test('方向键每次半星，Delete 清除，数字键直接打分', () => {
   assert.equal(rating(), 0, '不能低于 0');
 });
 
-// ═══════════════════════ 5. 别处的星级显示 ═══════════════════════
+// ═══════════════════════ 5. 批量获取原图：中不中止看错误码，不看文案 ═══════════════════════
+
+group('批量获取原图：报错按错误码判断');
+
+// fetchPosts 换成假的，记下被调了几次；sleep 换成立即返回，免得等真实的间隔
+function batchBox(failure) {
+  const local = freshBox();
+  local.exec(`
+    data.artists.push({ id: 'a2', name: '第二位', tag: 'second_artist', rating: 0, categories: [], entries: [] });
+    sleep = async () => {};
+    var batchCalls = 0;
+    fetchPosts = async () => { batchCalls += 1; throw ${failure}; };
+  `);
+  return local;
+}
+
+test('所有通道都连不上时立即中止，不再逐位画师重试', async () => {
+  const local = batchBox("grabError(GRAB_ERROR_NETWORK, '所有通道都无法连接 Danbooru。')");
+  await local.get('startBatch')();
+  assert.equal(local.get('batchCalls'), 1, '网络整个不通，还在继续请求下一位画师');
+  assert.match(local.document.getElementById('batchProgress').textContent, /已中止批量获取/);
+});
+
+test('搜索条件超限同样中止', async () => {
+  const local = batchBox('grabError(GRAB_ERROR_LIMIT, LIMIT_ERR)');
+  await local.get('startBatch')();
+  assert.equal(local.get('batchCalls'), 1);
+});
+
+test('普通错误只记失败、继续处理下一位', async () => {
+  const local = batchBox("new Error('超限 备用通道 防火墙')"); // 旧判定会被这几个字骗到
+  await local.get('startBatch')();
+  assert.equal(local.get('batchCalls'), 2);
+  assert.match(local.document.getElementById('batchProgress').textContent, /批量获取已完成/);
+});
+
+// ═══════════════════════ 6. 别处的星级显示 ═══════════════════════
 
 group('列表和手机版也认半星');
 

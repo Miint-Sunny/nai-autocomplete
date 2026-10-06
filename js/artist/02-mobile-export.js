@@ -34,10 +34,10 @@ function mobileViewerApp() {
     const bits = [
       `${library.artists.length} 位画师`,
       `${strings.length} 条画师串`,
-      promptEntries.length ? `${promptEntries.length} 条词库` : '',
+      promptEntries.length ? `${promptEntries.length} 个词库条目` : '',
       `${Array.isArray(library.labels) ? library.labels.length : 0} 个分类`,
     ].filter(Boolean).join(' · ');
-    document.getElementById('mobileSubtitle').textContent = `${pageName ? `${pageName} · ` : ''}${bits}${date ? ` · ${date} 导出` : ''}`;
+    document.getElementById('mobileSubtitle').textContent = `${pageName ? `${pageName} · ` : ''}${bits}${date ? ` · 导出于 ${date}` : ''}`;
   }
   function switchPage(id) {
     const page = pages.find(item => item.id === id);
@@ -102,7 +102,7 @@ function mobileViewerApp() {
     labels.innerHTML = all.length ? all.map(label => {
       const count = library.artists.filter(artist => label === '__uncategorized__' ? !categories(artist).length : categories(artist).some(item => normalize(item) === normalize(label))).length;
       return `<button class="filter-chip${selected.has(label) ? ' active' : ''}" data-action="filter-label" data-label="${escapeHtml(label)}">${escapeHtml(label === '__uncategorized__' ? '未分类' : label)} <span>${count}</span></button>`;
-    }).join('') : '<span class="muted">还没有分类标签</span>';
+    }).join('') : '<span class="muted">暂无分类</span>';
   }
   function renderList() {
     const artists = filteredArtists();
@@ -111,8 +111,8 @@ function mobileViewerApp() {
       const picture = thumbnail(artist);
       const image = picture ? `<img src="${escapeHtml(picture)}" loading="lazy" alt="">` : `<span class="thumb-placeholder">${escapeHtml(Array.from(String(artist.name || artist.tag || '?'))[0])}</span>`;
       const chips = categories(artist).map(label => `<span class="artist-chip">${escapeHtml(label)}</span>`).join('');
-      return `<button class="artist-card" data-action="open-artist" data-id="${escapeHtml(artist.id)}"><span class="artist-thumb">${image}</span><span class="artist-info"><strong>${escapeHtml(artist.name || artist.tag || '未命名画师')}</strong><span class="artist-tag">${escapeHtml(artist.tag || '')}</span><span class="artist-stars">${stars(artist)}</span><span class="artist-chips">${chips}</span><span class="entry-count">${Array.isArray(artist.entries) ? artist.entries.length : 0} 条作品记录</span></span></button>`;
-    }).join('') : '<div class="empty">没有符合条件的画师，试试更换搜索词或筛选条件。</div>';
+      return `<button class="artist-card" data-action="open-artist" data-id="${escapeHtml(artist.id)}"><span class="artist-thumb">${image}</span><span class="artist-info"><strong>${escapeHtml(artist.name || artist.tag || '未命名画师')}</strong><span class="artist-tag">${escapeHtml(artist.tag || '')}</span><span class="artist-stars">${stars(artist)}</span><span class="artist-chips">${chips}</span><span class="entry-count">${Array.isArray(artist.entries) ? artist.entries.length : 0} 条对比记录</span></span></button>`;
+    }).join('') : '<div class="empty">没有符合条件的画师。请更换搜索词或筛选条件。</div>';
   }
   function renderArtistStrings() {
     const query = normalize(stringSearch.value);
@@ -125,8 +125,8 @@ function mobileViewerApp() {
     }).sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0));
     document.getElementById('mobileStringSummary').textContent = `显示 ${records.length} / ${strings.length} 条画师串`;
     stringList.innerHTML = records.length ? records.map(record => {
-      const image = record.originalImage ? `<img src="${escapeHtml(record.originalImage)}" alt="${escapeHtml(record.title || '')}" loading="lazy" data-action="zoom-image">` : '<div class="mix-no-image">暂无原图</div>';
-      const metadata = record.metadata?.hasMetadata ? [record.metadata.model, record.metadata.seed != null ? `Seed ${record.metadata.seed}` : '', record.metadata.width && record.metadata.height ? `${record.metadata.width} × ${record.metadata.height}` : ''].filter(Boolean).join(' · ') || '保留 NAI 原始生成信息' : record.originalImage ? '原图已按原始字节保存' : '';
+      const image = record.originalImage ? `<img src="${escapeHtml(record.originalImage)}" alt="${escapeHtml(record.title || '')}" loading="lazy" data-action="zoom-image">` : '<div class="mix-no-image">未关联原图</div>';
+      const metadata = record.metadata?.hasMetadata ? [record.metadata.model, record.metadata.seed != null ? `Seed ${record.metadata.seed}` : '', record.metadata.width && record.metadata.height ? `${record.metadata.width} × ${record.metadata.height}` : ''].filter(Boolean).join(' · ') || '包含 NovelAI 生成信息' : record.originalImage ? '原图按原始文件保存' : '';
       const chips = (Array.isArray(record.categories) ? record.categories : []).map(label => `<span class="artist-chip">${escapeHtml(label)}</span>`).join('');
       return `<article class="mix-card"><div class="mix-image">${image}</div><div class="mix-content"><h3>${escapeHtml(record.title || '未命名画师串')}</h3><div class="mix-labels">${chips || '<span class="muted">未分类</span>'}</div><pre>${escapeHtml(record.artistString || '')}</pre>${record.notes ? `<p class="mix-notes">${escapeHtml(record.notes)}</p>` : ''}${metadata ? `<p class="mix-meta">${escapeHtml(metadata)}</p>` : ''}<div class="mix-actions"><button data-action="copy-text" data-copy="${escapeHtml(record.artistString || '')}">📋 复制画师串</button>${record.originalImage ? `<button data-action="download-string-image" data-id="${escapeHtml(record.id)}">⬇ 下载原图</button>` : ''}</div></div></article>`;
     }).join('') : '<div class="empty">没有找到符合条件的画师串。</div>';
@@ -137,7 +137,7 @@ function mobileViewerApp() {
     stringLabels.innerHTML = all.length ? all.map(label => {
       const count = strings.filter(record => label === '__uncategorized__' ? !(record.categories || []).length : (record.categories || []).some(category => normalize(category) === normalize(label))).length;
       return `<button class="filter-chip${selectedStringLabels.has(label) ? ' active' : ''}" data-action="filter-string-label" data-label="${escapeHtml(label)}">${escapeHtml(label === '__uncategorized__' ? '未分类' : label)} <span>${count}</span></button>`;
-    }).join('') : '<span class="muted">还没有画师串分类</span>';
+    }).join('') : '<span class="muted">暂无分类</span>';
   }
   // 三个模式了，别再用一个布尔量分叉
   const MODES = {
@@ -168,8 +168,8 @@ function mobileViewerApp() {
 
     if (promptSummary) {
       promptSummary.textContent = promptEntries.length
-        ? `${rows.length} / ${promptEntries.length} 条词库`
-        : '这份导出里没有词库条目';
+        ? `${rows.length} / ${promptEntries.length} 个词库条目`
+        : '导出文件中没有词库条目';
     }
 
     promptList.innerHTML = rows.length ? rows.map(entry => {
@@ -183,22 +183,22 @@ function mobileViewerApp() {
         + `<button data-action="copy-text" data-copy="${escapeHtml(text)}">复制提示词</button>`
         + `<button data-action="copy-text" data-copy="${escapeHtml(entry.alias)}">复制别名</button>`
         + `</div></div></article>`;
-    }).join('') : '<div class="empty">没有匹配的词库条目。</div>';
+    }).join('') : '<div class="empty">没有符合条件的词库条目。</div>';
   }
   function imageBlock(src, title) {
-    return `<div class="image-column"><span>${escapeHtml(title)}</span>${src ? `<img data-action="zoom-image" src="${escapeHtml(src)}" alt="${escapeHtml(title)}" loading="lazy">` : '<div class="image-empty">暂无图片</div>'}</div>`;
+    return `<div class="image-column"><span>${escapeHtml(title)}</span>${src ? `<img data-action="zoom-image" src="${escapeHtml(src)}" alt="${escapeHtml(title)}" loading="lazy">` : '<div class="image-empty">未上传</div>'}</div>`;
   }
   function renderDetail(artist) {
     if (!artist) return;
     const chips = categories(artist).map(label => `<span class="artist-chip">${escapeHtml(label)}</span>`).join('');
     const entries = (Array.isArray(artist.entries) ? artist.entries : []).slice().reverse().map((entry, index) => {
       const prompt = entry.prompt ? `<div class="record-text"><span>提示词</span><p>${escapeHtml(entry.prompt)}</p><button data-action="copy-text" data-copy="${escapeHtml(entry.prompt)}">复制提示词</button></div>` : '';
-      const comment = entry.comment ? `<div class="record-text"><span>备注 / 原帖标签</span><p>${escapeHtml(entry.comment)}</p></div>` : '';
+      const comment = entry.comment ? `<div class="record-text"><span>备注</span><p>${escapeHtml(entry.comment)}</p></div>` : '';
       const postId = Number(entry.sourcePostId);
-      const source = Number.isSafeInteger(postId) && postId > 0 ? `<a class="source-link" href="https://danbooru.donmai.us/posts/${postId}" target="_blank" rel="noreferrer">打开 D 站原帖 ↗</a>` : '';
-      return `<section class="record"><div class="record-heading"><strong>作品 ${index + 1}</strong><span>${halfStars(entry.score) ? `相似度 ${halfStars(entry.score) * 2}/10` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
+      const source = Number.isSafeInteger(postId) && postId > 0 ? `<a class="source-link" href="https://danbooru.donmai.us/posts/${postId}" target="_blank" rel="noreferrer">在 Danbooru 打开原帖 ↗</a>` : '';
+      return `<section class="record"><div class="record-heading"><strong>记录 ${index + 1}</strong><span>${halfStars(entry.score) ? `相似度 ${halfStars(entry.score) * 2}/10` : '未评分'}</span></div><div class="image-grid">${imageBlock(entry.originalImg, '画师原图')}${imageBlock(entry.naiImg, 'NAI 生成图')}</div>${prompt}${comment}${source}</section>`;
     }).join('');
-    detail.innerHTML = `<div class="detail-sheet"><header class="detail-top"><button data-action="close-detail" aria-label="返回">‹ 返回</button><span>画师详情</span></header><section class="profile"><h2>${escapeHtml(artist.name || artist.tag || '未命名画师')}</h2><div class="profile-stars">${stars(artist)}</div><div class="artist-chips">${chips || '<span class="muted">未分类</span>'}</div><div class="tag-box"><code>${escapeHtml(artist.tag || '未填写 NAI tag')}</code>${artist.tag ? `<button data-action="copy-text" data-copy="${escapeHtml(artist.tag)}">复制 tag</button>` : ''}</div>${artist.notes ? `<div class="artist-notes">${escapeHtml(artist.notes)}</div>` : ''}</section><div class="records-title">作品记录 · ${Array.isArray(artist.entries) ? artist.entries.length : 0}</div>${entries || '<div class="empty">这位画师还没有作品记录。</div>'}</div>`;
+    detail.innerHTML = `<div class="detail-sheet"><header class="detail-top"><button data-action="close-detail" aria-label="返回">‹ 返回</button><span>画师详情</span></header><section class="profile"><h2>${escapeHtml(artist.name || artist.tag || '未命名画师')}</h2><div class="profile-stars">${stars(artist)}</div><div class="artist-chips">${chips || '<span class="muted">未分类</span>'}</div><div class="tag-box"><code>${escapeHtml(artist.tag || '未填写 tag')}</code>${artist.tag ? `<button data-action="copy-text" data-copy="${escapeHtml(artist.tag)}">复制 tag</button>` : ''}</div>${artist.notes ? `<div class="artist-notes">${escapeHtml(artist.notes)}</div>` : ''}</section><div class="records-title">对比记录 · ${Array.isArray(artist.entries) ? artist.entries.length : 0}</div>${entries || '<div class="empty">这位画师暂无对比记录。</div>'}</div>`;
     detail.classList.add('show');
     document.body.style.overflow = 'hidden';
   }
@@ -211,7 +211,7 @@ function mobileViewerApp() {
   function copy(value) {
     if (!value) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(value).then(() => notify('已复制 ✓')).catch(() => fallbackCopy(value));
+      navigator.clipboard.writeText(value).then(() => notify('已复制')).catch(() => fallbackCopy(value));
     } else fallbackCopy(value);
   }
   function fallbackCopy(value) {
@@ -221,8 +221,8 @@ function mobileViewerApp() {
     field.style.opacity = '0';
     document.body.appendChild(field);
     field.select();
-    try { notify(document.execCommand('copy') ? '已复制 ✓' : '复制失败，请长按选择文字'); }
-    catch (_) { notify('复制失败，请长按选择文字'); }
+    try { notify(document.execCommand('copy') ? '已复制' : '无法复制，请长按文字手动复制'); }
+    catch (_) { notify('无法复制，请长按文字手动复制'); }
     field.remove();
   }
 
@@ -254,7 +254,7 @@ function mobileViewerApp() {
         anchor.href = record.originalImage;
         anchor.download = record.originalImageName || 'nai-original.png';
         anchor.click();
-        notify('原始图片已下载 ✓');
+        notify('已下载原图');
         break;
       }
       case 'zoom-image': document.getElementById('mobileZoomImage').src = item.src; lightbox.classList.add('show'); break;
@@ -427,19 +427,19 @@ button,select,input{font:inherit}button{cursor:pointer}
 </style>
 </head>
 <body>
-<header class="masthead"><h1>🎨 NAI 画师记录本</h1><p id="mobileSubtitle">离线手机版</p><select id="mobilePageSelect" style="width:100%;height:40px;margin-top:12px;padding:0 10px;border:1px solid #414761;border-radius:10px;background:#202333;color:#dbe0f4;font-size:13px" aria-label="切换画师库页面"></select></header>
+<header class="masthead"><h1>🎨 NAI 画师记录本</h1><p id="mobileSubtitle">离线手机版</p><select id="mobilePageSelect" style="width:100%;height:40px;margin-top:12px;padding:0 10px;border:1px solid #414761;border-radius:10px;background:#202333;color:#dbe0f4;font-size:13px" aria-label="切换画师库"></select></header>
 <nav class="mode-tabs"><button id="mobileArtistTab" class="active" data-action="switch-mode" data-mode="artists">🎨 画师</button><button id="mobileStringTab" data-action="switch-mode" data-mode="strings">🧬 画师串</button><button id="mobilePromptTab" data-action="switch-mode" data-mode="prompts">📝 词库</button></nav>
 <section class="filters" id="mobileFilters">
-  <input class="search" id="mobileSearch" type="search" placeholder="🔍 搜索画师、NAI tag、分类或笔记">
+  <input class="search" id="mobileSearch" type="search" placeholder="🔍 搜索画师、tag、分类或笔记">
   <div class="filter-labels" id="mobileLabels"></div>
   <div class="select-row">
-    <select id="mobileMatch"><option value="any">任一分类标签</option><option value="all">全部分类标签</option></select>
+    <select id="mobileMatch"><option value="any">符合任一分类</option><option value="all">符合全部分类</option></select>
     <select id="mobileRating"><option value="">全部评分</option><option value="5">10 分</option><option value="4">8～9 分</option><option value="3">6～7 分</option><option value="2">4～5 分</option><option value="1">1～3 分</option><option value="4+">8 分及以上</option><option value="3+">6 分及以上</option><option value="0">未评分</option></select>
   </div>
   <div class="summary-row"><span id="mobileSummary"></span><button class="clear-button" data-action="clear-filters">清除筛选</button></div>
 </section>
 <main class="artist-list" id="mobileList"></main>
-<section class="mix-panel" id="mobileStringsPanel" style="display:none"><input class="search" id="mobileStringSearch" type="search" placeholder="🔍 搜索画师串、分类、标题或备注"><div class="filter-labels" id="mobileStringLabels"></div><div class="mix-filter-row"><select id="mobileStringMatch"><option value="any">任一分类标签</option><option value="all">全部分类标签</option></select><button class="clear-button" data-action="clear-string-filters">清除筛选</button></div><div class="mix-summary" id="mobileStringSummary"></div><div class="mix-list" id="mobileStringList"></div></section>
+<section class="mix-panel" id="mobileStringsPanel" style="display:none"><input class="search" id="mobileStringSearch" type="search" placeholder="🔍 搜索画师串、分类、标题或备注"><div class="filter-labels" id="mobileStringLabels"></div><div class="mix-filter-row"><select id="mobileStringMatch"><option value="any">符合任一分类</option><option value="all">符合全部分类</option></select><button class="clear-button" data-action="clear-string-filters">清除筛选</button></div><div class="mix-summary" id="mobileStringSummary"></div><div class="mix-list" id="mobileStringList"></div></section>
 <section class="mix-panel" id="mobilePromptPanel" style="display:none"><input class="search" id="mobilePromptSearch" type="search" placeholder="🔍 搜索别名、名称或 tag"><div class="mix-summary" id="mobilePromptSummary"></div><div class="mix-list" id="mobilePromptList"></div></section>
 <div class="detail-overlay" id="mobileDetail"></div>
 <div class="lightbox" id="mobileLightbox" data-action="close-lightbox"><img id="mobileZoomImage" alt="作品大图"></div>

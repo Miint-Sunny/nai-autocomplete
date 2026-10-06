@@ -7,7 +7,7 @@ let selectedArtistStringLabels = [];
 function parseArtistStringPngChunks(buffer) {
   const bytes = new Uint8Array(buffer);
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (bytes.length < signature.length || signature.some((value, index) => bytes[index] !== value)) throw new Error('不是有效的 PNG 原图');
+  if (bytes.length < signature.length || signature.some((value, index) => bytes[index] !== value)) throw new Error('文件不是有效的 PNG 图片');
   const view = new DataView(buffer);
   const decoder = new TextDecoder();
   const chunks = [];
@@ -74,11 +74,11 @@ function extractArtistStringImageMetadata(buffer) {
 }
 
 function readArtistStringImage(file) {
-  if (!file) return Promise.reject(new Error('没有选择图片'));
+  if (!file) return Promise.reject(new Error('未选择图片'));
   const imagePromise = new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = event => resolve(String(event.target.result || ''));
-    reader.onerror = () => reject(new Error('读取原图失败'));
+    reader.onerror = () => reject(new Error('浏览器无法读取该文件'));
     reader.readAsDataURL(file);
   });
   return Promise.all([file.arrayBuffer(), imagePromise]).then(([buffer, image]) => {
@@ -93,8 +93,8 @@ function readArtistStringImage(file) {
 }
 
 function artistStringMetadataSummary(metadata) {
-  if (!metadata?.hasMetadata) return '未检测到 NAI 参数；原图仍按原始字节保存';
-  return [metadata.model, metadata.seed != null ? `Seed ${metadata.seed}` : '', metadata.width && metadata.height ? `${metadata.width} × ${metadata.height}` : '', metadata.steps ? `${metadata.steps} Steps` : '', metadata.scale ? `CFG ${metadata.scale}` : '', metadata.characters ? `${metadata.characters} 位角色` : ''].filter(Boolean).join(' · ') || '已读取 NAI 原图信息';
+  if (!metadata?.hasMetadata) return '未检测到 NovelAI 生成信息，原图仍按原始文件保存';
+  return [metadata.model, metadata.seed != null ? `Seed ${metadata.seed}` : '', metadata.width && metadata.height ? `${metadata.width} × ${metadata.height}` : '', metadata.steps ? `${metadata.steps} Steps` : '', metadata.scale ? `CFG ${metadata.scale}` : '', metadata.characters ? `${metadata.characters} 个角色` : ''].filter(Boolean).join(' · ') || '已读取 NovelAI 生成信息';
 }
 
 function renderArtistStringImagePreview() {
@@ -102,14 +102,14 @@ function renderArtistStringImagePreview() {
   const summary = document.getElementById('stringImageMetadata');
   const promptBox = document.getElementById('stringImagePrompt');
   if (!pendingArtistStringImage?.image) {
-    preview.innerHTML = '<span class="string-image-placeholder">＋ 选择带生成信息的 NAI 原始 PNG</span>';
-    summary.textContent = '原图会无损保存，下载后可以继续在 NovelAI 中读取参数。';
+    preview.innerHTML = '<span class="string-image-placeholder">＋ 选择 NovelAI 生成的 PNG 原图</span>';
+    summary.textContent = '原图按原始文件保存，下载后仍可在 NovelAI 中读取生成信息。';
     promptBox.innerHTML = '';
     return;
   }
   preview.innerHTML = `<img src="${esc(pendingArtistStringImage.image)}" alt="原图预览"><span class="string-file-name">${esc(pendingArtistStringImage.imageName)}</span>`;
   summary.textContent = artistStringMetadataSummary(pendingArtistStringImage.metadata);
-  promptBox.innerHTML = pendingArtistStringImage.metadata?.prompt ? `<details><summary>查看从原图读取的完整 Prompt</summary><pre>${esc(pendingArtistStringImage.metadata.prompt)}</pre><button type="button" class="btn-ghost btn-sm" data-action="useImagePrompt">填入画师串输入框</button></details>` : '';
+  promptBox.innerHTML = pendingArtistStringImage.metadata?.prompt ? `<details><summary>查看原图中的完整提示词</summary><pre>${esc(pendingArtistStringImage.metadata.prompt)}</pre><button type="button" class="btn-ghost btn-sm" data-action="useImagePrompt">填入画师串</button></details>` : '';
 }
 
 function openArtistStrings() {
@@ -135,13 +135,13 @@ function renderArtistStringLabelFilters() {
   box.innerHTML = labels.length ? labels.map(label => {
     const active = selectedArtistStringLabels.some(item => labelKey(item) === labelKey(label));
     return `<button type="button" class="label-chip ${active ? 'selected' : ''}" data-action="toggleArtistStringFilter" data-label="${esc(label)}">${esc(label === '__uncategorized__' ? '未分类' : label)} <span class="count">${labelArtistStringCount(label)}</span></button>`;
-  }).join('') : '<span style="font-size:12px;color:var(--fg2)">还没有分类，可以在新建画师串时直接添加。</span>';
+  }).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类。可以在新建画师串时添加。</span>';
 }
 
 function renderArtistStringCategoryPicker() {
   const box = document.getElementById('artistStringCategoryPicker');
   if (!box) return;
-  box.innerHTML = data.labels.length ? data.labels.map(label => `<button type="button" class="label-chip ${editingArtistStringCategories.some(item => labelKey(item) === labelKey(label)) ? 'selected' : ''}" data-action="toggleArtistStringCategory" data-label="${esc(label)}">${esc(label)}</button>`).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类，可直接在下面新建。</span>';
+  box.innerHTML = data.labels.length ? data.labels.map(label => `<button type="button" class="label-chip ${editingArtistStringCategories.some(item => labelKey(item) === labelKey(label)) ? 'selected' : ''}" data-action="toggleArtistStringCategory" data-label="${esc(label)}">${esc(label)}</button>`).join('') : '<span style="font-size:12px;color:var(--fg2)">暂无分类。可以在下方新建。</span>';
 }
 
 function filteredArtistStrings() {
@@ -160,14 +160,14 @@ function renderArtistStrings() {
   const box = document.getElementById('artistStringList');
   if (!box) return;
   const records = filteredArtistStrings();
-  document.getElementById('artistStringCount').textContent = `${records.length} / ${data.artistStrings.length} 条收藏`;
+  document.getElementById('artistStringCount').textContent = `${records.length} / ${data.artistStrings.length} 条画师串`;
   box.innerHTML = records.length ? records.map(record => {
-    const image = record.originalImage ? `<img src="${esc(record.originalImage)}" alt="${esc(record.title)}" loading="lazy" data-action="zoom">` : '<div class="string-image-empty">暂无关联原图</div>';
+    const image = record.originalImage ? `<img src="${esc(record.originalImage)}" alt="${esc(record.title)}" loading="lazy" data-action="zoom">` : '<div class="string-image-empty">未关联原图</div>';
     const metadata = record.originalImage ? `<p class="string-metadata">${esc(artistStringMetadataSummary(record.metadata))}</p>` : '';
     const notes = record.notes ? `<p class="string-notes">${esc(record.notes)}</p>` : '';
     const chips = (record.categories || []).length ? `<div class="string-card-labels">${record.categories.map(label => `<span class="artist-label-mini">${esc(label)}</span>`).join('')}</div>` : '<div class="string-card-labels"><span class="string-uncategorized">未分类</span></div>';
-    return `<article class="string-card"><div class="string-card-image">${image}</div><div class="string-card-info"><h4>${esc(record.title || '未命名画师串')}</h4>${chips}<pre class="string-prompt">${esc(record.artistString)}</pre>${notes}${metadata}<div class="string-actions"><button class="btn-primary btn-sm" data-action="copyArtistString" data-id="${esc(record.id)}">📋 复制画师串</button>${record.originalImage ? `<button class="btn-blue btn-sm" data-action="downloadArtistStringImage" data-id="${esc(record.id)}">⬇ 下载原始图片</button>` : ''}<button class="btn-ghost btn-sm" data-action="editArtistString" data-id="${esc(record.id)}">🏷️ 移动 / 编辑</button><button class="btn-red btn-sm" data-action="deleteArtistString" data-id="${esc(record.id)}">删除</button></div></div></article>`;
-  }).join('') : `<div class="string-empty">${data.artistStrings.length ? '没有找到符合条件的画师串。' : '还没有保存画师串，点击右上角「＋ 新建画师串」。'}</div>`;
+    return `<article class="string-card"><div class="string-card-image">${image}</div><div class="string-card-info"><h4>${esc(record.title || '未命名画师串')}</h4>${chips}<pre class="string-prompt">${esc(record.artistString)}</pre>${notes}${metadata}<div class="string-actions"><button class="btn-primary btn-sm" data-action="copyArtistString" data-id="${esc(record.id)}">📋 复制画师串</button>${record.originalImage ? `<button class="btn-blue btn-sm" data-action="downloadArtistStringImage" data-id="${esc(record.id)}">⬇ 下载原图</button>` : ''}<button class="btn-ghost btn-sm" data-action="editArtistString" data-id="${esc(record.id)}">✏️ 编辑</button><button class="btn-red btn-sm" data-action="deleteArtistString" data-id="${esc(record.id)}">删除</button></div></div></article>`;
+  }).join('') : `<div class="string-empty">${data.artistStrings.length ? '没有找到符合条件的画师串。' : '暂无画师串。点击右上角的「新建画师串」添加。'}</div>`;
 }
 
 function openArtistStringEditor(id) {
@@ -175,7 +175,7 @@ function openArtistStringEditor(id) {
   editingArtistStringId = current?.id || null;
   editingArtistStringCategories = uniqueLabels(current?.categories || selectedArtistStringLabels.filter(label => label !== '__uncategorized__'));
   pendingArtistStringImage = current?.originalImage ? { image: current.originalImage, imageName: current.originalImageName || 'nai-original.png', imageType: current.originalImageType || 'image/png', imageBytes: current.originalImageBytes || 0, metadata: current.metadata || { hasMetadata: false, prompt: '' } } : null;
-  document.getElementById('stringEditorTitle').textContent = current ? '编辑画师串' : '新建画师串收藏';
+  document.getElementById('stringEditorTitle').textContent = current ? '编辑画师串' : '新建画师串';
   document.getElementById('stringTitle').value = current?.title || '';
   document.getElementById('stringPrompt').value = current?.artistString || '';
   document.getElementById('stringNotes').value = current?.notes || '';
@@ -187,7 +187,7 @@ function openArtistStringEditor(id) {
 
 function saveArtistString() {
   const artistString = String(document.getElementById('stringPrompt').value || '').trim();
-  if (!artistString) { toast('请先填写要保存的画师串'); return false; }
+  if (!artistString) { toast('请填写画师串'); return false; }
   const title = String(document.getElementById('stringTitle').value || '').trim() || `画师串 ${data.artistStrings.length + 1}`;
   const notes = String(document.getElementById('stringNotes').value || '').trim();
   const existing = editingArtistStringId ? data.artistStrings.find(record => record.id === editingArtistStringId) : null;
@@ -207,30 +207,30 @@ function saveArtistString() {
   renderArtistStringLabelFilters();
   renderArtistStrings();
   closeModal('artistStringEditorModal');
-  toast(existing ? '画师串已更新 ✓' : '画师串和无损原图已保存 ✓');
+  toast(existing ? '已更新画师串' : '已保存画师串');
   return true;
 }
 
 function deleteArtistString(id) {
   const record = data.artistStrings.find(item => item.id === id);
-  if (!record || !confirm(`确定删除画师串「${record.title}」及其关联原图吗？`)) return false;
+  if (!record || !confirm(`删除画师串「${record.title}」？关联的原图会一起删除，此操作无法撤销。`)) return false;
   data.artistStrings = data.artistStrings.filter(item => item.id !== id);
   save();
   renderLabelManager();
   renderArtistStringLabelFilters();
   renderArtistStrings();
-  toast('画师串已删除');
+  toast('已删除画师串');
   return true;
 }
 
 function downloadArtistStringImage(id) {
   const record = data.artistStrings.find(item => item.id === id);
-  if (!record?.originalImage) { toast('这条画师串还没有关联原图'); return false; }
+  if (!record?.originalImage) { toast('这条画师串未关联原图'); return false; }
   const anchor = document.createElement('a');
   anchor.href = record.originalImage;
   anchor.download = record.originalImageName || `${String(record.title || 'nai-original').replace(/[\\/:*?"<>|]/g, '_')}.png`;
   anchor.click();
-  toast('原始图片已下载，可直接拖入 NAI 读取 ✓');
+  toast('已下载原图，可直接拖入 NovelAI 读取生成信息');
   return true;
 }
 
@@ -251,10 +251,10 @@ function createArtistStringsBackupPayload() {
 }
 
 function exportArtistStrings() {
-  if (!data.artistStrings.length) { toast('当前页面还没有画师串可以导出'); return false; }
+  if (!data.artistStrings.length) { toast('当前画师库中没有可导出的画师串'); return false; }
   const payload = createArtistStringsBackupPayload();
-  downloadBackupFile(JSON.stringify(payload), 'application/json', 'NAI画师串单独备份', 'json');
-  toast(`已导出 ${payload.artistStrings.length} 条画师串，包含分类和无损原图 ✓`);
+  downloadBackupFile(JSON.stringify(payload), 'application/json', 'NAI画师串备份', 'json');
+  toast(`已导出 ${payload.artistStrings.length} 条画师串（含分类和原图）`);
   return true;
 }
 
@@ -262,7 +262,7 @@ function parseImportedArtistStrings(content) {
   const parsed = JSON.parse(String(content || '').trim());
   if (Array.isArray(parsed)) return { labels: [], artistStrings: parsed };
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.artistStrings)) {
-    throw new Error('文件中没有画师串数据，请选择画师串备份或完整备份 JSON');
+    throw new Error('文件中没有画师串数据。请选择画师串备份或完整备份的 JSON 文件。');
   }
   return parsed;
 }
@@ -292,8 +292,8 @@ function importArtistStrings(input) {
   reader.onload = event => {
     try {
       const result = applyImportedArtistStrings(parseImportedArtistStrings(event.target.result));
-      toast(`已导入 ${result.added} 条画师串，跳过 ${result.skipped} 条重复 ✓`);
-    } catch (error) { alert('画师串导入失败：' + error.message); }
+      toast(`已导入 ${result.added} 条画师串，跳过 ${result.skipped} 条重复`);
+    } catch (error) { alert('无法导入画师串：' + error.message); }
   };
   reader.readAsText(file);
   input.value = '';

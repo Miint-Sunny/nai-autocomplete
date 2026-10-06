@@ -9,6 +9,7 @@ Claude Code 读的是这个文件（不是 `AGENTS.md`）。动手前先按需�
 | 文档 | 什么时候必须读 |
 |---|---|
 | [STYLE.md](./STYLE.md) | 改任何样式之前。两套 token 体系、圆角规则、玻璃系统、控件规格，以及反复踩到的坑 |
+| [COPY.md](./COPY.md) | 改任何界面文字之前。写法规则（按钮、提示、报错怎么写）和统一术语表 |
 | [LLM.md](./LLM.md) | 改 LLM 链路之前。分层、错误分类表、重试策略、各家服务商的坑 |
 | [AGENT.md](./AGENT.md) | 改提示词 Agent 或 skill 机制之前 |
 | [FLOW.md](./FLOW.md) | 改 TAG 流编辑器之前。NAI 三层结构、两层分类、覆盖层 |
