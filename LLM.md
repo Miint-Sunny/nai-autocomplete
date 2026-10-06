@@ -77,7 +77,7 @@ NAI 生成的图把提示词写在自己身上，两个位置：
 - **`aborted` 是唯一不切备用的**。切了的话「取消」在用户眼里就变成了「又跑了一轮」。
 - **`config` 重试无用但要切备用**。主模型没填 Key 恰恰是最该走备用的场景。
 
-`empty` 的文案按 `finish_reason` 分岔：`length` 直接说「撞到 max_tokens，思考过程也算在这个额度里」，比笼统的「模型返回空」有用得多。
+`empty` 的文案按 `finish_reason` 分岔：`length` 直接说「模型在输出正文前就达到了 Max Tokens 上限」，并提示思考过程也占这个额度，比笼统的「模型返回空」有用得多。
 
 **正文非空但被砍断的那种不会走到这里** —— 它是一次「成功」的返回，只是提示词写了一半。
 所以 `runPromptAgent` 会把 `finishReason` 透成 `truncated` 给面板，由面板提醒一句；
@@ -235,7 +235,7 @@ node scripts/test-llm.mjs
 不是合法 URL。
 
 自建网关可能就认某个怪路径（`/v1/proxy` 会被当成 base 补上 `/chat/completions`），所以有开关：
-**设置 → LLM 服务 → 「Endpoint 只填到 base URL 就行」**，默认开，关掉就填什么发什么。
+**设置 → 模型服务 → 「自动补全 API 路径」**，默认开，关掉就填什么发什么。
 
 补出来的地址**会显示在 Endpoint 下方**（和错配警告同一行，提示态用 `ink-muted` 不用 error 色）——
 背着用户改地址而不摆出来，就成了黑箱。

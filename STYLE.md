@@ -128,7 +128,7 @@ node scripts/check-theme-tokens.mjs
 
 | 结构 | class | 用途 | 长相 |
 |---|---|---|---|
-| 可切换 | `.nai-ac-chip[aria-pressed]` | `_ ⇄ 空格` / `TAG 下划线` / `artist:` | 未按下＝描边胶囊；按下＝整颗 `--nai-md3-primary-fill`，同 `.nai-md3-tabs button.active` |
+| 可切换 | `.nai-ac-chip[aria-pressed]` | `_ ⇄ 空格` / `tag 下划线` / `artist:` | 未按下＝描边胶囊；按下＝整颗 `--nai-md3-primary-fill`，同 `.nai-md3-tabs button.active` |
 | 分段控件 | `.nai-ac-stepper` | 权重加减 | 一颗胶囊三段，不是三个独立块 |
 | 纯信息 | `.nai-autocomplete-count` | post 数 | 不给填充不给描边，`ink-muted` + 等宽数字 |
 

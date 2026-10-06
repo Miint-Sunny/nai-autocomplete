@@ -125,7 +125,7 @@ V5 提示词一半是自然语言，认错了整个流就散架。口径：≥6 
 
 「查不到」画**虚线**不是随手选的：`--nai-category-artist` 现在是红色（danbooru 自己就这么分类），和「查不到」的红只靠颜色分不开，得靠实线 / 虚线。所以这条线用 `border-bottom` 而不是 `box-shadow` —— 后者画不了虚线；`box-sizing` 必须跟着改成 `border-box`，不然这条边会把矩形撑高 2px。
 
-这层装饰可以整个关掉 —— 补全弹窗头部的「TAG 下划线」，存在 `localStorage['nai-ac-settings'].highlightTags`，**默认关**。**关掉的只有下划线**：词库的保存 / 取消区块 / 锁定按钮和拖拽热区照常，那是功能不是装饰。
+这层装饰可以整个关掉 —— 补全弹窗头部的「tag 下划线」，存在 `localStorage['nai-ac-settings'].highlightTags`，**默认关**。**关掉的只有下划线**：词库的保存 / 取消区块 / 锁定按钮和拖拽热区照常，那是功能不是装饰。
 
 hover 显示中文与 post 量，按住 Alt 每个 tag 都能拖着换位置（原来只有成组的能拖）。
 

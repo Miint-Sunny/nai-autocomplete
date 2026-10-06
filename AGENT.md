@@ -108,7 +108,7 @@ description: 什么时候该用这份 skill
 | 导出 | 把当前 skill 存成 .md（参考资料要单独保存） |
 | 删除 | 内置的删不掉 |
 
-导入盒子和「设置 → 提示词 → 导入酒馆预设」是**同一个组件**（[js/assistant/22-import-box.js](./js/assistant/22-import-box.js)），
+导入盒子和「设置 → 提示词 → 导入 SillyTavern 预设」是**同一个组件**（[js/assistant/22-import-box.js](./js/assistant/22-import-box.js)），
 两处的结构、样式、交互一模一样，只有「接受什么格式」「怎么解析」两处不同。
 
 多选进来的文件在文本域里用 `<!-- nai-file: 名字 -->` 分隔：带 frontmatter `name:` 的那份当正文，
@@ -146,7 +146,7 @@ V4.5 那份是纯 tag 路线的能力边界：tag 先查证再用、角色栏上
 3. `17-agent-skill-builtin.js` 是不动的（见 [CLAUDE.md](./CLAUDE.md)）
 
 冲突时以这段为准：skill 管写作风格，这段管模型的能力边界。出了新版本模型它就会过时，
-所以设置的「发送与输出」里留了开关（「给写词附带目标版本的规则核对」），默认开。
+所以设置的「发送与输出」里留了开关（「写词时附加对应版本的官方规则」），默认开。
 内置 skill 是按 V5 写的；选 V4.5 档时规则核对会把输出拉回 tag 路线，
 但更对路的做法是导入一份按 V4 时代写的 skill。
 
